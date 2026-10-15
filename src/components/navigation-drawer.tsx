@@ -9,12 +9,14 @@ import {
   View,
 } from "react-native";
 import { BlurView } from "expo-blur";
+import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   FileText,
   GraduationCap,
   LayoutDashboard,
   ListChecks,
+  LogOut,
   Map,
   Settings,
   Sparkles,
@@ -23,6 +25,7 @@ import {
   Users,
   X,
 } from "lucide-react-native";
+import { signOut } from "../lib/auth";
 import { colors, ease, fonts } from "../theme/theme";
 
 const DRAWER_WIDTH = 240;
@@ -54,8 +57,15 @@ export function NavigationDrawer({
   activeLabel = "Dashboard",
 }: NavigationDrawerProps) {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const anim = useRef(new Animated.Value(0)).current;
   const [rendered, setRendered] = useState(open);
+
+  const handleLogOut = async () => {
+    onClose();
+    await signOut();
+    router.replace("/login");
+  };
 
   useEffect(() => {
     if (open) {
@@ -153,6 +163,24 @@ export function NavigationDrawer({
           );
         })}
       </ScrollView>
+
+      <View style={styles.logoutWrap}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Log out"
+          onPress={() => void handleLogOut()}
+          style={({ pressed }) => [
+            styles.item,
+            styles.itemIdle,
+            pressed ? styles.itemPressed : null,
+          ]}
+        >
+          <LogOut size={22} color={colors.w50} />
+          <Text numberOfLines={1} style={styles.itemText}>
+            Log out
+          </Text>
+        </Pressable>
+      </View>
     </>
   );
 
@@ -261,6 +289,13 @@ const styles = StyleSheet.create({
   navList: {
     padding: 16,
     gap: 8,
+  },
+  logoutWrap: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.w05,
   },
   item: {
     flexDirection: "row",

@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import { AppHeader } from "../components/app-header";
 import { ActivityHeatmap } from "../components/dashboard/activity-heatmap";
 import { FocusTimerWidget } from "../components/dashboard/focus-timer-widget";
@@ -24,7 +25,12 @@ function greeting(): string {
 export default function DashboardScreen() {
   const { user, profile, heatmap, focus, loading } = useDashboard();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!loading && !user) router.replace("/login");
+  }, [loading, user, router]);
 
   const name = profile?.display_name?.trim() || user?.name || "";
   const firstName = name.split(" ")[0]?.trim() || "Explorer";
