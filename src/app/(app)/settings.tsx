@@ -258,7 +258,7 @@ export default function SettingsScreen() {
       <View className="gap-2 pt-2">
         <RevealText
           text="Settings."
-          className="font-syne-semibold text-[32px] leading-[40px] tracking-[-0.04em] text-white"
+          className="font-display-semibold text-[32px] leading-[40px] tracking-[-0.04em] text-white"
         />
       </View>
 

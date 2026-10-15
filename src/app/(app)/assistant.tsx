@@ -136,7 +136,7 @@ export default function AssistantScreen() {
           </Text>
           <Text
             allowFontScaling={false}
-            className="font-syne-semibold text-[30px] leading-[36px] tracking-[-0.04em] text-white">
+            className="font-display-semibold text-[30px] leading-[36px] tracking-[-0.04em] text-white">
             Assistant
           </Text>
         </View>

@@ -24,7 +24,7 @@ export function AtlasWordmark({ size = 'md' }: Props) {
       <Text
         allowFontScaling={false}
         numberOfLines={1}
-        className={`shrink-0 font-syne-bold text-white ${config.text}`}
+        className={`shrink-0 font-sans-semibold text-white ${config.text}`}
         style={{
           letterSpacing: config.trailing,
           paddingRight: config.trailing,

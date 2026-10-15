@@ -262,7 +262,7 @@ export default function QuizScreen() {
           </Text>
           <RevealText
             text="Quiz."
-            className="mt-1 font-syne-semibold text-[32px] leading-[40px] tracking-[-0.04em] text-white"
+            className="mt-1 font-display-semibold text-[32px] leading-[40px] tracking-[-0.04em] text-white"
           />
         </View>
 

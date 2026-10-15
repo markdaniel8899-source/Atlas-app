@@ -63,7 +63,7 @@ export function PlayerStats({ profile, loading }: Props) {
             </Text>
             <Text
               allowFontScaling={false}
-              className="mt-0.5 text-xs font-medium uppercase tracking-[0.22em] text-white/35">
+              className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.22em] text-white/35">
               day streak
             </Text>
           </View>
@@ -77,7 +77,7 @@ export function PlayerStats({ profile, loading }: Props) {
             </Text>
             <Text
               allowFontScaling={false}
-              className="mt-0.5 text-xs font-medium uppercase tracking-[0.22em] text-white/35">
+              className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.22em] text-white/35">
               current rank
             </Text>
           </View>
@@ -87,11 +87,11 @@ export function PlayerStats({ profile, loading }: Props) {
           <Text allowFontScaling={false} className="font-mono text-lg tabular-nums text-white">
             {rankData.xpInto}
             <Text className="text-white/30"> / {rankData.xpNeed}</Text>
-            <Text className="ml-2 text-xs text-[#cf9eff]">XP</Text>
+            <Text className="ml-1.5 text-xs text-[#cf9eff]">XP</Text>
           </Text>
           <Text
             allowFontScaling={false}
-            className="mt-1 text-xs font-medium uppercase tracking-[0.22em] text-white/35">
+            className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.22em] text-white/35">
             to {rankData.nextRankName ?? 'max rank'}
           </Text>
         </View>
@@ -100,10 +100,10 @@ export function PlayerStats({ profile, loading }: Props) {
       <View className="relative mt-6">
         <ProgressBar percent={rankData.percent} colors={rankData.tier.gradientColors} />
         <View className="mt-2 flex-row items-center justify-between gap-3">
-          <Text allowFontScaling={false} className="min-w-0 flex-1 text-xs text-white/35" numberOfLines={1}>
+          <Text allowFontScaling={false} className="min-w-0 flex-1 text-[11px] text-white/35" numberOfLines={1}>
             {Math.round(rankData.percent)}% of {rankData.name} complete
           </Text>
-          <Text allowFontScaling={false} className="shrink-0 text-xs text-white/50" numberOfLines={1}>
+          <Text allowFontScaling={false} className="shrink-0 text-[11px] text-white/50" numberOfLines={1}>
             {profile ? `@${profile.username}` : 'unlinked profile'}
           </Text>
         </View>

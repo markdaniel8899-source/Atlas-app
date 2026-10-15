@@ -111,7 +111,7 @@ export default function TimerScreen() {
           </Text>
           <RevealText
             text="Focus timer."
-            className="mt-1 font-syne-semibold text-[32px] leading-[40px] tracking-[-0.04em] text-white"
+            className="mt-1 font-display-semibold text-[32px] leading-[40px] tracking-[-0.04em] text-white"
           />
         </View>
 

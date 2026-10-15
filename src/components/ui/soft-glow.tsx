@@ -1,6 +1,4 @@
-import { useId } from 'react';
 import { View, type StyleProp, type ViewStyle } from 'react-native';
-import { Circle, Defs, RadialGradient, Stop, Svg } from 'react-native-svg';
 
 type Props = {
   color: string;
@@ -9,25 +7,46 @@ type Props = {
   style?: StyleProp<ViewStyle>;
 };
 
+const RINGS = [
+  { scale: 1, weight: 0.17 },
+  { scale: 0.84, weight: 0.19 },
+  { scale: 0.68, weight: 0.21 },
+  { scale: 0.52, weight: 0.22 },
+  { scale: 0.36, weight: 0.23 },
+] as const;
+
+function withAlpha(hex: string, alpha: number): string {
+  const value = hex.replace('#', '');
+  const r = parseInt(value.slice(0, 2), 16);
+  const g = parseInt(value.slice(2, 4), 16);
+  const b = parseInt(value.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${Number(alpha.toFixed(4))})`;
+}
+
 export function SoftGlow({ color, opacity = 0.12, radius, style }: Props) {
-  const rawId = useId();
-  const gid = `glow-${rawId.replace(/[^a-zA-Z0-9]/g, '')}`;
   const size = radius * 2;
 
   return (
     <View
       pointerEvents="none"
       style={[{ position: 'absolute', width: size, height: size }, style]}>
-      <Svg width={size} height={size}>
-        <Defs>
-          <RadialGradient id={gid} cx="50%" cy="50%" r="50%">
-            <Stop offset="0%" stopColor={color} stopOpacity={opacity} />
-            <Stop offset="50%" stopColor={color} stopOpacity={opacity * 0.45} />
-            <Stop offset="100%" stopColor={color} stopOpacity={0} />
-          </RadialGradient>
-        </Defs>
-        <Circle cx={radius} cy={radius} r={radius} fill={`url(#${gid})`} />
-      </Svg>
+      {RINGS.map((ring) => {
+        const diameter = size * ring.scale;
+        return (
+          <View
+            key={ring.scale}
+            style={{
+              position: 'absolute',
+              width: diameter,
+              height: diameter,
+              left: (size - diameter) / 2,
+              top: (size - diameter) / 2,
+              borderRadius: diameter / 2,
+              backgroundColor: withAlpha(color, opacity * ring.weight),
+            }}
+          />
+        );
+      })}
     </View>
   );
 }

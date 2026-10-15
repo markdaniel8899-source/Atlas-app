@@ -48,12 +48,12 @@ export default function HomeScreen() {
       <View className="gap-3 pb-2 pt-8">
         <Text
           allowFontScaling={false}
-          className="text-xs font-medium uppercase tracking-[0.36em] text-[#9db4ff]/70">
+          className="text-[10px] font-medium uppercase tracking-[0.36em] text-[#9db4ff]/70">
           {greeting()}
         </Text>
         <RevealText
           text={`${firstName}, here's your terrain.`}
-          className="font-syne-semibold text-[30px] leading-[36px] tracking-[-0.04em] text-white"
+          className="font-display-semibold text-[30px] leading-[36px] tracking-[-0.04em] text-white"
         />
       </View>
 

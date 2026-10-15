@@ -356,7 +356,7 @@ export default function FriendsScreen() {
         </Text>
         <RevealText
           text="Friends."
-          className="mt-1 font-syne-semibold text-[32px] leading-[40px] tracking-[-0.04em] text-white"
+          className="mt-1 font-display-semibold text-[32px] leading-[40px] tracking-[-0.04em] text-white"
         />
         <Text
           allowFontScaling={false}

@@ -18,7 +18,7 @@ function Eyebrow({ children }: { children: string }) {
   return (
     <Text
       allowFontScaling={false}
-      className="text-xs font-medium uppercase tracking-[0.32em] text-[#9db4ff]/70">
+      className="text-[10px] font-medium uppercase tracking-[0.32em] text-[#9db4ff]/70">
       {children}
     </Text>
   );
@@ -38,9 +38,9 @@ function SmallGhostButton({
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
-      className="min-h-[48px] flex-row items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-5 py-3">
+      className="min-h-[44px] flex-row items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-5 py-2.5">
       {children}
-      <Text allowFontScaling={false} className="text-[13px] font-medium text-white">
+      <Text allowFontScaling={false} className="text-xs font-medium text-white">
         {label}
       </Text>
     </Pressable>
@@ -61,9 +61,9 @@ function SmallOutlineButton({
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
-      className="min-h-[48px] flex-row items-center gap-2 rounded-full border border-white/[0.15] bg-white/[0.02] px-5 py-3">
+      className="min-h-[44px] flex-row items-center gap-2 rounded-full border border-white/[0.15] bg-white/[0.02] px-5 py-2.5">
       {children}
-      <Text allowFontScaling={false} className="text-[13px] font-medium text-white">
+      <Text allowFontScaling={false} className="text-xs font-medium text-white">
         {label}
       </Text>
     </Pressable>
@@ -96,10 +96,10 @@ export function TodayFocus({ focus, loading }: Props) {
               <Eyebrow>Today&apos;s focus</Eyebrow>
               <Text
                 allowFontScaling={false}
-                className="mt-1.5 font-sans-semibold text-xl leading-[26px] tracking-[-0.03em] text-white">
+                className="mt-1.5 font-display-semibold text-xl leading-[26px] tracking-[-0.03em] text-white">
                 No course queued yet
               </Text>
-              <Text allowFontScaling={false} className="mt-1.5 text-[15px] leading-[22px] text-white/45">
+              <Text allowFontScaling={false} className="mt-1.5 text-sm leading-[23px] text-white/45">
                 Add a course and pick a topic - it will show up here as your single focus for the
                 day.
               </Text>
@@ -123,14 +123,14 @@ export function TodayFocus({ focus, loading }: Props) {
       <SoftGlow color="#cf9eff" opacity={0.12} radius={128} style={{ top: -96, left: '33%' }} />
 
       <View className="relative gap-4">
-        <View className="gap-1.5">
+        <View className="gap-2">
           <Eyebrow>Today&apos;s focus</Eyebrow>
           <Text
             allowFontScaling={false}
-            className="font-sans-semibold text-2xl leading-[32px] tracking-[-0.03em] text-white">
+            className="font-display-semibold text-2xl leading-[32px] tracking-[-0.03em] text-white">
             {focus.title}
           </Text>
-          <Text allowFontScaling={false} className="text-[15px] leading-[22px] text-white/45">
+          <Text allowFontScaling={false} className="text-sm leading-[20px] text-white/45">
             Next up:{' '}
             <Text allowFontScaling={false} className="text-white/75">
               {topic ? topic.title : 'Add your first topic'}
@@ -153,10 +153,10 @@ export function TodayFocus({ focus, loading }: Props) {
           glow={`${focus.accent}80`}
         />
         <View className="mt-2 flex-row flex-wrap items-center justify-between gap-x-4 gap-y-1">
-          <Text allowFontScaling={false} className="text-xs text-white/35">
+          <Text allowFontScaling={false} className="text-[11px] text-white/35">
             {Math.round(progress)}% complete
           </Text>
-          <Text allowFontScaling={false} className="text-xs text-white/50">
+          <Text allowFontScaling={false} className="text-[11px] text-white/50">
             {topic ? `${courseStatusLabel(focus.status)} - ${topic.title}` : courseStatusLabel(focus.status)}
           </Text>
         </View>

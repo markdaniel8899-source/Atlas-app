@@ -58,7 +58,7 @@ export function OnboardingCard({ card, width, height }: Props) {
       <View className="shrink gap-3.5">
         <Text
           allowFontScaling={false}
-          className="text-center font-syne-bold text-[34px] leading-[40px] text-white">
+          className="text-center font-display-bold text-[34px] leading-[40px] text-white">
           {card.title}
         </Text>
 

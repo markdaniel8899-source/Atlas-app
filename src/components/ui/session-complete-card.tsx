@@ -48,7 +48,7 @@ export function SessionCompleteCard({ minutes, message, onDismiss }: Props) {
           <View className="min-w-0 flex-1">
             <Text
               allowFontScaling={false}
-              className="font-syne-semibold text-base tracking-[-0.02em] text-white">
+              className="font-display-semibold text-base tracking-[-0.02em] text-white">
               Session complete
             </Text>
             <Text

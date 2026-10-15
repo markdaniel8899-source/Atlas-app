@@ -44,7 +44,7 @@ function HeaderShell({ children }: { children: ReactNode }) {
         tint="dark"
         style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}
       />
-      <View className="bg-white/[0.04]">{children}</View>
+      <View className="bg-white/[0.03]">{children}</View>
     </View>
   );
 }

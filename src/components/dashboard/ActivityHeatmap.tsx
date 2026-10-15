@@ -113,16 +113,16 @@ export function ActivityHeatmap({ days, weeks = 53 }: Props) {
         <View>
           <Text
             allowFontScaling={false}
-            className="text-xs font-medium uppercase tracking-[0.32em] text-[#9db4ff]/70">
+            className="text-[10px] font-medium uppercase tracking-[0.32em] text-[#9db4ff]/70">
             Activity
           </Text>
           <Text
             allowFontScaling={false}
-            className="mt-1.5 font-sans-medium text-lg tracking-[-0.02em] text-white">
+            className="mt-1.5 font-display-medium text-lg tracking-[-0.02em] text-white">
             Last {weeks} weeks
           </Text>
         </View>
-        <Text allowFontScaling={false} className="text-[13px] text-white/40">
+        <Text allowFontScaling={false} className="text-xs text-white/40">
           <Text allowFontScaling={false} className="font-medium text-white">
             {activeDays}
           </Text>{' '}
@@ -197,7 +197,7 @@ export function ActivityHeatmap({ days, weeks = 53 }: Props) {
       </ScrollView>
 
       <View className="mt-5 flex-row items-center justify-end gap-1.5">
-        <Text allowFontScaling={false} className="mr-1 text-xs text-white/35">
+        <Text allowFontScaling={false} className="mr-1 text-[10px] text-white/35">
           Less
         </Text>
         {LEVEL_COLORS.map((color, level) => (
@@ -212,7 +212,7 @@ export function ActivityHeatmap({ days, weeks = 53 }: Props) {
             }}
           />
         ))}
-        <Text allowFontScaling={false} className="ml-1 text-xs text-white/35">
+        <Text allowFontScaling={false} className="ml-1 text-[10px] text-white/35">
           More
         </Text>
       </View>

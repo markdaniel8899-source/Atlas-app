@@ -152,7 +152,7 @@ export default function LoginScreen() {
                   </Text>
                   <Text
                     allowFontScaling={false}
-                    className="mt-3 text-center font-syne-semibold text-[30px] leading-[36px] tracking-[-0.04em] text-white">
+                    className="mt-3 text-center font-display-semibold text-[30px] leading-[36px] tracking-[-0.04em] text-white">
                     {mode === 'signin' ? 'Welcome back.' : 'Claim your map.'}
                   </Text>
                   <Text allowFontScaling={false} className="mt-2 text-center text-[15px] text-white/45">

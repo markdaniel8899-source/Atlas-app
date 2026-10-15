@@ -42,7 +42,7 @@ module.exports = {
         'atlas-glow': '0 0 48px -12px rgba(207,158,255,0.55)',
         'star-glow': '0 0 32px -8px rgba(157,180,255,0.6)',
         sheen: 'inset 0 1px 0 rgba(255,255,255,0.07)',
-        card: '0 24px 60px -32px rgba(0,0,0,0.9)',
+        card: '0 8px 32px rgba(0,0,0,0.37)',
       },
     },
   },

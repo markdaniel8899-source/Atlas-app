@@ -28,7 +28,7 @@ export function PrimaryButton({
   icon,
 }: Props) {
   const isDisabled = disabled || loading;
-  const pad = compact ? 'min-h-[52px] px-7' : 'min-h-[60px] px-9';
+  const pad = compact ? 'min-h-[44px] px-5 py-2.5' : 'min-h-[44px] px-7 py-3';
   const isFilled = variant === 'primary' || variant === 'gradient';
 
   return (
@@ -66,7 +66,7 @@ export function PrimaryButton({
           <Text
             allowFontScaling={false}
             numberOfLines={1}
-            className={`shrink font-sans-semibold text-base ${
+            className={`shrink font-sans-medium text-sm ${
               isFilled ? 'text-[#030305]' : 'text-white'
             }`}>
             {label}
