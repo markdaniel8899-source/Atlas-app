@@ -86,7 +86,8 @@ export function TodayFocus({ focus, loading }: TodayFocusProps) {
       <Card style={styles.card}>
         <Glow
           size={256}
-          color="rgba(157,180,255,0.10)"
+          color="#9db4ff"
+          opacity={0.1}
           style={styles.emptyGlow}
         />
         <View style={styles.emptyRow}>
@@ -119,7 +120,7 @@ export function TodayFocus({ focus, loading }: TodayFocusProps) {
 
   return (
     <Card style={styles.card}>
-      <Glow size={256} color="rgba(207,158,255,0.12)" style={styles.focusGlow} />
+      <Glow size={256} color="#cf9eff" opacity={0.12} style={styles.focusGlow} />
 
       <View style={styles.headerRow}>
         <View style={styles.headerLeft}>

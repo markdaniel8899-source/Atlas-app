@@ -83,7 +83,8 @@ export function PlayerStats({ profile, loading }: PlayerStatsProps) {
       <Card style={styles.card}>
         <Glow
           size={288}
-          color="rgba(207,158,255,0.12)"
+          color="#cf9eff"
+          opacity={0.12}
           style={styles.cardGlow}
         />
 
