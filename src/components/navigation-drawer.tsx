@@ -154,7 +154,7 @@ export function NavigationDrawer({
   };
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+    <View style={[StyleSheet.absoluteFill, styles.overlay]} pointerEvents="box-none">
       <Animated.View style={[StyleSheet.absoluteFill, { opacity: anim }]}>
         <Pressable
           accessibilityRole="button"
@@ -192,6 +192,9 @@ export function NavigationDrawer({
 }
 
 const styles = StyleSheet.create({
+  overlay: {
+    zIndex: 50,
+  },
   backdrop: {
     backgroundColor: "rgba(0,0,0,0.6)",
   },
@@ -204,7 +207,7 @@ const styles = StyleSheet.create({
   },
   panel: {
     flex: 1,
-    backgroundColor: "rgba(6,6,14,0.94)",
+    backgroundColor: "rgba(6,6,14,0.97)",
     borderRightWidth: 1,
     borderRightColor: colors.w05,
     overflow: "hidden",
@@ -287,7 +290,7 @@ const styles = StyleSheet.create({
   },
   itemActive: {
     borderColor: colors.lilac25,
-    backgroundColor: colors.lilac10,
+    backgroundColor: "#1a1526",
     shadowColor: colors.lilac50,
     shadowOpacity: 0.7,
     shadowRadius: 16,
