@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useId, useEffect, useRef, useState } from "react";
 import {
   Animated,
   Platform,
@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { BlurView } from "expo-blur";
+import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   FileText,
@@ -54,6 +55,8 @@ export function NavigationDrawer({
   const insets = useSafeAreaInsets();
   const anim = useRef(new Animated.Value(0)).current;
   const [rendered, setRendered] = useState(open);
+  const rawHaloId = useId();
+  const haloId = rawHaloId.replace(/[^a-zA-Z0-9]/g, "");
 
   useEffect(() => {
     if (open) {
@@ -108,16 +111,37 @@ export function NavigationDrawer({
           return (
             <View key={item.label} style={styles.itemWrap}>
               {active ? (
-                <>
-                  <View
-                    pointerEvents="none"
-                    style={[styles.halo, styles.haloOuter]}
-                  />
-                  <View
-                    pointerEvents="none"
-                    style={[styles.halo, styles.haloInner]}
-                  />
-                </>
+                <View pointerEvents="none" style={styles.halo}>
+                  <Svg
+                    width="100%"
+                    height="100%"
+                    viewBox="0 0 100 100"
+                    preserveAspectRatio="none"
+                  >
+                    <Defs>
+                      <RadialGradient
+                        id={haloId}
+                        cx="50%"
+                        cy="50%"
+                        rx="50%"
+                        ry="50%"
+                      >
+                        <Stop offset="0" stopColor="#cf9eff" stopOpacity={0.35} />
+                        <Stop offset="0.5" stopColor="#cf9eff" stopOpacity={0.28} />
+                        <Stop offset="0.7" stopColor="#cf9eff" stopOpacity={0.18} />
+                        <Stop offset="0.85" stopColor="#cf9eff" stopOpacity={0.07} />
+                        <Stop offset="1" stopColor="#cf9eff" stopOpacity={0} />
+                      </RadialGradient>
+                    </Defs>
+                    <Rect
+                      x="0"
+                      y="0"
+                      width="100"
+                      height="100"
+                      fill={`url(#${haloId})`}
+                    />
+                  </Svg>
+                </View>
               ) : null}
               <Pressable
                 accessibilityRole="button"
@@ -207,7 +231,7 @@ const styles = StyleSheet.create({
   },
   panel: {
     flex: 1,
-    backgroundColor: "rgba(6,6,14,0.97)",
+    backgroundColor: "rgba(17,17,26,0.97)",
     borderRightWidth: 1,
     borderRightColor: colors.w05,
     overflow: "hidden",
@@ -260,7 +284,7 @@ const styles = StyleSheet.create({
     gap: 14,
     paddingHorizontal: 16,
     paddingVertical: 15,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
   },
   itemWrap: {
@@ -268,29 +292,17 @@ const styles = StyleSheet.create({
   },
   halo: {
     position: "absolute",
-  },
-  haloInner: {
-    top: -4,
-    bottom: -4,
-    left: -4,
-    right: -4,
-    borderRadius: 16,
-    backgroundColor: "rgba(207,158,255,0.12)",
-  },
-  haloOuter: {
-    top: -10,
-    bottom: -10,
-    left: -10,
-    right: -10,
-    borderRadius: 22,
-    backgroundColor: "rgba(207,158,255,0.07)",
+    top: -12,
+    bottom: -12,
+    left: -12,
+    right: -12,
   },
   itemIdle: {
     borderColor: "transparent",
   },
   itemActive: {
     borderColor: colors.lilac25,
-    backgroundColor: "#1a1526",
+    backgroundColor: "#241f31",
     shadowColor: colors.lilac50,
     shadowOpacity: 0.7,
     shadowRadius: 16,
