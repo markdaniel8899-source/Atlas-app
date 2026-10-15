@@ -34,7 +34,7 @@ export default function HomeScreen() {
   return (
     <ScrollView
       className="flex-1"
-      contentContainerStyle={{ paddingHorizontal: 28, paddingBottom: 48, gap: 20 }}
+      contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 48, gap: 20 }}
       showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl
@@ -45,10 +45,10 @@ export default function HomeScreen() {
           progressBackgroundColor="#0a0a1a"
         />
       }>
-      <View className="gap-3 pb-2 pt-2">
+      <View className="gap-3 pb-2 pt-8">
         <Text
           allowFontScaling={false}
-          className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9db4ff]">
+          className="text-xs font-medium uppercase tracking-[0.36em] text-[#9db4ff]/70">
           {greeting()}
         </Text>
         <RevealText

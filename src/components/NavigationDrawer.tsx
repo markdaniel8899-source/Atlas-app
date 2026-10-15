@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { Platform, Animated, Easing, Pressable, Text, View } from 'react-native';
 import { BlurView } from 'expo-blur';
 import {
-  Clock,
   FileText,
   GraduationCap,
   LayoutDashboard,
@@ -11,6 +10,7 @@ import {
   Map,
   Settings,
   Sparkles,
+  Timer,
   Trophy,
   Users,
   X,
@@ -36,12 +36,12 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { href: '/dashboard', label: 'Home', Icon: LayoutDashboard },
+  { href: '/dashboard', label: 'Dashboard', Icon: LayoutDashboard },
   { href: '/roadmap', label: 'Roadmap', Icon: Map },
   { href: '/courses', label: 'Courses', Icon: GraduationCap },
   { href: '/notes', label: 'Notes', Icon: FileText },
   { href: '/quiz', label: 'Quiz', Icon: ListChecks },
-  { href: '/timer', label: 'Timer', Icon: Clock },
+  { href: '/timer', label: 'Timer', Icon: Timer },
   { href: '/friends', label: 'Friends', Icon: Users },
   { href: '/leaderboard', label: 'Leaderboard', Icon: Trophy },
   { href: '/assistant', label: 'Assistant', Icon: Sparkles },
@@ -144,7 +144,7 @@ export function NavigationDrawer({ open, onClose }: Props) {
           </View>
 
           <View className="flex-1 p-3">
-            <View className="flex-col gap-2">
+            <View className="flex-col gap-1.5">
               {NAV_ITEMS.map((item) => {
                 const active = pathname === item.href;
                 return (
@@ -153,33 +153,29 @@ export function NavigationDrawer({ open, onClose }: Props) {
                     onPress={() => go(item.href)}
                     accessibilityRole="button"
                     accessibilityState={{ selected: active }}
-                    className={`flex-row items-center gap-3 rounded-xl border px-3.5 py-3 ${
+                    className={`flex-row items-center gap-3 rounded-xl border px-3.5 py-2.5 ${
                       active
-                        ? 'border-[#cf9eff]/50 bg-[#cf9eff]/10'
+                        ? 'border-[#cf9eff]/25 bg-[#cf9eff]/10'
                         : 'border-transparent'
                     }`}
                     style={
                       active
-                        ? {
-                            boxShadow:
-                              '0px 0px 16px 0px rgba(207, 158, 255, 0.5), inset 0px 0px 12px 0px rgba(207, 158, 255, 0.12)',
-                          }
+                        ? { boxShadow: '0px 0px 24px -8px rgba(207, 158, 255, 0.7)' }
                         : undefined
                     }>
                     <item.Icon
                       size={16}
-                      color={active ? '#cf9eff' : 'rgba(255,255,255,0.5)'}
+                      color={active ? 'rgba(255,255,255,1)' : 'rgba(255,255,255,0.5)'}
                       strokeWidth={1.9}
                     />
                     <Text
                       allowFontScaling={false}
                       numberOfLines={1}
-                      className={`flex-1 font-sans text-[14px] ${
-                        active ? 'font-sans-medium text-white' : 'text-white/50'
+                      className={`flex-1 font-sans text-sm ${
+                        active ? 'text-white' : 'text-white/50'
                       }`}>
                       {item.label}
                     </Text>
-                    {active ? <View className="h-1.5 w-1.5 rounded-full bg-[#cf9eff]" /> : null}
                   </Pressable>
                 );
               })}

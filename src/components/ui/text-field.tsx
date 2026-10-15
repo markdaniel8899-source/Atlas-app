@@ -1,5 +1,5 @@
 import { Eye, EyeOff } from 'lucide-react-native';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Pressable, Text, TextInput, View, type TextInputProps } from 'react-native';
 
 import { colors } from '@/constants/tokens';
@@ -8,9 +8,10 @@ type Props = TextInputProps & {
   label: string;
   secure?: boolean;
   error?: string | null;
+  icon?: ReactNode;
 };
 
-export function TextField({ label, secure = false, error, ...rest }: Props) {
+export function TextField({ label, secure = false, error, icon, ...rest }: Props) {
   const [focused, setFocused] = useState(false);
   const [hidden, setHidden] = useState(secure);
 
@@ -18,18 +19,22 @@ export function TextField({ label, secure = false, error, ...rest }: Props) {
     ? 'border-[#ff7a7a]/70'
     : focused
       ? 'border-star/60'
-      : 'border-white/[0.08]';
+      : 'border-white/10';
 
   return (
     <View className="gap-2">
       <Text
         allowFontScaling={false}
         accessibilityRole="text"
-        className="font-sans-medium text-[15px] uppercase tracking-[1.6px] text-white/45">
+        className="text-xs font-medium uppercase tracking-[0.2em] text-white/40">
         {label}
       </Text>
 
-      <View className={`h-14 flex-row items-center rounded-2xl border bg-white/[0.04] px-4 ${borderColor}`}>
+      <View
+        className={`h-[52px] flex-row items-center gap-3 rounded-xl border bg-white/[0.04] px-4 ${borderColor}`}>
+        {icon ? (
+          <View className={error ? 'opacity-70' : 'opacity-100'}>{icon}</View>
+        ) : null}
         <TextInput
           allowFontScaling={false}
           autoCapitalize="none"
@@ -58,7 +63,7 @@ export function TextField({ label, secure = false, error, ...rest }: Props) {
       </View>
 
       {error ? (
-        <Text allowFontScaling={false} className="font-sans text-[15px] text-[#ff9d9d]">
+        <Text allowFontScaling={false} className="text-xs text-red-300/80">
           {error}
         </Text>
       ) : null}

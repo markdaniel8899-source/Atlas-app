@@ -44,10 +44,10 @@ export function FocusTimerWidget() {
               <Timer size={20} color="#9db4ff" />
             </View>
             <View>
-              <Text allowFontScaling={false} className="font-sans-medium text-base text-white">
+              <Text allowFontScaling={false} className="font-sans-medium text-[15px] text-white">
                 Focus timer
               </Text>
-              <Text allowFontScaling={false} className="text-base text-white/40">
+              <Text allowFontScaling={false} className="text-[13px] text-white/40">
                 {state.mode === 'running'
                   ? 'Session in progress'
                   : state.mode === 'paused'
@@ -61,8 +61,8 @@ export function FocusTimerWidget() {
             accessibilityLabel="Open timer"
             hitSlop={8}
             onPress={() => router.push('/timer')}
-            className="min-h-[48px] flex-row items-center gap-1 px-6 py-3">
-            <Text allowFontScaling={false} className="text-base text-white/45">
+            className="min-h-[48px] flex-row items-center gap-1 px-5 py-3">
+            <Text allowFontScaling={false} className="text-[13px] text-white/45">
               Open timer
             </Text>
             <ArrowUpRight size={14} color="rgba(255,255,255,0.45)" />
@@ -72,7 +72,7 @@ export function FocusTimerWidget() {
         <View className="mt-6 items-center">
           <Text
             allowFontScaling={false}
-            className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9db4ff]">
+            className="text-xs font-medium uppercase tracking-[0.32em] text-[#9db4ff]/70">
             Total Focus Time
           </Text>
           <Text
@@ -82,10 +82,10 @@ export function FocusTimerWidget() {
             {formatHMS(globalTotal)}
           </Text>
           <View className="mt-2.5 flex-row items-center gap-1">
-            <Text allowFontScaling={false} className="text-base text-white/50">
+            <Text allowFontScaling={false} className="text-[13px] text-white/50">
               Focusing on:
             </Text>
-            <Text allowFontScaling={false} className="text-base text-white/80" numberOfLines={1}>
+            <Text allowFontScaling={false} className="text-[13px] text-white/80" numberOfLines={1}>
               {activeCourse ? activeCourse.title : 'No course selected'}
             </Text>
           </View>
@@ -98,13 +98,13 @@ export function FocusTimerWidget() {
               trackColor="rgba(255,255,255,0.07)"
             />
             <View className="mt-2 flex-row items-center justify-center gap-2">
-              <View className="rounded-full border border-star/30 bg-star/[0.06] px-4 py-2">
-                <Text allowFontScaling={false} className="text-base text-star">
+              <View className="rounded-full border border-star/30 bg-star/[0.06] px-2.5 py-1">
+                <Text allowFontScaling={false} className="text-xs text-star">
                   {state.targetMin} min target
                 </Text>
               </View>
-              <View className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-2">
-                <Text allowFontScaling={false} className="text-base text-white/40">
+              <View className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1">
+                <Text allowFontScaling={false} className="text-xs text-white/40">
                   {active ? `${Math.round(progress * 100)}%` : 'Idle'}
                 </Text>
               </View>
@@ -119,7 +119,6 @@ export function FocusTimerWidget() {
                 label={state.mode === 'running' ? 'Pause' : 'Resume'}
                 onPress={timer.toggle}
                 compact
-                className="flex-1"
                 icon={
                   state.mode === 'running' ? (
                     <Pause size={16} color="#030305" />
@@ -133,7 +132,6 @@ export function FocusTimerWidget() {
                 variant="ghost"
                 onPress={() => timer.stop()}
                 compact
-                className="flex-1"
                 icon={<Square size={14} color="white" />}
               />
             </>
@@ -141,7 +139,7 @@ export function FocusTimerWidget() {
             <PrimaryButton
               label="Quick start"
               onPress={openQuick}
-              className="flex-1"
+              compact
               icon={<Play size={16} color="#030305" />}
             />
           )}
@@ -150,7 +148,7 @@ export function FocusTimerWidget() {
         {flash ? (
           <View className="mt-4 flex-row items-center justify-center gap-2">
             <Check size={14} color="#cf9eff" />
-            <Text allowFontScaling={false} className="text-base text-[#cf9eff]/90">
+            <Text allowFontScaling={false} className="text-[13px] text-[#cf9eff]/90">
               {flash}
             </Text>
           </View>
@@ -169,7 +167,7 @@ export function FocusTimerWidget() {
               <View>
                 <Text
                   allowFontScaling={false}
-                  className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9db4ff]">
+                  className="text-xs font-medium uppercase tracking-[0.3em] text-[#9db4ff]/70">
                   Quick start
                 </Text>
                 <Text allowFontScaling={false} className="mt-1.5 font-sans-semibold text-lg text-white">

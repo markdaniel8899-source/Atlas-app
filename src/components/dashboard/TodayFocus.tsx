@@ -18,7 +18,7 @@ function Eyebrow({ children }: { children: string }) {
   return (
     <Text
       allowFontScaling={false}
-      className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9db4ff]">
+      className="text-xs font-medium uppercase tracking-[0.32em] text-[#9db4ff]/70">
       {children}
     </Text>
   );
@@ -38,9 +38,9 @@ function SmallGhostButton({
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
-      className="min-h-[48px] flex-row items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-6 py-3.5">
+      className="min-h-[48px] flex-row items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-5 py-3">
       {children}
-      <Text allowFontScaling={false} className="text-base font-medium text-white">
+      <Text allowFontScaling={false} className="text-[13px] font-medium text-white">
         {label}
       </Text>
     </Pressable>
@@ -61,9 +61,9 @@ function SmallOutlineButton({
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
-      className="min-h-[48px] flex-row items-center gap-2 rounded-full border border-white/[0.15] bg-white/[0.02] px-6 py-3.5">
+      className="min-h-[48px] flex-row items-center gap-2 rounded-full border border-white/[0.15] bg-white/[0.02] px-5 py-3">
       {children}
-      <Text allowFontScaling={false} className="text-base font-medium text-white">
+      <Text allowFontScaling={false} className="text-[13px] font-medium text-white">
         {label}
       </Text>
     </Pressable>
@@ -153,10 +153,10 @@ export function TodayFocus({ focus, loading }: Props) {
           glow={`${focus.accent}80`}
         />
         <View className="mt-2 flex-row flex-wrap items-center justify-between gap-x-4 gap-y-1">
-          <Text allowFontScaling={false} className="text-[15px] text-white/35">
+          <Text allowFontScaling={false} className="text-xs text-white/35">
             {Math.round(progress)}% complete
           </Text>
-          <Text allowFontScaling={false} className="text-[15px] text-white/50">
+          <Text allowFontScaling={false} className="text-xs text-white/50">
             {topic ? `${courseStatusLabel(focus.status)} - ${topic.title}` : courseStatusLabel(focus.status)}
           </Text>
         </View>

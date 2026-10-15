@@ -21,10 +21,10 @@ const DAY_LABELS = ['', 'Mon', '', 'Wed', '', 'Fri', ''];
 
 const LEVEL_COLORS = [
   'rgba(255,255,255,0.05)',
-  'rgba(157,180,255,0.25)',
-  'rgba(157,180,255,0.5)',
-  'rgba(157,180,255,0.75)',
-  '#9db4ff',
+  'rgba(207,158,255,0.25)',
+  'rgba(207,158,255,0.5)',
+  'rgba(207,158,255,0.75)',
+  '#cf9eff',
 ];
 
 interface GridCell {
@@ -110,7 +110,7 @@ export function ActivityHeatmap({ days, weeks = 53 }: Props) {
         <View>
           <Text
             allowFontScaling={false}
-            className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9db4ff]">
+            className="text-xs font-medium uppercase tracking-[0.32em] text-[#9db4ff]/70">
             Activity
           </Text>
           <Text
@@ -119,7 +119,7 @@ export function ActivityHeatmap({ days, weeks = 53 }: Props) {
             Last {weeks} weeks
           </Text>
         </View>
-        <Text allowFontScaling={false} className="text-[15px] text-white/40">
+        <Text allowFontScaling={false} className="text-[13px] text-white/40">
           <Text allowFontScaling={false} className="font-medium text-white">
             {activeDays}
           </Text>{' '}
@@ -175,7 +175,7 @@ export function ActivityHeatmap({ days, weeks = 53 }: Props) {
                         borderRadius: 3,
                         backgroundColor: cell.future ? 'transparent' : LEVEL_COLORS[cell.level],
                         ...(cell.level === 4 && !cell.future
-                          ? { boxShadow: '0px 0px 10px 0px rgba(157,180,255,0.7)' }
+                          ? { boxShadow: '0px 0px 10px 0px rgba(207,158,255,0.7)' }
                           : {}),
                       }}
                     />
@@ -199,7 +199,7 @@ export function ActivityHeatmap({ days, weeks = 53 }: Props) {
               height: CELL,
               borderRadius: 3,
               backgroundColor: color,
-              ...(level === 4 ? { boxShadow: '0px 0px 10px 0px rgba(157,180,255,0.7)' } : {}),
+              ...(level === 4 ? { boxShadow: '0px 0px 10px 0px rgba(207,158,255,0.7)' } : {}),
             }}
           />
         ))}

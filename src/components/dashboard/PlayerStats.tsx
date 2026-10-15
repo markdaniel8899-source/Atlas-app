@@ -69,8 +69,6 @@ export function PlayerStats({ profile, loading }: Props) {
           </View>
         </View>
 
-        <View className="h-11 w-px bg-white/[0.08]" />
-
         <View className="flex-row items-center gap-3 rounded-xl border border-transparent p-1">
           <RankBadge rank={rankData.tier.key} tier={rankData.current.step} size={44} />
           <View>
@@ -89,7 +87,7 @@ export function PlayerStats({ profile, loading }: Props) {
           <Text allowFontScaling={false} className="font-mono text-lg tabular-nums text-white">
             {rankData.xpInto}
             <Text className="text-white/30"> / {rankData.xpNeed}</Text>
-            <Text className="ml-1.5 text-[15px] text-[#cf9eff]">XP</Text>
+            <Text className="ml-1.5 text-xs text-[#cf9eff]">XP</Text>
           </Text>
           <Text
             allowFontScaling={false}
@@ -101,11 +99,11 @@ export function PlayerStats({ profile, loading }: Props) {
 
       <View className="relative mt-6">
         <ProgressBar percent={rankData.percent} colors={rankData.tier.gradientColors} />
-        <View className="mt-2 flex-row items-center justify-between gap-3 text-[15px]">
-          <Text allowFontScaling={false} className="min-w-0 flex-1 text-base text-white/35" numberOfLines={1}>
+        <View className="mt-2 flex-row items-center justify-between gap-3">
+          <Text allowFontScaling={false} className="min-w-0 flex-1 text-xs text-white/35" numberOfLines={1}>
             {Math.round(rankData.percent)}% of {rankData.name} complete
           </Text>
-          <Text allowFontScaling={false} className="shrink-0 text-base text-white/50" numberOfLines={1}>
+          <Text allowFontScaling={false} className="shrink-0 text-xs text-white/50" numberOfLines={1}>
             {profile ? `@${profile.username}` : 'unlinked profile'}
           </Text>
         </View>
