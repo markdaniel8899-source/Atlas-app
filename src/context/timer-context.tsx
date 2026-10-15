@@ -9,8 +9,10 @@ import {
 } from "react";
 import type { ReactNode } from "react";
 import { useCourses } from "../hooks/use-courses";
+import { subscribeAuth } from "../lib/auth";
+import { commitFocus, flushFocus } from "../lib/db/focus";
+import { getGlobalFocusSeconds } from "../lib/db/profile";
 import {
-  commitSession,
   defaultTimerState,
   elapsedMs,
   loadFocusBase,
@@ -86,7 +88,8 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     setState(next);
   }, []);
 
-  // Hydrate the persisted timer + local lifetime base once on mount.
+  // Hydrate the persisted timer + local lifetime base once on mount, then
+  // reconcile with the account's lifetime total from Supabase.
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -100,11 +103,35 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       baseRef.current = base;
       setState(stored);
       setGlobalBase(base);
+
+      const serverSeconds = await getGlobalFocusSeconds();
+      if (cancelled || serverSeconds <= baseRef.current) return;
+      baseRef.current = serverSeconds;
+      setGlobalBase(serverSeconds);
+      saveFocusBase(serverSeconds);
     })();
     return () => {
       cancelled = true;
     };
   }, []);
+
+  /** Pull the account's lifetime total after sign-in / refresh. */
+  const syncGlobalBase = useCallback(async () => {
+    const serverSeconds = await getGlobalFocusSeconds();
+    if (serverSeconds > baseRef.current) {
+      baseRef.current = serverSeconds;
+      setGlobalBase(serverSeconds);
+      saveFocusBase(serverSeconds);
+    }
+  }, []);
+
+  useEffect(
+    () =>
+      subscribeAuth((user) => {
+        if (user) void syncGlobalBase();
+      }),
+    [syncGlobalBase],
+  );
 
   // Persist every transition (app restarts keep the timer alive via this).
   useEffect(() => {
@@ -149,7 +176,9 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       const delta = Math.floor((elapsed - current.flushedMs) / 1000);
       bumpBase(delta);
       applyState({ ...pauseTimer(current), flushedMs: elapsed });
-      notifyFocusChanged();
+      void flushFocus(current)
+        .then(() => notifyFocusChanged())
+        .catch((err) => console.error("Focus save failed", err));
       return;
     }
     applyState(startTimer(current));
@@ -165,7 +194,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       bumpBase(delta);
       applyState(resetTimer(current));
 
-      void commitSession(current)
+      void commitFocus(current)
         .then((session) => {
           setHistoryVersion((version) => version + 1);
           notifyFocusChanged();

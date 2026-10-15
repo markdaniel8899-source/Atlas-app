@@ -153,3 +153,51 @@ export function topicCounts(course: FocusCourse): {
     .length;
   return { total, done };
 }
+
+/**
+ * Cumulative focus counter: lifetime focused seconds for a course.
+ * Returns 0 when there is no course, no row, or the column is missing.
+ */
+export async function getFocusSeconds(
+  courseId: number | null,
+): Promise<number> {
+  if (courseId == null) return 0;
+  const user = await resolveSession();
+  if (!user) return 0;
+
+  const { data, error } = await supabase
+    .from("courses")
+    .select("total_focus_seconds")
+    .eq("id", courseId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (error || !data) return 0;
+  const value = Number(
+    (data as { total_focus_seconds?: unknown }).total_focus_seconds,
+  );
+  return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
+}
+
+/**
+ * Add a delta to the course's cumulative focus time. Writes are serialized
+ * by the caller (see db/focus.ts) so rapid pause/resume cycles can't lose
+ * an update.
+ */
+export async function addFocusSeconds(
+  courseId: number,
+  seconds: number,
+): Promise<boolean> {
+  if (!Number.isFinite(seconds) || seconds < 1) return false;
+  const user = await resolveSession();
+  if (!user) return false;
+
+  const current = await getFocusSeconds(courseId);
+  const { error } = await supabase
+    .from("courses")
+    .update({ total_focus_seconds: current + Math.floor(seconds) })
+    .eq("id", courseId)
+    .eq("user_id", user.id);
+
+  return !error;
+}

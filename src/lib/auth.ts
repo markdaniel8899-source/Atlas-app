@@ -22,6 +22,16 @@ supabase.auth.onAuthStateChange((_event, session) => {
   cached = session?.user ? toAuthUser(session.user) : null;
 });
 
+/** Subscribe to sign-in / sign-out (fires with null after sign-out). */
+export function subscribeAuth(
+  listener: (user: AuthUser | null) => void,
+): () => void {
+  const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    listener(session?.user ? toAuthUser(session.user) : null);
+  });
+  return () => data.subscription.unsubscribe();
+}
+
 /** Synchronous read of the cached user; populated by resolveSession(). */
 export function getUser(): AuthUser | null {
   return cached;
