@@ -12,15 +12,15 @@ export function MeshBackground() {
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       <Svg style={StyleSheet.absoluteFill}>
         <Defs>
-          <RadialGradient id="meshA" cx="12%" cy="0%" r="55%">
+          <RadialGradient id="meshA" cx="12%" cy="0%" rx="36%" ry="29%">
             <Stop offset="0" stopColor="#4044cc" stopOpacity="0.20" />
             <Stop offset="1" stopColor="#4044cc" stopOpacity="0" />
           </RadialGradient>
-          <RadialGradient id="meshB" cx="88%" cy="12%" r="45%">
+          <RadialGradient id="meshB" cx="88%" cy="12%" rx="29%" ry="26%">
             <Stop offset="0" stopColor="#cf9eff" stopOpacity="0.10" />
             <Stop offset="1" stopColor="#cf9eff" stopOpacity="0" />
           </RadialGradient>
-          <RadialGradient id="meshC" cx="50%" cy="100%" r="42%">
+          <RadialGradient id="meshC" cx="50%" cy="100%" rx="28%" ry="25%">
             <Stop offset="0" stopColor="#0b2246" stopOpacity="0.40" />
             <Stop offset="1" stopColor="#0b2246" stopOpacity="0" />
           </RadialGradient>

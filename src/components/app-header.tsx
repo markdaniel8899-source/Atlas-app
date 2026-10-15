@@ -77,7 +77,7 @@ export function AppHeader({
 
   return (
     <BlurView
-      intensity={35}
+      intensity={20}
       tint="dark"
       style={[styles.header, { paddingTop: insets.top }]}
     >
