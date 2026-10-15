@@ -22,7 +22,7 @@ import { PrimaryButton } from '@/components/ui/primary-button';
 import { setOnboarded } from '@/lib/onboarding';
 
 export default function OnboardingScreen() {
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const listRef = useRef<FlatList<OnboardingCardData>>(null);
   const [index, setIndex] = useState(0);
 
@@ -61,8 +61,12 @@ export default function OnboardingScreen() {
             accessibilityRole="button"
             accessibilityLabel="Skip onboarding"
             hitSlop={12}
+            className="min-h-[48px] min-w-[76px] shrink-0 items-center justify-center rounded-2xl px-6 py-3"
             onPress={() => void finish()}>
-            <Text allowFontScaling={false} className="font-sans-medium text-[13px] text-white/50">
+            <Text
+              allowFontScaling={false}
+              numberOfLines={1}
+              className="font-sans-medium text-[17px] text-white/50">
               Skip
             </Text>
           </Pressable>
@@ -84,11 +88,11 @@ export default function OnboardingScreen() {
             offset: width * itemIndex,
             index: itemIndex,
           })}
-          renderItem={({ item }) => <OnboardingCard card={item} width={width} />}
+          renderItem={({ item }) => <OnboardingCard card={item} width={width} height={height} />}
           accessibilityLabel={`Onboarding, page ${index + 1} of ${ONBOARDING_CARDS.length}`}
         />
 
-        <View className="gap-6 px-7 pb-4">
+        <View className="gap-4 px-7 pb-3">
           <View className="flex-row items-center justify-center gap-2">
             {ONBOARDING_CARDS.map((card, cardIndex) => (
               <View
@@ -103,8 +107,23 @@ export default function OnboardingScreen() {
 
           <PrimaryButton
             label={isLast ? 'Get started' : 'Continue'}
+            variant={isLast ? 'gradient' : 'primary'}
             onPress={handleNext}
           />
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Sign in"
+            hitSlop={8}
+            className="min-h-[44px] flex-row items-center justify-center gap-1.5 px-6"
+            onPress={() => void finish()}>
+            <Text allowFontScaling={false} className="font-sans text-[16px] text-white/45">
+              Already have an account?
+            </Text>
+            <Text allowFontScaling={false} className="font-sans-semibold text-[16px] text-star">
+              Sign In
+            </Text>
+          </Pressable>
         </View>
       </SafeAreaView>
     </View>

@@ -5,6 +5,10 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        background: '#030305',
+        surface: '#0a0a1a',
+        heading: '#ffffff',
+        text: 'rgba(255,255,255,0.7)',
         void: '#030305',
         ink: '#0a0a1a',
         midnight: '#0b1026',

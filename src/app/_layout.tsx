@@ -16,30 +16,18 @@ import { Syne_500Medium } from '@expo-google-fonts/syne/500Medium';
 import { Syne_600SemiBold } from '@expo-google-fonts/syne/600SemiBold';
 import { Syne_700Bold } from '@expo-google-fonts/syne/700Bold';
 import { useFonts } from 'expo-font';
-import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
+import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
-import { colors } from '@/constants/tokens';
+import { DoubleCurtainHost } from '@/components/DoubleCurtain';
+import { Toaster } from '@/components/ui/toaster';
 
 SplashScreen.preventAutoHideAsync();
 
-const atlasTheme = {
-  ...DarkTheme,
-  colors: {
-    ...DarkTheme.colors,
-    primary: colors.star,
-    background: colors.void,
-    card: colors.void,
-    text: colors.heading,
-    border: colors.hairline,
-    notification: colors.lilac,
-  },
-};
-
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     Geist_400Regular,
     Geist_500Medium,
     Geist_600SemiBold,
@@ -57,26 +45,28 @@ export default function RootLayout() {
     Syne_700Bold,
   });
 
+  const ready = fontsLoaded || Boolean(fontError);
+
   useEffect(() => {
-    if (fontsLoaded) {
+    if (ready) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded]);
+  }, [ready]);
 
-  if (!fontsLoaded) {
-    return null;
-  }
+  if (!ready) return null;
 
   return (
-    <ThemeProvider value={atlasTheme}>
+    <>
       <StatusBar style="light" />
       <Stack
         screenOptions={{
           headerShown: false,
           animation: 'fade',
-          contentStyle: { backgroundColor: colors.void },
+          contentStyle: { backgroundColor: '#030305' },
         }}
       />
-    </ThemeProvider>
+      <DoubleCurtainHost />
+      <Toaster />
+    </>
   );
 }

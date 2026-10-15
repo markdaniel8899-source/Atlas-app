@@ -15,6 +15,7 @@ import { GlassCard } from '@/components/ui/glass-card';
 import { MeshBackground } from '@/components/ui/mesh-background';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { TextField } from '@/components/ui/text-field';
+import { doubleCurtainNavigate } from '@/components/DoubleCurtain';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -75,7 +76,7 @@ export default function LoginScreen() {
           setError(signInError.message);
           return;
         }
-        router.replace('/dashboard');
+        doubleCurtainNavigate(() => router.replace('/dashboard'));
       } else {
         const { data, error: signUpError } = await supabase.auth.signUp({
           email: email.trim(),
@@ -91,7 +92,7 @@ export default function LoginScreen() {
           switchMode('signin');
           return;
         }
-        router.replace('/dashboard');
+        doubleCurtainNavigate(() => router.replace('/dashboard'));
       }
     } catch {
       setError('Something went wrong. Check your connection and try again.');
@@ -120,7 +121,7 @@ export default function LoginScreen() {
         setError(resetError.message);
         return;
       }
-      setNotice('Password reset link sent — check your inbox.');
+      setNotice('Password reset link sent. Check your inbox.');
     } catch {
       setError('Could not send the reset link. Try again.');
     } finally {
@@ -146,7 +147,7 @@ export default function LoginScreen() {
                 <AtlasWordmark size="lg" />
                 <Text
                   allowFontScaling={false}
-                  className="font-sans text-[15px] leading-[22px] text-body">
+                  className="font-sans text-base leading-[24px] text-body">
                   Sign in to pick up your terrain where you left off.
                 </Text>
               </View>
@@ -161,12 +162,12 @@ export default function LoginScreen() {
                         accessibilityRole="tab"
                         accessibilityState={{ selected: active }}
                         onPress={() => switchMode(item.key)}
-                        className={`flex-1 items-center rounded-full py-2.5 ${
+                        className={`min-h-[48px] flex-1 items-center rounded-full px-4 py-3 ${
                           active ? 'bg-white/[0.08]' : 'bg-transparent'
                         }`}>
                         <Text
                           allowFontScaling={false}
-                          className={`font-sans-medium text-[13px] ${
+                          className={`font-sans-medium text-base ${
                             active ? 'text-white' : 'text-white/45'
                           }`}>
                           {item.label}
@@ -180,7 +181,7 @@ export default function LoginScreen() {
                   <View className="rounded-2xl border border-lilac/30 bg-lilac/10 px-4 py-3">
                     <Text
                       allowFontScaling={false}
-                      className="font-sans text-[13px] leading-[18px] text-lilac">
+                      className="font-sans text-base leading-[24px] text-lilac">
                       Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in .env to
                       enable sign-in.
                     </Text>
@@ -225,7 +226,7 @@ export default function LoginScreen() {
                   <View className="rounded-2xl border border-[#ff7a7a]/30 bg-[#ff7a7a]/10 px-4 py-3">
                     <Text
                       allowFontScaling={false}
-                      className="font-sans text-[13px] leading-[18px] text-[#ffb3b3]">
+                      className="font-sans text-base leading-[24px] text-[#ffb3b3]">
                       {error}
                     </Text>
                   </View>
@@ -235,7 +236,7 @@ export default function LoginScreen() {
                   <View className="rounded-2xl border border-star/30 bg-star/10 px-4 py-3">
                     <Text
                       allowFontScaling={false}
-                      className="font-sans text-[13px] leading-[18px] text-star">
+                      className="font-sans text-base leading-[24px] text-star">
                       {notice}
                     </Text>
                   </View>
@@ -252,10 +253,11 @@ export default function LoginScreen() {
                     accessibilityRole="button"
                     accessibilityLabel="Forgot password"
                     hitSlop={8}
+                    className="min-h-[48px] items-center justify-center rounded-2xl px-6 py-3"
                     onPress={() => void handleForgotPassword()}>
                     <Text
                       allowFontScaling={false}
-                      className="text-center font-sans-medium text-[13px] text-star">
+                      className="text-center font-sans-medium text-base text-star">
                       Forgot password?
                     </Text>
                   </Pressable>
@@ -264,7 +266,7 @@ export default function LoginScreen() {
 
               <Text
                 allowFontScaling={false}
-                className="text-center font-sans text-[12px] text-white/35">
+                className="text-center font-sans text-[15px] text-white/35">
                 Sessions are RLS-scoped to your account.
               </Text>
             </View>

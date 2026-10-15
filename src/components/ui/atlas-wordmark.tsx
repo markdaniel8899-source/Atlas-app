@@ -8,9 +8,9 @@ type Props = {
 };
 
 const sizes = {
-  sm: { star: 13, text: 'text-sm', gap: 'gap-1.5' },
-  md: { star: 16, text: 'text-xl', gap: 'gap-2' },
-  lg: { star: 22, text: 'text-3xl', gap: 'gap-2.5' },
+  sm: { star: 13, text: 'text-[15px]', gap: 'gap-1.5', trailing: 3 },
+  md: { star: 16, text: 'text-xl', gap: 'gap-2', trailing: 4 },
+  lg: { star: 22, text: 'text-3xl', gap: 'gap-2.5', trailing: 6 },
 } as const;
 
 export function AtlasWordmark({ size = 'md' }: Props) {
@@ -19,11 +19,16 @@ export function AtlasWordmark({ size = 'md' }: Props) {
     <View
       accessibilityRole="header"
       accessibilityLabel="ATLAS"
-      className={`flex-row items-center ${config.gap}`}>
+      className={`shrink-0 flex-row items-center ${config.gap}`}>
       <Sparkle color={colors.star} size={config.star} strokeWidth={1.75} />
       <Text
-        className={`font-syne-bold text-white ${config.text} tracking-[4px]`}
-        allowFontScaling={false}>
+        allowFontScaling={false}
+        numberOfLines={1}
+        className={`shrink-0 font-syne-bold text-white ${config.text}`}
+        style={{
+          letterSpacing: config.trailing,
+          paddingRight: config.trailing,
+        }}>
         ATLAS
       </Text>
     </View>

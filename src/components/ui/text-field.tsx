@@ -25,7 +25,7 @@ export function TextField({ label, secure = false, error, ...rest }: Props) {
       <Text
         allowFontScaling={false}
         accessibilityRole="text"
-        className="font-sans-medium text-[11px] uppercase tracking-[1.6px] text-white/45">
+        className="font-sans-medium text-[15px] uppercase tracking-[1.6px] text-white/45">
         {label}
       </Text>
 
@@ -46,6 +46,7 @@ export function TextField({ label, secure = false, error, ...rest }: Props) {
             accessibilityRole="button"
             accessibilityLabel={hidden ? 'Show password' : 'Hide password'}
             hitSlop={10}
+            className="h-11 w-11 items-center justify-center"
             onPress={() => setHidden((value) => !value)}>
             {hidden ? (
               <Eye color={colors.body} size={18} strokeWidth={1.75} />
@@ -57,7 +58,7 @@ export function TextField({ label, secure = false, error, ...rest }: Props) {
       </View>
 
       {error ? (
-        <Text allowFontScaling={false} className="font-sans text-[13px] text-[#ff9d9d]">
+        <Text allowFontScaling={false} className="font-sans text-[15px] text-[#ff9d9d]">
           {error}
         </Text>
       ) : null}

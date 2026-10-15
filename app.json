@@ -7,13 +7,15 @@
     "icon": "./assets/icon.png",
     "scheme": "atlas",
     "userInterfaceStyle": "dark",
-    "backgroundColor": "#09090b",
+    "backgroundColor": "#030305",
     "ios": {
       "supportsTablet": true
     },
     "android": {
+      "package": "com.atlas.mobile",
       "adaptiveIcon": {
-        "backgroundColor": "#09090b"
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#030305"
       },
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "pan"
@@ -28,15 +30,31 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#09090b",
+          "backgroundColor": "#030305",
           "image": "./assets/splash-icon.png",
           "imageWidth": 76
         }
-      ]
+      ],
+      "expo-updates"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/e3da5166-3d70-4bfa-ae8f-0a703790c725",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 3000
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "e3da5166-3d70-4bfa-ae8f-0a703790c725"
+      }
+    },
+    "owner": "markdaniel8899"
   }
 }

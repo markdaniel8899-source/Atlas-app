@@ -4,8 +4,6 @@ import { OnboardingVisual, type OnboardingVisualName } from './onboarding-visual
 
 export type OnboardingCardData = {
   key: string;
-  step: string;
-  eyebrow: string;
   title: string;
   body: string;
   visual: OnboardingVisualName;
@@ -14,62 +12,59 @@ export type OnboardingCardData = {
 export const ONBOARDING_CARDS: OnboardingCardData[] = [
   {
     key: 'stats',
-    step: '01 / 03',
-    eyebrow: 'Player stats',
-    title: 'Your rank lives on one screen.',
-    body: 'Streak, rank badge, XP bar and @handle — the PlayerStats card that opens your dashboard.',
+    title: 'Own your rank.',
+    body: 'Streak, XP and rank badge. Your whole grind on one PlayerStats card.',
     visual: 'stats',
   },
   {
     key: 'focus',
-    step: '02 / 03',
-    eyebrow: 'Focus & today',
-    title: 'One tap from idle to focus.',
-    body: 'Quick-start presets, total focus time and the next topic on deck — the FocusTimer and TodayFocus widgets, thumb-sized.',
+    title: 'Focus in one tap.',
+    body: 'Quick-start presets, live timer and today’s topic. Idle to deep work instantly.',
     visual: 'focus',
   },
   {
+    key: 'ai',
+    title: 'Study smarter with AI.',
+    body: 'Stuck on a topic? Ask your built-in AI study buddy and keep the streak alive.',
+    visual: 'ai',
+  },
+  {
     key: 'heatmap',
-    step: '03 / 03',
-    eyebrow: 'Activity heatmap',
-    title: 'Watch your terrain fill in.',
-    body: 'Every session lands on a 53-week heatmap, with total hours stacked across the year.',
+    title: 'Watch hours stack up.',
+    body: 'Every session lands on your 53-week heatmap. One glance, a year of effort.',
     visual: 'heatmap',
+  },
+  {
+    key: 'orbit',
+    title: 'Welcome to ATLAS.',
+    body: 'Where discipline becomes a leaderboard. Track, focus and level up every day.',
+    visual: 'orbit',
   },
 ];
 
 type Props = {
   card: OnboardingCardData;
   width: number;
+  height: number;
 };
 
-export function OnboardingCard({ card, width }: Props) {
+export function OnboardingCard({ card, width, height }: Props) {
+  const heroHeight = Math.round(Math.min(300, Math.max(190, height * 0.32)));
+
   return (
-    <View style={{ width, flexShrink: 0 }} className="justify-center gap-9 px-7">
-      <OnboardingVisual name={card.visual} />
+    <View style={{ width, flexShrink: 0 }} className="justify-center gap-6 px-7 pb-2">
+      <OnboardingVisual name={card.visual} height={heroHeight} />
 
-      <View className="gap-3">
-        <View className="flex-row items-center gap-3">
-          <Text
-            allowFontScaling={false}
-            className="font-mono-medium text-[11px] tracking-[1.6px] text-star">
-            {card.step}
-          </Text>
-          <View className="h-px flex-1 bg-white/[0.12]" />
-          <Text
-            allowFontScaling={false}
-            className="font-mono-medium text-[11px] uppercase tracking-[1.6px] text-white/40">
-            {card.eyebrow}
-          </Text>
-        </View>
-
+      <View className="shrink gap-3.5">
         <Text
           allowFontScaling={false}
-          className="font-syne-bold text-[30px] leading-[36px] text-white">
+          className="text-center font-syne-bold text-[34px] leading-[40px] text-white">
           {card.title}
         </Text>
 
-        <Text allowFontScaling={false} className="font-sans text-[16px] leading-[24px] text-body">
+        <Text
+          allowFontScaling={false}
+          className="text-center font-sans-medium text-[17px] leading-[26px] text-body">
           {card.body}
         </Text>
       </View>
