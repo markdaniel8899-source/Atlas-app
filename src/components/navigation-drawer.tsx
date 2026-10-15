@@ -1,4 +1,4 @@
-import { useId, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Platform,
@@ -9,7 +9,6 @@ import {
   View,
 } from "react-native";
 import { BlurView } from "expo-blur";
-import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   FileText,
@@ -26,7 +25,9 @@ import {
 } from "lucide-react-native";
 import { colors, ease, fonts } from "../theme/theme";
 
-const DRAWER_WIDTH = 280;
+const DRAWER_WIDTH = 240;
+
+const HALO_INSETS = [2, 4, 6, 8, 10, 12, 14, 16];
 
 const NAV_ITEMS = [
   { label: "Dashboard", icon: LayoutDashboard },
@@ -55,8 +56,6 @@ export function NavigationDrawer({
   const insets = useSafeAreaInsets();
   const anim = useRef(new Animated.Value(0)).current;
   const [rendered, setRendered] = useState(open);
-  const rawHaloId = useId();
-  const haloId = rawHaloId.replace(/[^a-zA-Z0-9]/g, "");
 
   useEffect(() => {
     if (open) {
@@ -110,39 +109,24 @@ export function NavigationDrawer({
           const Icon = item.icon;
           return (
             <View key={item.label} style={styles.itemWrap}>
-              {active ? (
-                <View pointerEvents="none" style={styles.halo}>
-                  <Svg
-                    width="100%"
-                    height="100%"
-                    viewBox="0 0 100 100"
-                    preserveAspectRatio="none"
-                  >
-                    <Defs>
-                      <RadialGradient
-                        id={haloId}
-                        cx="50%"
-                        cy="50%"
-                        rx="50%"
-                        ry="50%"
-                      >
-                        <Stop offset="0" stopColor="#cf9eff" stopOpacity={0.35} />
-                        <Stop offset="0.5" stopColor="#cf9eff" stopOpacity={0.28} />
-                        <Stop offset="0.7" stopColor="#cf9eff" stopOpacity={0.18} />
-                        <Stop offset="0.85" stopColor="#cf9eff" stopOpacity={0.07} />
-                        <Stop offset="1" stopColor="#cf9eff" stopOpacity={0} />
-                      </RadialGradient>
-                    </Defs>
-                    <Rect
-                      x="0"
-                      y="0"
-                      width="100"
-                      height="100"
-                      fill={`url(#${haloId})`}
+              {active
+                ? HALO_INSETS.map((inset) => (
+                    <View
+                      key={inset}
+                      pointerEvents="none"
+                      style={[
+                        styles.halo,
+                        {
+                          top: -inset,
+                          bottom: -inset,
+                          left: -inset,
+                          right: -inset,
+                          borderRadius: 16 + inset,
+                        },
+                      ]}
                     />
-                  </Svg>
-                </View>
-              ) : null}
+                  ))
+                : null}
               <Pressable
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
@@ -292,10 +276,7 @@ const styles = StyleSheet.create({
   },
   halo: {
     position: "absolute",
-    top: -12,
-    bottom: -12,
-    left: -12,
-    right: -12,
+    backgroundColor: "rgba(207,158,255,0.025)",
   },
   itemIdle: {
     borderColor: "transparent",
