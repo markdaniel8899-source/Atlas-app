@@ -87,11 +87,11 @@ export function PlayerStats({ profile, loading }: Props) {
           <Text allowFontScaling={false} className="font-mono text-lg tabular-nums text-white">
             {rankData.xpInto}
             <Text className="text-white/30"> / {rankData.xpNeed}</Text>
-            <Text className="ml-1.5 text-xs text-[#cf9eff]">XP</Text>
+            <Text className="ml-2 text-xs text-[#cf9eff]">XP</Text>
           </Text>
           <Text
             allowFontScaling={false}
-            className="mt-0.5 text-xs font-medium uppercase tracking-[0.22em] text-white/35">
+            className="mt-1 text-xs font-medium uppercase tracking-[0.22em] text-white/35">
             to {rankData.nextRankName ?? 'max rank'}
           </Text>
         </View>

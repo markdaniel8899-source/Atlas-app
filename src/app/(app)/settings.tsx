@@ -289,7 +289,7 @@ export default function SettingsScreen() {
                 </LinearGradient>
                 <Image
                   source={{
-                    uri: `https://api.dicebear.com/9.x/glass/svg?seed=${encodeURIComponent(
+                    uri: `https://api.dicebear.com/9.x/glass/png?size=240&seed=${encodeURIComponent(
                       profile?.username || profile?.display_name || 'atlas',
                     )}`,
                   }}

@@ -371,8 +371,8 @@ export default function FriendsScreen() {
         </Text>
       </View>
 
-      <View className="flex-row items-center gap-2">
-        <View className="min-h-[52px] min-w-0 flex-1 flex-row items-center gap-2.5 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-4 backdrop-blur-2xl">
+      <View className="gap-2">
+        <View className="min-h-[52px] min-w-0 flex-row items-center gap-2.5 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-4 backdrop-blur-2xl">
           <Mail size={16} color="rgba(255,255,255,0.3)" />
           <TextInput
             allowFontScaling={false}
@@ -389,6 +389,7 @@ export default function FriendsScreen() {
         <PrimaryButton
           label="Invite"
           compact
+          className="self-end"
           loading={sending}
           disabled={!email.trim()}
           icon={<UserPlus size={14} color="#030305" />}

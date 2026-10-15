@@ -41,7 +41,7 @@ export function PrimaryButton({
       className={`overflow-hidden rounded-full ${className} ${isDisabled ? 'opacity-50' : ''}`}>
       {({ pressed }) => (
         <View
-          className={`${pad} w-full flex-row items-center justify-center gap-2.5 overflow-hidden rounded-full ${
+          className={`${pad} flex-row items-center justify-center gap-2.5 overflow-hidden rounded-full ${
             variant === 'primary' ? 'bg-[#9db4ff]' : ''
           } ${
             variant === 'outline'
@@ -66,7 +66,7 @@ export function PrimaryButton({
           <Text
             allowFontScaling={false}
             numberOfLines={1}
-            className={`font-sans-semibold text-base ${
+            className={`shrink font-sans-semibold text-base ${
               isFilled ? 'text-[#030305]' : 'text-white'
             }`}>
             {label}

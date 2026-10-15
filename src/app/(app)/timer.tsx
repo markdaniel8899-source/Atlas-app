@@ -168,7 +168,7 @@ export default function TimerScreen() {
             </View>
           </View>
 
-          <View className="w-full flex-row items-center justify-center gap-3">
+          <View className="w-full gap-3">
             <PrimaryButton
               label={state.mode === 'running' ? 'Pause' : state.mode === 'paused' ? 'Resume' : 'Start'}
               icon={
@@ -179,7 +179,6 @@ export default function TimerScreen() {
                 )
               }
               onPress={timer.toggle}
-              className="min-w-[140px] flex-1"
             />
             <PrimaryButton
               label={state.mode === 'idle' ? 'Reset' : 'Finish'}
@@ -190,7 +189,6 @@ export default function TimerScreen() {
                 timer.stop();
                 setTimeout(load, 800);
               }}
-              className="flex-1"
             />
           </View>
 

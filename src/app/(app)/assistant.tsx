@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -55,6 +56,14 @@ export default function AssistantScreen() {
       cancelled = true;
     };
   }, [userId]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const sub = Keyboard.addListener('keyboardDidShow', () => {
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 250);
+    });
+    return () => sub.remove();
+  }, []);
 
   const send = async (text?: string) => {
     const message = (text ?? input).trim();

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
 import { GlassCard } from '@/components/ui/glass-card';
@@ -102,6 +102,9 @@ export function ActivityHeatmap({ days, weeks = 53 }: Props) {
   const { totalSeconds, activeDays } = useMemo(() => summariseHeatmap(days), [days]);
   const hours = Math.round((totalSeconds / 3600) * 10) / 10;
 
+  const scrollRef = useRef<ScrollView>(null);
+  const jumpedToToday = useRef(false);
+
   const contentWidth = LABEL_W + weeks * (CELL + GAP);
 
   return (
@@ -135,10 +138,16 @@ export function ActivityHeatmap({ days, weeks = 53 }: Props) {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         horizontal
         showsHorizontalScrollIndicator={false}
         className="mt-6"
         contentContainerStyle={{ width: contentWidth }}
+        onContentSizeChange={() => {
+          if (jumpedToToday.current) return;
+          jumpedToToday.current = true;
+          scrollRef.current?.scrollToEnd({ animated: false });
+        }}
         accessibilityLabel={`Focus activity for the last ${weeks} weeks, ${activeDays} active days.`}>
         <View>
           <View style={{ height: 16, paddingLeft: LABEL_W }}>
