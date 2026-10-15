@@ -106,29 +106,42 @@ export function NavigationDrawer({
           const active = item.label === activeLabel;
           const Icon = item.icon;
           return (
-            <Pressable
-              key={item.label}
-              accessibilityRole="button"
-              accessibilityState={{ selected: active }}
-              accessibilityLabel={item.label}
-              onPress={onClose}
-              style={({ pressed }) => [
-                styles.item,
-                active ? styles.itemActive : styles.itemIdle,
-                pressed && !active ? styles.itemPressed : null,
-              ]}
-            >
-              <Icon size={22} color={active ? colors.white : colors.w50} />
-              <Text
-                numberOfLines={1}
-                style={[
-                  styles.itemText,
-                  active ? styles.itemTextActive : null,
+            <View key={item.label} style={styles.itemWrap}>
+              {active ? (
+                <>
+                  <View
+                    pointerEvents="none"
+                    style={[styles.halo, styles.haloOuter]}
+                  />
+                  <View
+                    pointerEvents="none"
+                    style={[styles.halo, styles.haloInner]}
+                  />
+                </>
+              ) : null}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={item.label}
+                onPress={onClose}
+                style={({ pressed }) => [
+                  styles.item,
+                  active ? styles.itemActive : styles.itemIdle,
+                  pressed && !active ? styles.itemPressed : null,
                 ]}
               >
-                {item.label}
-              </Text>
-            </Pressable>
+                <Icon size={22} color={active ? colors.white : colors.w50} />
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.itemText,
+                    active ? styles.itemTextActive : null,
+                  ]}
+                >
+                  {item.label}
+                </Text>
+              </Pressable>
+            </View>
           );
         })}
       </ScrollView>
@@ -247,6 +260,28 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
   },
+  itemWrap: {
+    position: "relative",
+  },
+  halo: {
+    position: "absolute",
+  },
+  haloInner: {
+    top: -4,
+    bottom: -4,
+    left: -4,
+    right: -4,
+    borderRadius: 16,
+    backgroundColor: "rgba(207,158,255,0.12)",
+  },
+  haloOuter: {
+    top: -10,
+    bottom: -10,
+    left: -10,
+    right: -10,
+    borderRadius: 22,
+    backgroundColor: "rgba(207,158,255,0.07)",
+  },
   itemIdle: {
     borderColor: "transparent",
   },
@@ -255,7 +290,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.lilac10,
     shadowColor: colors.lilac50,
     shadowOpacity: 0.7,
-    shadowRadius: 12,
+    shadowRadius: 16,
     shadowOffset: { width: 0, height: 0 },
   },
   itemPressed: {
