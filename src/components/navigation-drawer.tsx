@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import type { RefObject } from "react";
 import {
   Animated,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -44,14 +44,12 @@ interface NavigationDrawerProps {
   open: boolean;
   onClose: () => void;
   activeLabel?: string;
-  blurTarget?: RefObject<View | null>;
 }
 
 export function NavigationDrawer({
   open,
   onClose,
   activeLabel = "Dashboard",
-  blurTarget,
 }: NavigationDrawerProps) {
   const insets = useSafeAreaInsets();
   const anim = useRef(new Animated.Value(0)).current;
@@ -80,6 +78,68 @@ export function NavigationDrawer({
 
   if (!rendered) return null;
 
+  const panelBody = (
+    <>
+      <View style={styles.headerRow}>
+        <View style={styles.logo}>
+          <View style={styles.logoDiamond} />
+          <Text style={styles.logoText}>ATLAS</Text>
+        </View>
+      </View>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Close navigation"
+        onPress={onClose}
+        hitSlop={8}
+        style={[styles.closeButton, { top: insets.top + 16 }]}
+      >
+        <X size={16} color={colors.w50} />
+      </Pressable>
+
+      <ScrollView
+        style={styles.navScroll}
+        contentContainerStyle={styles.navList}
+        showsVerticalScrollIndicator={false}
+      >
+        {NAV_ITEMS.map((item) => {
+          const active = item.label === activeLabel;
+          const Icon = item.icon;
+          return (
+            <Pressable
+              key={item.label}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={item.label}
+              onPress={onClose}
+              style={({ pressed }) => [
+                styles.item,
+                active ? styles.itemActive : styles.itemIdle,
+                pressed && !active ? styles.itemPressed : null,
+              ]}
+            >
+              <Icon size={16} color={active ? colors.white : colors.w50} />
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.itemText,
+                  active ? styles.itemTextActive : null,
+                ]}
+              >
+                {item.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+    </>
+  );
+
+  const panelInsets = {
+    paddingTop: insets.top,
+    paddingBottom: insets.bottom,
+  };
+
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
       <Animated.View style={[StyleSheet.absoluteFill, { opacity: anim }]}>
@@ -91,16 +151,10 @@ export function NavigationDrawer({
         />
       </Animated.View>
 
-      <BlurView
-        intensity={60}
-        tint="dark"
-        blurMethod="dimezisBlurViewSdk31Plus"
-        blurTarget={blurTarget}
+      <Animated.View
         style={[
-          styles.panel,
+          styles.panelWrap,
           {
-            paddingTop: insets.top,
-            paddingBottom: insets.bottom,
             transform: [
               {
                 translateX: anim.interpolate({
@@ -112,59 +166,14 @@ export function NavigationDrawer({
           },
         ]}
       >
-        <View style={styles.headerRow}>
-          <View style={styles.logo}>
-            <View style={styles.logoDiamond} />
-            <Text style={styles.logoText}>ATLAS</Text>
-          </View>
-        </View>
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Close navigation"
-          onPress={onClose}
-          hitSlop={8}
-          style={[styles.closeButton, { top: insets.top + 16 }]}
-        >
-          <X size={16} color={colors.w50} />
-        </Pressable>
-
-        <ScrollView
-          style={styles.navScroll}
-          contentContainerStyle={styles.navList}
-          showsVerticalScrollIndicator={false}
-        >
-          {NAV_ITEMS.map((item) => {
-            const active = item.label === activeLabel;
-            const Icon = item.icon;
-            return (
-              <Pressable
-                key={item.label}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-                accessibilityLabel={item.label}
-                onPress={onClose}
-                style={({ pressed }) => [
-                  styles.item,
-                  active ? styles.itemActive : styles.itemIdle,
-                  pressed && !active && styles.itemPressed,
-                ]}
-              >
-                <Icon size={16} color={active ? colors.white : colors.w50} />
-                <Text
-                  numberOfLines={1}
-                  style={[
-                    styles.itemText,
-                    active ? styles.itemTextActive : null,
-                  ]}
-                >
-                  {item.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      </BlurView>
+        {Platform.OS === "android" ? (
+          <View style={[styles.panel, panelInsets]}>{panelBody}</View>
+        ) : (
+          <BlurView intensity={60} tint="dark" style={[styles.panel, panelInsets]}>
+            {panelBody}
+          </BlurView>
+        )}
+      </Animated.View>
     </View>
   );
 }
@@ -173,12 +182,15 @@ const styles = StyleSheet.create({
   backdrop: {
     backgroundColor: "rgba(0,0,0,0.6)",
   },
-  panel: {
+  panelWrap: {
     position: "absolute",
     top: 0,
     bottom: 0,
     left: 0,
     width: DRAWER_WIDTH,
+  },
+  panel: {
+    flex: 1,
     backgroundColor: "rgba(6,6,14,0.94)",
     borderRightWidth: 1,
     borderRightColor: colors.w05,

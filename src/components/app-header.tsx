@@ -1,5 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import type { RefObject } from "react";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -13,7 +12,6 @@ interface AppHeaderProps {
   onMenuPress: () => void;
   avatarUrl?: string | null;
   onAccountPress?: () => void;
-  blurTarget?: RefObject<View | null>;
 }
 
 export function AppHeader({
@@ -21,58 +19,69 @@ export function AppHeader({
   onMenuPress,
   avatarUrl,
   onAccountPress,
-  blurTarget,
 }: AppHeaderProps) {
   const insets = useSafeAreaInsets();
 
-  return (
-    <BlurView
-      intensity={28}
-      tint="dark"
-      blurMethod="dimezisBlurViewSdk31Plus"
-      blurTarget={blurTarget}
-      style={[styles.header, { paddingTop: insets.top }]}
-    >
-      <View style={styles.inner}>
-        <View style={styles.left}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Open navigation"
-            onPress={onMenuPress}
-            hitSlop={6}
-            style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-          >
-            <Menu size={20} color={colors.w60} />
-          </Pressable>
-          <Text style={styles.title} numberOfLines={1}>
-            {title}
-          </Text>
-        </View>
-
+  const inner = (
+    <View style={styles.inner}>
+      <View style={styles.left}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Account menu"
-          onPress={onAccountPress}
+          accessibilityLabel="Open navigation"
+          onPress={onMenuPress}
           hitSlop={6}
-          style={({ pressed }) => [styles.account, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
         >
-          {avatarUrl ? (
-            <Image
-              source={{ uri: avatarUrl }}
-              style={styles.avatar}
-              contentFit="cover"
-            />
-          ) : (
-            <Image
-              source={APP_ICON}
-              style={styles.avatar}
-              contentFit="cover"
-              accessibilityLabel="ATLAS profile"
-            />
-          )}
-          <ChevronDown size={14} color={colors.w40} />
+          <Menu size={20} color={colors.w60} />
         </Pressable>
+        <Text style={styles.title} numberOfLines={1}>
+          {title}
+        </Text>
       </View>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Account menu"
+        onPress={onAccountPress}
+        hitSlop={6}
+        style={({ pressed }) => [styles.account, pressed && styles.pressed]}
+      >
+        {avatarUrl ? (
+          <Image
+            source={{ uri: avatarUrl }}
+            style={styles.avatar}
+            contentFit="cover"
+          />
+        ) : (
+          <Image
+            source={APP_ICON}
+            style={styles.avatar}
+            contentFit="cover"
+            accessibilityLabel="ATLAS profile"
+          />
+        )}
+        <ChevronDown size={14} color={colors.w40} />
+      </Pressable>
+    </View>
+  );
+
+  if (Platform.OS === "android") {
+    return (
+      <View
+        style={[styles.header, styles.headerAndroid, { paddingTop: insets.top }]}
+      >
+        {inner}
+      </View>
+    );
+  }
+
+  return (
+    <BlurView
+      intensity={35}
+      tint="dark"
+      style={[styles.header, { paddingTop: insets.top }]}
+    >
+      {inner}
     </BlurView>
   );
 }
@@ -88,6 +97,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.w05,
     overflow: "hidden",
+  },
+  headerAndroid: {
+    backgroundColor: "rgba(9,9,17,0.88)",
   },
   inner: {
     height: 64,

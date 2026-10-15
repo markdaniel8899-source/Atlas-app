@@ -173,23 +173,19 @@ export function ActivityHeatmap({ days, weeks = 53 }: ActivityHeatmapProps) {
             >
               <View>
                 <View style={styles.monthsRow}>
-                  {columns.map((column, index) => (
-                    <View
-                      key={column.key}
-                      style={[
-                        styles.monthSlot,
-                        index < columns.length - 1
-                          ? { marginRight: GAP }
-                          : null,
-                      ]}
-                    >
-                      {column.monthLabel ? (
-                        <Text style={styles.monthLabel}>
-                          {column.monthLabel}
-                        </Text>
-                      ) : null}
-                    </View>
-                  ))}
+                  {columns.map((column, index) =>
+                    column.monthLabel ? (
+                      <Text
+                        key={column.key}
+                        style={[
+                          styles.monthLabel,
+                          { left: index * (CELL + GAP) },
+                        ]}
+                      >
+                        {column.monthLabel}
+                      </Text>
+                    ) : null,
+                  )}
                 </View>
 
                 <View style={styles.columnsRow}>
@@ -303,10 +299,12 @@ const styles = StyleSheet.create({
   },
   gutterRow: {
     height: CELL,
-    justifyContent: "center",
-    paddingRight: 4,
+    position: "relative",
   },
   dayLabel: {
+    position: "absolute",
+    left: 0,
+    top: 0,
     fontSize: 10,
     lineHeight: 12,
     fontFamily: fonts.regular,
@@ -329,12 +327,11 @@ const styles = StyleSheet.create({
   },
   monthsRow: {
     height: MONTH_ROW_HEIGHT,
-    flexDirection: "row",
-  },
-  monthSlot: {
-    width: CELL,
+    position: "relative",
   },
   monthLabel: {
+    position: "absolute",
+    top: 0,
     fontSize: 10,
     lineHeight: 12,
     fontFamily: fonts.regular,
