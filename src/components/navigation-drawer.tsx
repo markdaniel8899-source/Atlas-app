@@ -25,7 +25,7 @@ import {
 } from "lucide-react-native";
 import { colors, ease, fonts } from "../theme/theme";
 
-const DRAWER_WIDTH = 240;
+const DRAWER_WIDTH = 280;
 
 const NAV_ITEMS = [
   { label: "Dashboard", icon: LayoutDashboard },
@@ -94,7 +94,7 @@ export function NavigationDrawer({
         hitSlop={8}
         style={[styles.closeButton, { top: insets.top + 16 }]}
       >
-        <X size={16} color={colors.w50} />
+        <X size={20} color={colors.w50} />
       </Pressable>
 
       <ScrollView
@@ -118,7 +118,7 @@ export function NavigationDrawer({
                 pressed && !active ? styles.itemPressed : null,
               ]}
             >
-              <Icon size={16} color={active ? colors.white : colors.w50} />
+              <Icon size={22} color={active ? colors.white : colors.w50} />
               <Text
                 numberOfLines={1}
                 style={[
@@ -210,8 +210,8 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   logoDiamond: {
-    width: 12,
-    height: 12,
+    width: 14,
+    height: 14,
     borderRadius: 2,
     borderWidth: 1,
     borderColor: "rgba(157,180,255,0.8)",
@@ -219,31 +219,31 @@ const styles = StyleSheet.create({
     transform: [{ rotate: "45deg" }],
   },
   logoText: {
-    fontSize: 16,
+    fontSize: 18,
     fontFamily: fonts.semibold,
-    letterSpacing: -0.48,
+    letterSpacing: -0.54,
     color: colors.white,
   },
   closeButton: {
     position: "absolute",
-    right: 16,
+    right: 14,
     zIndex: 2,
-    padding: 8,
+    padding: 10,
     borderRadius: 8,
   },
   navScroll: {
     flex: 1,
   },
   navList: {
-    padding: 12,
-    gap: 6,
+    padding: 16,
+    gap: 8,
   },
   item: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    gap: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 15,
     borderRadius: 12,
     borderWidth: 1,
   },
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
   },
   itemText: {
     flexShrink: 1,
-    fontSize: 14,
+    fontSize: 16,
     fontFamily: fonts.regular,
     color: colors.w50,
   },
