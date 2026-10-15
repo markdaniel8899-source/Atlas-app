@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import type { RefObject } from "react";
 import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -12,6 +13,7 @@ interface AppHeaderProps {
   avatarUrl?: string | null;
   initials?: string;
   onAccountPress?: () => void;
+  blurTarget?: RefObject<View | null>;
 }
 
 export function AppHeader({
@@ -20,14 +22,16 @@ export function AppHeader({
   avatarUrl,
   initials = "A",
   onAccountPress,
+  blurTarget,
 }: AppHeaderProps) {
   const insets = useSafeAreaInsets();
 
   return (
     <BlurView
-      intensity={30}
+      intensity={40}
       tint="dark"
-      blurMethod="dimezisBlurView"
+      blurMethod="dimezisBlurViewSdk31Plus"
+      blurTarget={blurTarget}
       style={[styles.header, { paddingTop: insets.top }]}
     >
       <View style={styles.inner}>

@@ -1,10 +1,18 @@
-import { useEffect, useRef } from "react";
-import { Animated, Easing, StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import {
+  Animated,
+  Easing,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { Flame } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Card } from "../ui/card";
 import { Glow } from "../ui/glow";
 import { RankBadge } from "../gamification/rank-badge";
+import { RankProgressionModal } from "../gamification/rank-progression-modal";
 import { getRankFromXP } from "../../lib/gamification";
 import type { Profile } from "../../lib/db/types";
 import { colors, ease, fonts } from "../../theme/theme";
@@ -53,6 +61,7 @@ function LoadingCard() {
 export function PlayerStats({ profile, loading }: PlayerStatsProps) {
   const rankData = getRankFromXP(profile?.xp ?? 0);
   const streak = profile?.streak ?? 0;
+  const [rankModalOpen, setRankModalOpen] = useState(false);
   const bar = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -70,30 +79,44 @@ export function PlayerStats({ profile, loading }: PlayerStatsProps) {
   if (loading) return <LoadingCard />;
 
   return (
-    <Card style={styles.card}>
-      <Glow
-        size={288}
-        color="rgba(207,158,255,0.12)"
-        style={styles.cardGlow}
-      />
+    <>
+      <Card style={styles.card}>
+        <Glow
+          size={288}
+          color="rgba(207,158,255,0.12)"
+          style={styles.cardGlow}
+        />
 
-      <View style={styles.row}>
-        <View style={styles.cell}>
-          <View style={styles.flameBox}>
-            <Flame size={20} color={colors.flame} />
+        <View style={styles.topRow}>
+          <View style={styles.cell}>
+            <View style={styles.flameBox}>
+              <Flame size={20} color={colors.flame} />
+            </View>
+            <View>
+              <Text style={styles.cellValue}>{String(streak)}</Text>
+              <Text style={[styles.micro, styles.microGap]}>day streak</Text>
+            </View>
           </View>
-          <View>
-            <Text style={styles.cellValue}>{String(streak)}</Text>
-            <Text style={[styles.micro, styles.microGap]}>day streak</Text>
-          </View>
-        </View>
 
-        <View style={styles.rankBlock}>
-          <RankBadge rank={rankData.tier.key} tier={rankData.current.step} size={44} />
-          <View>
-            <Text style={styles.rankName}>{rankData.name}</Text>
-            <Text style={[styles.micro, styles.microGap]}>current rank</Text>
-          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="View rank progression"
+            onPress={() => setRankModalOpen(true)}
+            style={({ pressed }) => [
+              styles.rankBlock,
+              pressed && styles.rankBlockPressed,
+            ]}
+          >
+            <RankBadge
+              rank={rankData.tier.key}
+              tier={rankData.current.step}
+              size={44}
+            />
+            <View>
+              <Text style={styles.rankName}>{rankData.name}</Text>
+              <Text style={[styles.micro, styles.microGap]}>current rank</Text>
+            </View>
+          </Pressable>
         </View>
 
         <View style={styles.xpBlock}>
@@ -106,39 +129,45 @@ export function PlayerStats({ profile, loading }: PlayerStatsProps) {
             {`to ${rankData.nextRankName ?? "max rank"}`}
           </Text>
         </View>
-      </View>
 
-      <View style={styles.progressBlock}>
-        <View style={styles.track}>
-          <Animated.View
-            style={[
-              styles.fill,
-              {
-                width: bar.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ["0%", `${rankData.percent}%`],
-                }),
-              },
-            ]}
-          >
-            <LinearGradient
-              colors={[rankData.tier.gradient[0], rankData.tier.gradient[1]]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={StyleSheet.absoluteFill}
-            />
-          </Animated.View>
+        <View style={styles.progressBlock}>
+          <View style={styles.track}>
+            <Animated.View
+              style={[
+                styles.fill,
+                {
+                  width: bar.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ["0%", `${rankData.percent}%`],
+                  }),
+                },
+              ]}
+            >
+              <LinearGradient
+                colors={[rankData.tier.gradient[0], rankData.tier.gradient[1]]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={StyleSheet.absoluteFill}
+              />
+            </Animated.View>
+          </View>
+          <View style={styles.footer}>
+            <Text style={styles.footerLeft} numberOfLines={1}>
+              {Math.round(rankData.percent)}% of {rankData.name} complete
+            </Text>
+            <Text style={styles.footerRight} numberOfLines={1}>
+              {profile ? `@${profile.username}` : "unlinked profile"}
+            </Text>
+          </View>
         </View>
-        <View style={styles.footer}>
-          <Text style={styles.footerLeft} numberOfLines={1}>
-            {Math.round(rankData.percent)}% of {rankData.name} complete
-          </Text>
-          <Text style={styles.footerRight} numberOfLines={1}>
-            {profile ? `@${profile.username}` : "unlinked profile"}
-          </Text>
-        </View>
-      </View>
-    </Card>
+      </Card>
+
+      <RankProgressionModal
+        open={rankModalOpen}
+        onClose={() => setRankModalOpen(false)}
+        currentRank={rankData}
+      />
+    </>
   );
 }
 
@@ -151,7 +180,7 @@ const styles = StyleSheet.create({
     top: -112,
     right: -64,
   },
-  row: {
+  topRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     alignItems: "center",
@@ -195,6 +224,12 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 4,
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "transparent",
+  },
+  rankBlockPressed: {
+    borderColor: colors.w10,
+    backgroundColor: colors.w03,
   },
   rankName: {
     fontSize: 18,
@@ -202,7 +237,7 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   xpBlock: {
-    marginLeft: "auto",
+    marginTop: 24,
     alignItems: "flex-end",
   },
   xpValue: {

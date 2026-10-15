@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeScrollEvent, NativeSyntheticEvent } from "react-native";
+import { BlurTargetView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppHeader } from "../components/app-header";
 import { ActivityHeatmap } from "../components/dashboard/activity-heatmap";
@@ -27,6 +28,7 @@ export default function DashboardScreen() {
   const { user, profile, heatmap, focus, loading } = useDashboard();
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
+  const blurTargetRef = useRef<View>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrollPercent, setScrollPercent] = useState(0);
 
@@ -58,60 +60,64 @@ export default function DashboardScreen() {
 
   return (
     <View style={styles.root}>
-      <MeshBackground />
+      <BlurTargetView ref={blurTargetRef} style={styles.blurTarget}>
+        <MeshBackground />
 
-      <ScrollView
-        ref={scrollRef}
-        style={styles.scroll}
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingTop: insets.top + 64 + 32,
-            paddingBottom: insets.bottom + 32,
-          },
-        ]}
-        onScroll={onScroll}
-        scrollEventThrottle={16}
-        showsVerticalScrollIndicator={false}
-        contentInsetAdjustmentBehavior="never"
-      >
-        <View style={styles.sections}>
-          <View>
-            <Text style={styles.eyebrow}>{greeting()}</Text>
-            <View style={styles.headingWrap}>
-              <RevealText
-                text={`${firstName}, here's your terrain.`}
-                style={styles.heading}
-              />
+        <ScrollView
+          ref={scrollRef}
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.content,
+            {
+              paddingTop: insets.top + 64 + 32,
+              paddingBottom: insets.bottom + 32,
+            },
+          ]}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+          showsVerticalScrollIndicator={false}
+          contentInsetAdjustmentBehavior="never"
+        >
+          <View style={styles.sections}>
+            <View>
+              <Text style={styles.eyebrow}>{greeting()}</Text>
+              <View style={styles.headingWrap}>
+                <RevealText
+                  text={`${firstName}, here's your terrain.`}
+                  style={styles.heading}
+                />
+              </View>
+            </View>
+
+            <PlayerStats profile={profile} loading={loading} />
+            <FocusTimerWidget />
+            <TodayFocus focus={focus} loading={loading} />
+            <ActivityHeatmap days={heatmap} />
+          </View>
+
+          <View style={styles.footerWrap}>
+            <View style={styles.footer}>
+              <Text style={styles.footerLink}>Privacy Policy</Text>
+              <Text style={styles.footerLink}>Terms of Service</Text>
+              <Text style={styles.footerLink}>Contact Us</Text>
             </View>
           </View>
-
-          <PlayerStats profile={profile} loading={loading} />
-          <FocusTimerWidget />
-          <TodayFocus focus={focus} loading={loading} />
-          <ActivityHeatmap days={heatmap} />
-        </View>
-
-        <View style={styles.footerWrap}>
-          <View style={styles.footer}>
-            <Text style={styles.footerLink}>Privacy Policy</Text>
-            <Text style={styles.footerLink}>Terms of Service</Text>
-            <Text style={styles.footerLink}>Contact Us</Text>
-          </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </BlurTargetView>
 
       <AppHeader
         title="Dashboard"
         onMenuPress={() => setMenuOpen(true)}
         avatarUrl={profile?.avatar_url ?? null}
         initials={initials}
+        blurTarget={blurTargetRef}
       />
 
       <NavigationDrawer
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
         activeLabel="Dashboard"
+        blurTarget={blurTargetRef}
       />
 
       <ScrollProgressIndicator
@@ -129,6 +135,9 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.appBg,
+  },
+  blurTarget: {
+    flex: 1,
   },
   scroll: {
     flex: 1,

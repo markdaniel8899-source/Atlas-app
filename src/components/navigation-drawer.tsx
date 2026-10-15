@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { RefObject } from "react";
 import {
   Animated,
   Pressable,
@@ -43,12 +44,14 @@ interface NavigationDrawerProps {
   open: boolean;
   onClose: () => void;
   activeLabel?: string;
+  blurTarget?: RefObject<View | null>;
 }
 
 export function NavigationDrawer({
   open,
   onClose,
   activeLabel = "Dashboard",
+  blurTarget,
 }: NavigationDrawerProps) {
   const insets = useSafeAreaInsets();
   const anim = useRef(new Animated.Value(0)).current;
@@ -89,9 +92,10 @@ export function NavigationDrawer({
       </Animated.View>
 
       <BlurView
-        intensity={40}
+        intensity={70}
         tint="dark"
-        blurMethod="dimezisBlurView"
+        blurMethod="dimezisBlurViewSdk31Plus"
+        blurTarget={blurTarget}
         style={[
           styles.panel,
           {

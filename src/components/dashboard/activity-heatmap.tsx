@@ -1,6 +1,5 @@
-import { useMemo, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
-import type { LayoutChangeEvent } from "react-native";
+import { useMemo, useRef } from "react";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { Card } from "../ui/card";
 import { summariseHeatmap } from "../../lib/db/activity";
 import type { HeatmapDay } from "../../lib/db/types";
@@ -14,7 +13,8 @@ interface ActivityHeatmapProps {
 const CELL = 12;
 const GAP = 4;
 const LABEL_WIDTH = 26;
-const LABEL_ROW_HEIGHT = 12;
+const MONTH_ROW_HEIGHT = 16;
+const GRID_HEIGHT = MONTH_ROW_HEIGHT + 7 * CELL + 6 * GAP;
 
 const MONTHS = [
   "Jan",
@@ -121,16 +121,7 @@ export function ActivityHeatmap({ days, weeks = 53 }: ActivityHeatmapProps) {
     [days],
   );
   const hours = Math.round((totalSeconds / 3600) * 10) / 10;
-
-  const [gridWidth, setGridWidth] = useState(0);
-  const cell =
-    gridWidth > 0
-      ? Math.max(0.5, (gridWidth - LABEL_WIDTH - GAP * weeks) / weeks)
-      : 0;
-
-  const onGridLayout = (event: LayoutChangeEvent) => {
-    setGridWidth(event.nativeEvent.layout.width);
-  };
+  const scrollRef = useRef<ScrollView>(null);
 
   return (
     <Card>
@@ -154,78 +145,100 @@ export function ActivityHeatmap({ days, weeks = 53 }: ActivityHeatmapProps) {
         accessible
         accessibilityLabel={`Focus activity for the last ${weeks} weeks, ${activeDays} active days.`}
       >
-        <View style={styles.monthsRow}>
-          {columns.map((column, index) =>
-            column.monthLabel ? (
-              <Text
-                key={`${column.key}-label`}
-                style={[
-                  styles.monthLabel,
-                  { left: (index * (gridWidth + GAP)) / weeks },
-                ]}
-              >
-                {column.monthLabel}
-              </Text>
-            ) : null,
-          )}
-        </View>
-
-        <View onLayout={onGridLayout}>
-          {gridWidth > 0 &&
-            DAY_LABELS.map((label, dow) => (
+        <View style={styles.gridRow}>
+          <View style={styles.gutter}>
+            {DAY_LABELS.map((label, dow) => (
               <View
                 key={dow}
                 style={[
-                  styles.gridRow,
-                  {
-                    height: Math.max(cell, label ? LABEL_ROW_HEIGHT : 0),
-                    marginBottom: dow < 6 ? GAP : 0,
-                  },
+                  styles.gutterRow,
+                  dow < 6 ? { marginBottom: GAP } : null,
                 ]}
               >
-                <View style={styles.dayLabelCol}>
-                  {label ? <Text style={styles.dayLabel}>{label}</Text> : null}
-                </View>
-                {columns.map((column) => {
-                  const gridCell = column.cells[dow];
-                  return (
-                    <View
-                      key={gridCell.key}
-                      style={[
-                        {
-                          width: cell,
-                          height: cell,
-                          borderRadius: 3,
-                          marginLeft: GAP,
-                          backgroundColor: gridCell.future
-                            ? "transparent"
-                            : LEVEL_COLORS[gridCell.level],
-                        },
-                        gridCell.level === 4 && !gridCell.future
-                          ? styles.levelFourGlow
-                          : null,
-                      ]}
-                    />
-                  );
-                })}
+                {label ? <Text style={styles.dayLabel}>{label}</Text> : null}
               </View>
             ))}
-        </View>
-      </View>
+          </View>
 
-      <View style={styles.legend}>
-        <Text style={styles.legendText}>Less</Text>
-        {LEVEL_COLORS.map((color, level) => (
-          <View
-            key={level}
-            style={[
-              styles.legendCell,
-              { backgroundColor: color },
-              level === 4 ? styles.levelFourGlow : null,
-            ]}
-          />
-        ))}
-        <Text style={[styles.legendText, styles.legendMore]}>More</Text>
+          <ScrollView
+            ref={scrollRef}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.gridScroll}
+            onContentSizeChange={() =>
+              scrollRef.current?.scrollToEnd({ animated: false })
+            }
+          >
+            <View>
+              <View style={styles.monthsRow}>
+                {columns.map((column, index) => (
+                  <View
+                    key={column.key}
+                    style={[
+                      styles.monthSlot,
+                      index < columns.length - 1
+                        ? { marginRight: GAP }
+                        : null,
+                    ]}
+                  >
+                    {column.monthLabel ? (
+                      <Text style={styles.monthLabel}>
+                        {column.monthLabel}
+                      </Text>
+                    ) : null}
+                  </View>
+                ))}
+              </View>
+
+              <View style={styles.columnsRow}>
+                {columns.map((column, index) => (
+                  <View
+                    key={column.key}
+                    style={[
+                      styles.weekColumn,
+                      index < columns.length - 1
+                        ? { marginRight: GAP }
+                        : null,
+                    ]}
+                  >
+                    {column.cells.map((cell, dow) => (
+                      <View
+                        key={cell.key}
+                        style={[
+                          styles.cell,
+                          dow < 6 ? { marginBottom: GAP } : null,
+                          {
+                            backgroundColor: cell.future
+                              ? "transparent"
+                              : LEVEL_COLORS[cell.level],
+                          },
+                          cell.level === 4 && !cell.future
+                            ? styles.levelFourGlow
+                            : null,
+                        ]}
+                      />
+                    ))}
+                  </View>
+                ))}
+              </View>
+            </View>
+          </ScrollView>
+        </View>
+
+        <View style={styles.legend}>
+          <Text style={styles.legendText}>Less</Text>
+          {LEVEL_COLORS.map((color, level) => (
+            <View
+              key={level}
+              style={[
+                styles.legendCell,
+                { backgroundColor: color },
+                level === 4 ? styles.levelFourGlow : null,
+              ]}
+            />
+          ))}
+          <Text style={[styles.legendText, styles.legendMore]}>More</Text>
+        </View>
       </View>
     </Card>
   );
@@ -270,24 +283,17 @@ const styles = StyleSheet.create({
   gridArea: {
     marginTop: 24,
   },
-  monthsRow: {
-    position: "relative",
-    height: 16,
-  },
-  monthLabel: {
-    position: "absolute",
-    top: 0,
-    fontSize: 10,
-    lineHeight: 12,
-    fontFamily: fonts.regular,
-    color: colors.w35,
-  },
   gridRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
   },
-  dayLabelCol: {
+  gutter: {
     width: LABEL_WIDTH,
+    marginTop: MONTH_ROW_HEIGHT,
+  },
+  gutterRow: {
+    height: CELL,
+    justifyContent: "center",
     paddingRight: 4,
   },
   dayLabel: {
@@ -295,6 +301,34 @@ const styles = StyleSheet.create({
     lineHeight: 12,
     fontFamily: fonts.regular,
     color: colors.w30,
+  },
+  gridScroll: {
+    flexGrow: 1,
+    height: GRID_HEIGHT,
+  },
+  monthsRow: {
+    height: MONTH_ROW_HEIGHT,
+    flexDirection: "row",
+  },
+  monthSlot: {
+    width: CELL,
+  },
+  monthLabel: {
+    fontSize: 10,
+    lineHeight: 12,
+    fontFamily: fonts.regular,
+    color: colors.w35,
+  },
+  columnsRow: {
+    flexDirection: "row",
+  },
+  weekColumn: {
+    width: CELL,
+  },
+  cell: {
+    width: CELL,
+    height: CELL,
+    borderRadius: 3,
   },
   levelFourGlow: {
     shadowColor: "rgba(207,158,255,0.7)",
