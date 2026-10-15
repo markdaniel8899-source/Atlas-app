@@ -34,13 +34,6 @@ export default function DashboardScreen() {
 
   const name = profile?.display_name?.trim() || user?.name || "";
   const firstName = name.split(" ")[0]?.trim() || "Explorer";
-  const initials =
-    (name || user?.email || "A")
-      .split(/[\s@._-]+/)
-      .map((part) => part[0] ?? "")
-      .join("")
-      .slice(0, 2)
-      .toUpperCase() || "A";
 
   const onScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -109,7 +102,6 @@ export default function DashboardScreen() {
         title="Dashboard"
         onMenuPress={() => setMenuOpen(true)}
         avatarUrl={profile?.avatar_url ?? null}
-        initials={initials}
         blurTarget={blurTargetRef}
       />
 

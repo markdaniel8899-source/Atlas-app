@@ -1,5 +1,6 @@
 import { useMemo, useRef } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { Card } from "../ui/card";
 import { summariseHeatmap } from "../../lib/db/activity";
 import type { HeatmapDay } from "../../lib/db/types";
@@ -160,69 +161,78 @@ export function ActivityHeatmap({ days, weeks = 53 }: ActivityHeatmapProps) {
             ))}
           </View>
 
-          <ScrollView
-            ref={scrollRef}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.gridScroll}
-            onContentSizeChange={() =>
-              scrollRef.current?.scrollToEnd({ animated: false })
-            }
-          >
-            <View>
-              <View style={styles.monthsRow}>
-                {columns.map((column, index) => (
-                  <View
-                    key={column.key}
-                    style={[
-                      styles.monthSlot,
-                      index < columns.length - 1
-                        ? { marginRight: GAP }
-                        : null,
-                    ]}
-                  >
-                    {column.monthLabel ? (
-                      <Text style={styles.monthLabel}>
-                        {column.monthLabel}
-                      </Text>
-                    ) : null}
-                  </View>
-                ))}
-              </View>
+          <View style={styles.scrollWrap}>
+            <ScrollView
+              ref={scrollRef}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.gridScroll}
+              onContentSizeChange={() =>
+                scrollRef.current?.scrollToEnd({ animated: false })
+              }
+            >
+              <View>
+                <View style={styles.monthsRow}>
+                  {columns.map((column, index) => (
+                    <View
+                      key={column.key}
+                      style={[
+                        styles.monthSlot,
+                        index < columns.length - 1
+                          ? { marginRight: GAP }
+                          : null,
+                      ]}
+                    >
+                      {column.monthLabel ? (
+                        <Text style={styles.monthLabel}>
+                          {column.monthLabel}
+                        </Text>
+                      ) : null}
+                    </View>
+                  ))}
+                </View>
 
-              <View style={styles.columnsRow}>
-                {columns.map((column, index) => (
-                  <View
-                    key={column.key}
-                    style={[
-                      styles.weekColumn,
-                      index < columns.length - 1
-                        ? { marginRight: GAP }
-                        : null,
-                    ]}
-                  >
-                    {column.cells.map((cell, dow) => (
-                      <View
-                        key={cell.key}
-                        style={[
-                          styles.cell,
-                          dow < 6 ? { marginBottom: GAP } : null,
-                          {
-                            backgroundColor: cell.future
-                              ? "transparent"
-                              : LEVEL_COLORS[cell.level],
-                          },
-                          cell.level === 4 && !cell.future
-                            ? styles.levelFourGlow
-                            : null,
-                        ]}
-                      />
-                    ))}
-                  </View>
-                ))}
+                <View style={styles.columnsRow}>
+                  {columns.map((column, index) => (
+                    <View
+                      key={column.key}
+                      style={[
+                        styles.weekColumn,
+                        index < columns.length - 1
+                          ? { marginRight: GAP }
+                          : null,
+                      ]}
+                    >
+                      {column.cells.map((cell, dow) => (
+                        <View
+                          key={cell.key}
+                          style={[
+                            styles.cell,
+                            dow < 6 ? { marginBottom: GAP } : null,
+                            {
+                              backgroundColor: cell.future
+                                ? "transparent"
+                                : LEVEL_COLORS[cell.level],
+                            },
+                            cell.level === 4 && !cell.future
+                              ? styles.levelFourGlow
+                              : null,
+                          ]}
+                        />
+                      ))}
+                    </View>
+                  ))}
+                </View>
               </View>
-            </View>
-          </ScrollView>
+            </ScrollView>
+            <LinearGradient
+              pointerEvents="none"
+              colors={[colors.cardBg, "rgba(12,12,22,0)"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.leftFade}
+            />
+          </View>
         </View>
 
         <View style={styles.legend}>
@@ -302,9 +312,20 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     color: colors.w30,
   },
+  scrollWrap: {
+    flexGrow: 1,
+    flexShrink: 1,
+    height: GRID_HEIGHT,
+  },
   gridScroll: {
     flexGrow: 1,
-    height: GRID_HEIGHT,
+  },
+  leftFade: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 24,
   },
   monthsRow: {
     height: MONTH_ROW_HEIGHT,

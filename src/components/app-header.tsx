@@ -2,16 +2,16 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { RefObject } from "react";
 import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChevronDown, Menu } from "lucide-react-native";
 import { colors, fonts } from "../theme/theme";
+
+const APP_ICON = require("../../assets/icon.png");
 
 interface AppHeaderProps {
   title: string;
   onMenuPress: () => void;
   avatarUrl?: string | null;
-  initials?: string;
   onAccountPress?: () => void;
   blurTarget?: RefObject<View | null>;
 }
@@ -20,7 +20,6 @@ export function AppHeader({
   title,
   onMenuPress,
   avatarUrl,
-  initials = "A",
   onAccountPress,
   blurTarget,
 }: AppHeaderProps) {
@@ -28,7 +27,7 @@ export function AppHeader({
 
   return (
     <BlurView
-      intensity={40}
+      intensity={28}
       tint="dark"
       blurMethod="dimezisBlurViewSdk31Plus"
       blurTarget={blurTarget}
@@ -64,14 +63,12 @@ export function AppHeader({
               contentFit="cover"
             />
           ) : (
-            <LinearGradient
-              colors={[colors.avatarFrom, colors.avatarTo]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[styles.avatar, styles.avatarFallback]}
-            >
-              <Text style={styles.initials}>{initials}</Text>
-            </LinearGradient>
+            <Image
+              source={APP_ICON}
+              style={styles.avatar}
+              contentFit="cover"
+              accessibilityLabel="ATLAS profile"
+            />
           )}
           <ChevronDown size={14} color={colors.w40} />
         </Pressable>
@@ -130,14 +127,5 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.w10,
-  },
-  avatarFallback: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  initials: {
-    fontSize: 12,
-    fontFamily: fonts.semibold,
-    color: colors.white,
   },
 });

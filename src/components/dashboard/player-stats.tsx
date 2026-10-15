@@ -112,9 +112,13 @@ export function PlayerStats({ profile, loading }: PlayerStatsProps) {
               tier={rankData.current.step}
               size={44}
             />
-            <View>
-              <Text style={styles.rankName}>{rankData.name}</Text>
-              <Text style={[styles.micro, styles.microGap]}>current rank</Text>
+            <View style={styles.rankTextCol}>
+              <Text style={styles.rankName} numberOfLines={1}>
+                {rankData.name}
+              </Text>
+              <Text style={[styles.micro, styles.microGap]} numberOfLines={1}>
+                current rank
+              </Text>
             </View>
           </Pressable>
         </View>
@@ -182,10 +186,9 @@ const styles = StyleSheet.create({
   },
   topRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
     alignItems: "center",
     columnGap: 40,
-    rowGap: 24,
+    flexWrap: "nowrap",
   },
   cell: {
     flexDirection: "row",
@@ -230,6 +233,10 @@ const styles = StyleSheet.create({
   rankBlockPressed: {
     borderColor: colors.w10,
     backgroundColor: colors.w03,
+  },
+  rankTextCol: {
+    flexShrink: 1,
+    minWidth: 0,
   },
   rankName: {
     fontSize: 18,

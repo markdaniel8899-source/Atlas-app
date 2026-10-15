@@ -92,7 +92,7 @@ export function NavigationDrawer({
       </Animated.View>
 
       <BlurView
-        intensity={70}
+        intensity={60}
         tint="dark"
         blurMethod="dimezisBlurViewSdk31Plus"
         blurTarget={blurTarget}
