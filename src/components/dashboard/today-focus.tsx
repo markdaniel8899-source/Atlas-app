@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Animated, Easing, StyleSheet, Text, View } from "react-native";
+import { useRouter } from "expo-router";
+import type { Href } from "expo-router";
 import { Compass, Play, Target } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Button } from "../ui/button";
@@ -62,6 +64,7 @@ function LoadingCard() {
 }
 
 export function TodayFocus({ focus, loading }: TodayFocusProps) {
+  const router = useRouter();
   const progress = focus
     ? Math.max(0, Math.min(100, focus.progress_percentage))
     : 0;
@@ -105,9 +108,10 @@ export function TodayFocus({ focus, loading }: TodayFocusProps) {
             </View>
           </View>
           <Button
-            variant="ghost"
+            variant="primary"
             label="Add a course"
-            icon={<Target size={14} color={colors.white} />}
+            icon={<Target size={14} color={colors.primaryText} />}
+            onPress={() => router.push("/courses" as Href)}
             contentStyle={styles.smallButton}
             textStyle={styles.smallButtonText}
           />
@@ -136,16 +140,22 @@ export function TodayFocus({ focus, loading }: TodayFocusProps) {
 
         <View style={styles.headerActions}>
           <Button
-            variant="ghost"
+            variant="primary"
             label="Start session"
-            icon={<Play size={14} color={colors.white} />}
+            icon={<Play size={14} color={colors.primaryText} />}
+            onPress={() =>
+              router.push(`/timer?courseId=${focus.id}` as Href)
+            }
             contentStyle={styles.smallButton}
             textStyle={styles.smallButtonText}
           />
           <Button
             variant="outline"
             label="Roadmap"
-            contentStyle={styles.smallButton}
+            onPress={() =>
+              router.push(`/roadmap?courseId=${focus.id}` as Href)
+            }
+            contentStyle={[styles.smallButton, styles.roadmapButton]}
             textStyle={styles.smallButtonText}
           />
         </View>
@@ -257,6 +267,10 @@ const styles = StyleSheet.create({
   },
   smallButtonText: {
     fontSize: 12,
+  },
+  roadmapButton: {
+    borderColor: colors.lilac45,
+    backgroundColor: colors.lilac12,
   },
   headerRow: {
     flexDirection: "row",
