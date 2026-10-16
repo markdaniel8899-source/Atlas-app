@@ -455,10 +455,10 @@ export function QuizSetup({
               autoCorrect={false}
               placeholder={
                 course
-                  ? "e.g. loops and functions only"
-                  : "e.g., Python list comprehensions, CSS grid, Big-O notation"
+                  ? "e.g. loops and functions"
+                  : "e.g., Python loops, CSS grid"
               }
-              placeholderTextColor="rgba(255,255,255,0.25)"
+              placeholderTextColor={colors.w30}
               style={styles.field}
             />
             <Text style={styles.fieldHint}>

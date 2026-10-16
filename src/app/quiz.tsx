@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
 import {
   ActivityIndicator,
@@ -27,21 +27,20 @@ import { QuizSetup } from "../components/quiz/quiz-setup";
 import { RichText } from "../components/quiz/rich-text";
 import { KIND_ICON } from "../components/quiz/icons";
 import { useCourses } from "../hooks/use-courses";
-import { AiError } from "../lib/ai";
-import type { Evaluation } from "../lib/ai";
+import { canSubmit, KIND_LABEL, summarize } from "../lib/quiz";
 import {
-  canSubmit,
-  evaluateAnswer,
-  initialAnswer,
-  KIND_LABEL,
-  requestQuiz,
-  summarize,
-} from "../lib/quiz";
-import type { GenerateInput, QuizAnswer, QuizAttempt } from "../lib/quiz";
-import { saveQuizSession } from "../lib/db/quiz-sessions";
+  dismissQuizError,
+  generateQuizSession,
+  getQuizSessionSnapshot,
+  quizGoBack,
+  quizGoNext,
+  quizRetake,
+  quizStartOver,
+  setQuizAnswer,
+  submitQuizAnswer,
+  subscribeQuizSession,
+} from "../lib/quiz-store";
 import { colors, ease, fonts } from "../theme/theme";
-
-const TIMEOUT_MESSAGE = "The request timed out. Please try again.";
 
 const ACHIEVEMENT_TITLES: Record<string, string> = {
   first_quiz: "First Steps",
@@ -49,33 +48,6 @@ const ACHIEVEMENT_TITLES: Record<string, string> = {
   night_owl: "Night Owl",
   quiz_wizard: "Quiz Wizard",
 };
-
-type Phase = "setup" | "loading" | "running" | "done";
-
-const OFFLINE_MESSAGE =
-  "No internet connection. Please check your network and try again.";
-
-function isOfflineError(error: unknown): boolean {
-  if (error instanceof TypeError) {
-    const msg = error.message.toLowerCase();
-    return (
-      msg.includes("fetch") || msg.includes("network") || msg.includes("failed")
-    );
-  }
-  return false;
-}
-
-function classify(error: unknown): string {
-  if (isOfflineError(error)) return OFFLINE_MESSAGE;
-  if (error instanceof AiError) {
-    if (error.status === 0 || error.status === 503) {
-      return "Something went wrong. Please try again.";
-    }
-    if (error.status === 408) return TIMEOUT_MESSAGE;
-    return error.message;
-  }
-  return error instanceof Error ? error.message : "Something went wrong.";
-}
 
 /** Entrance fade used in place of the web's motion mount animations. */
 function FadeIn({
@@ -122,16 +94,17 @@ function FadeIn({
 export default function QuizScreen() {
   const { courses, loading: coursesLoading } = useCourses();
 
-  const [phase, setPhase] = useState<Phase>("setup");
-  const [attempts, setAttempts] = useState<QuizAttempt[]>([]);
-  const [index, setIndex] = useState(0);
-  const [answer, setAnswer] = useState<QuizAnswer>(null);
-  const [evaluation, setEvaluation] = useState<Evaluation | null>(null);
-  const [evaluating, setEvaluating] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [topic, setTopic] = useState("");
-  const [unlocked, setUnlocked] = useState<string[]>([]);
+  const {
+    phase,
+    attempts,
+    index,
+    answer,
+    evaluation,
+    evaluating,
+    topic,
+    error,
+    unlocked,
+  } = useSyncExternalStore(subscribeQuizSession, getQuizSessionSnapshot);
 
   const question = attempts[index]?.question ?? null;
   const KindIcon = KIND_ICON[question?.kind ?? "mixed"];
@@ -139,113 +112,6 @@ export default function QuizScreen() {
   const percent =
     attempts.length > 0 ? (answered / attempts.length) * 100 : 0;
   const summary = summarize(attempts);
-
-  const generate = async (input: GenerateInput) => {
-    setBusy(true);
-    setError(null);
-    setPhase("loading");
-    try {
-      const result = await requestQuiz(input);
-      if (result.questions.length === 0) {
-        throw new AiError("The AI returned an empty quiz. Try again.", 0);
-      }
-      setAttempts(
-        result.questions.map((item) => ({
-          question: item,
-          answer: initialAnswer(item),
-          evaluation: null,
-        })),
-      );
-      setTopic(input.topic);
-      setIndex(0);
-      setAnswer(initialAnswer(result.questions[0]));
-      setEvaluation(null);
-      setPhase("running");
-    } catch (caught) {
-      setError(classify(caught));
-      setPhase("setup");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const submitAnswer = async () => {
-    if (!question || evaluation || !canSubmit(question, answer)) return;
-    setEvaluating(true);
-    setError(null);
-    try {
-      const result = await evaluateAnswer(question, answer);
-      setAttempts((prev) =>
-        prev.map((item, position) =>
-          position === index ? { ...item, answer, evaluation: result } : item,
-        ),
-      );
-      setEvaluation(result);
-    } catch (caught) {
-      setError(classify(caught));
-    } finally {
-      setEvaluating(false);
-    }
-  };
-
-  const goNext = async () => {
-    if (index >= attempts.length - 1) {
-      const result = summarize(attempts);
-      const codes = await saveQuizSession({
-        topic,
-        kind: "mixed",
-        correct: result.correct,
-        total: result.total,
-        xp: result.xp,
-      });
-      setUnlocked(codes);
-      setPhase("done");
-      return;
-    }
-    const next = index + 1;
-    setIndex(next);
-    setAnswer(initialAnswer(attempts[next].question));
-    setEvaluation(null);
-    setError(null);
-  };
-
-  const goBack = () => {
-    if (index === 0) return;
-    const previous = index - 1;
-    setIndex(previous);
-    setAnswer(attempts[previous].answer);
-    setEvaluation(attempts[previous].evaluation);
-    setError(null);
-  };
-
-  const skip = () => {
-    void goNext();
-  };
-
-  const retake = () => {
-    const fresh = attempts.map((item) => ({
-      ...item,
-      answer: initialAnswer(item.question),
-      evaluation: null,
-    }));
-    setAttempts(fresh);
-    setIndex(0);
-    setAnswer(fresh[0] ? initialAnswer(fresh[0].question) : null);
-    setEvaluation(null);
-    setError(null);
-    setPhase("running");
-  };
-
-  const startOver = () => {
-    setAttempts([]);
-    setIndex(0);
-    setAnswer(null);
-    setEvaluation(null);
-    setError(null);
-    setTopic("");
-    setUnlocked([]);
-    setPhase("setup");
-  };
 
   const alert =
     error && !evaluating ? (
@@ -256,7 +122,7 @@ export default function QuizScreen() {
         <Text style={styles.alertText}>{error}</Text>
         <Pressable
           accessibilityRole="button"
-          onPress={() => setError(null)}
+          onPress={dismissQuizError}
           style={({ pressed }) => [
             styles.dismissButton,
             pressed && styles.pressed,
@@ -274,13 +140,12 @@ export default function QuizScreen() {
 
       {phase === "setup" ? (
         <View style={styles.phaseWrap}>
-          {alert}
           <QuizSetup
             courses={courses}
             loading={coursesLoading}
-            busy={busy}
+            busy={false}
             error={error}
-            onGenerate={(input) => void generate(input)}
+            onGenerate={(input) => void generateQuizSession(input)}
           />
         </View>
       ) : null}
@@ -292,6 +157,9 @@ export default function QuizScreen() {
             <Text style={styles.loadingTitle}>Writing your questions</Text>
             <Text style={styles.loadingBody}>
               The model is drafting prompts, code snippets and explanations.
+            </Text>
+            <Text style={styles.loadingFootnote}>
+              This keeps running even if you leave the screen.
             </Text>
           </View>
         </FadeIn>
@@ -344,7 +212,7 @@ export default function QuizScreen() {
                 <QuestionInput
                   question={question}
                   answer={answer}
-                  onChange={setAnswer}
+                  onChange={setQuizAnswer}
                   disabled={Boolean(evaluation) || evaluating}
                 />
               </View>
@@ -403,7 +271,7 @@ export default function QuizScreen() {
               <View style={styles.navRow}>
                 <Pressable
                   accessibilityRole="button"
-                  onPress={goBack}
+                  onPress={quizGoBack}
                   disabled={index === 0}
                   style={({ pressed }) => [
                     styles.previousButton,
@@ -419,7 +287,7 @@ export default function QuizScreen() {
                   {!evaluation ? (
                     <Pressable
                       accessibilityRole="button"
-                      onPress={skip}
+                      onPress={() => void quizGoNext()}
                       style={({ pressed }) => [
                         styles.skipButton,
                         pressed && styles.pressed,
@@ -432,7 +300,7 @@ export default function QuizScreen() {
                   {evaluation ? (
                     <Pressable
                       accessibilityRole="button"
-                      onPress={() => void goNext()}
+                      onPress={() => void quizGoNext()}
                       style={({ pressed }) => [
                         styles.primaryButton,
                         pressed && styles.pressed,
@@ -448,7 +316,7 @@ export default function QuizScreen() {
                   ) : (
                     <Pressable
                       accessibilityRole="button"
-                      onPress={() => void submitAnswer()}
+                      onPress={() => void submitQuizAnswer()}
                       disabled={evaluating || !canSubmit(question, answer)}
                       style={({ pressed }) => [
                         styles.primaryButton,
@@ -505,8 +373,8 @@ export default function QuizScreen() {
               summary={summary}
               attempts={attempts}
               topic={topic}
-              onRetry={retake}
-              onNewQuiz={startOver}
+              onRetry={quizRetake}
+              onNewQuiz={quizStartOver}
             />
           </FadeIn>
         </View>
@@ -543,6 +411,13 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontFamily: fonts.regular,
     color: colors.w40,
+    textAlign: "center",
+  },
+  loadingFootnote: {
+    marginTop: 10,
+    fontSize: 11,
+    fontFamily: fonts.regular,
+    color: colors.star70,
     textAlign: "center",
   },
   alert: {
