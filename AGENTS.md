@@ -42,8 +42,14 @@
   - Assistant: ChatGPT-style layout (`src/app/assistant.tsx` — no ScreenShell), thread persists 24h via `src/lib/assistant-store.ts` (AsyncStorage, `atlas.assistant.thread.v1`, owner-scoped with `claimAssistantChat`, in-flight request survives navigation).
   - Quiz: session lives in `src/lib/quiz-store.ts` (module-level) so generation/grading continue across tab switches; `quiz.tsx` is a subscriber.
   - Notes: all writes go through the persistent offline queue `src/lib/notes-queue.ts` (latest-wins per note, temp `local-…` ids for offline-created notes + id-swap events, retry on edit / 15s interval / app foreground); `db/notes.ts` `updateNote`/`deleteNote` now return booleans, `insertNote` exported. "Offline · N to sync" indicator in the editor header.
-  - Dashboard quick-note widget (`src/components/dashboard/quick-note.tsx`) saves into Notes/General (offline-safe). In-app widget only — a home-screen OS widget needs a dev build, not Expo Go.
+  - Dashboard quick-note widget (`src/components/dashboard/quick-note.tsx`) saves into Notes/General (offline-safe). In-app widget only — a home-screen OS widget needs a dev build, not Expo Go. **Removed again on user request** — Notes is the single capture surface.
   - Friends cards use expo-blur (`dimezisBlurView` + tint overlay).
+- **Polish batch 2 (2026-10-16, `8faf284..c9ad881`):**
+  - Today's focus card: buttons were dead (no `onPress`) — now push `/timer?courseId`, `/roadmap?courseId`, `/courses`; Start session = primary (white), Roadmap = lilac-tinted outline.
+  - Roadmap: map card got a `BlurView` backdrop (`dimezisBlurView`, intensity 28); level nodes up again (`LEVEL_D 118`, `LEVEL_BOSS_D 158`, `TRAIL_ROW_H 184`); level cards wider (196) with bigger type; empty-state compass "black box" replaced by soft circular glow (Android elevation shadow was the black square); builder header icon made circular.
+  - RoadmapDetail: `topInset` prop from the screen — safe-area insets read as 0 inside a `Modal` on Android, which pushed the heading off-screen. `safeTop = Math.max(insets.top, topInset, 12)`.
+  - `AppHeader`: `HEADER_HEIGHT = 76` exported; all content paddings must use it (`insets.top + HEADER_HEIGHT + …`) — previously hardcoded `+ 64`.
+  - New `src/components/account-sheet.tsx`: avatar tap opens a bottom sheet with profile (name, @username, Level/XP/streak chips), 2-col quick links to every page, and Log out (`signOut()` → `/login`). Wired automatically by `AppHeader` unless `onAccountPress` is passed.
 - Next sensible steps: side-by-side visual diff vs mobile web (`argent-screenshot-diff`), device QA in Expo Go (kill/reopen to avoid stale bundles), then optional `eas build` for native changes.
 
 ## Workflow Preferences (user)
