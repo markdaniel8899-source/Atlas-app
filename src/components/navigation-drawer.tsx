@@ -37,6 +37,7 @@ type NavRoute =
   | "/"
   | "/roadmap"
   | "/courses"
+  | "/notes"
   | "/timer"
   | "/friends"
   | "/leaderboard"
@@ -52,7 +53,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", icon: LayoutDashboard, route: "/" },
   { label: "Roadmap", icon: Map, route: "/roadmap" },
   { label: "Courses", icon: GraduationCap, route: "/courses" },
-  { label: "Notes", icon: FileText },
+  { label: "Notes", icon: FileText, route: "/notes" },
   { label: "Quiz", icon: ListChecks },
   { label: "Timer", icon: Timer, route: "/timer" },
   { label: "Friends", icon: Users, route: "/friends" },

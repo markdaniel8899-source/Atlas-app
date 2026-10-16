@@ -1,0 +1,200 @@
+import { resolveSession } from "../auth";
+import { sanitizeHtml } from "../notes";
+import type { Note } from "../notes";
+import { supabase } from "../supabase";
+
+interface NoteRow {
+  id: number;
+  title: string;
+  content: string;
+  updated_at: string;
+  course_id: number | null;
+  topic_id: number | null;
+}
+
+const NOTE_COLUMNS = "id, title, content, updated_at, course_id, topic_id";
+
+function toNote(row: NoteRow): Note {
+  return {
+    id: String(row.id),
+    title: row.title,
+    html: row.content,
+    updatedAt: Number.isNaN(Date.parse(row.updated_at))
+      ? Date.now()
+      : Date.parse(row.updated_at),
+    courseId: typeof row.course_id === "number" ? row.course_id : null,
+    topicId: typeof row.topic_id === "number" ? row.topic_id : null,
+    courseTitle: null,
+  };
+}
+
+function toId(id: string): number | null {
+  const parsed = Number(id);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+/**
+ * Map each note id to its owning course's title - directly via
+ * notes.course_id, or through notes.topic_id -> course_topics.course_id.
+ * Two extra queries only when the fetched notes are actually linked.
+ */
+async function loadCourseTitles(rows: NoteRow[]): Promise<Map<number, string>> {
+  const byNote = new Map<number, string>();
+  const courseIds = new Set<number>(
+    rows
+      .map((row) => row.course_id)
+      .filter((id): id is number => typeof id === "number"),
+  );
+  const topicIds = [
+    ...new Set(
+      rows
+        .map((row) => row.topic_id)
+        .filter((id): id is number => typeof id === "number"),
+    ),
+  ];
+
+  const topicCourse = new Map<number, number>();
+  if (topicIds.length > 0) {
+    const { data: topics } = await supabase
+      .from("course_topics")
+      .select("id, course_id")
+      .in("id", topicIds);
+    if (Array.isArray(topics)) {
+      for (const row of topics as { id: number; course_id: number | null }[]) {
+        if (row.course_id == null) continue;
+        topicCourse.set(row.id, row.course_id);
+        courseIds.add(row.course_id);
+      }
+    }
+  }
+  if (courseIds.size === 0) return byNote;
+
+  const { data: courses } = await supabase
+    .from("courses")
+    .select("id, title")
+    .in("id", [...courseIds]);
+  if (!Array.isArray(courses)) return byNote;
+
+  const titleByCourse = new Map<number, string>();
+  for (const row of courses as { id: number; title: string }[]) {
+    titleByCourse.set(row.id, row.title);
+  }
+  for (const row of rows) {
+    const courseId =
+      row.course_id ??
+      (row.topic_id != null ? topicCourse.get(row.topic_id) : undefined);
+    if (courseId == null) continue;
+    const title = titleByCourse.get(courseId);
+    if (title) byNote.set(row.id, title);
+  }
+  return byNote;
+}
+
+export interface NotesScope {
+  /** Only notes of this course (notes.course_id) - the "course selected" view. */
+  courseId?: number;
+  /**
+   * Only notes attached to these course topics. Without `courseId` this is
+   * an exact topic filter; an empty array means no topics, so no notes.
+   */
+  topicIds?: number[];
+}
+
+export async function fetchNotes(scope?: NotesScope): Promise<Note[]> {
+  const user = await resolveSession();
+  if (!user) return [];
+
+  if (
+    scope?.courseId == null &&
+    scope?.topicIds &&
+    scope.topicIds.length === 0
+  ) {
+    return [];
+  }
+
+  let query = supabase
+    .from("notes")
+    .select(NOTE_COLUMNS)
+    .eq("user_id", user.id)
+    .order("updated_at", { ascending: false });
+
+  if (scope?.courseId != null) {
+    if (scope.topicIds && scope.topicIds.length > 0) {
+      // Course view: everything linked to the course directly OR through a
+      // topic (covers rows written before course_id existed).
+      query = query.or(
+        `course_id.eq.${scope.courseId},topic_id.in.(${scope.topicIds.join(",")})`,
+      );
+    } else {
+      query = query.eq("course_id", scope.courseId);
+    }
+  } else if (scope?.topicIds) {
+    query = query.in("topic_id", scope.topicIds);
+  }
+
+  const { data, error } = await query;
+  if (error || !Array.isArray(data)) return [];
+
+  const rows = data as unknown as NoteRow[];
+  const courseByNote = await loadCourseTitles(rows);
+  return rows.map((row) => {
+    const note = toNote(row);
+    note.courseTitle = courseByNote.get(row.id) ?? null;
+    return note;
+  });
+}
+
+export async function createNote(options?: {
+  courseId?: number | null;
+  topicId?: number | null;
+}): Promise<Note | null> {
+  const user = await resolveSession();
+  if (!user) return null;
+
+  const payload: Record<string, unknown> = {
+    user_id: user.id,
+    title: "Untitled note",
+    content: "",
+  };
+  if (typeof options?.courseId === "number") {
+    payload.course_id = options.courseId;
+  }
+  if (typeof options?.topicId === "number") {
+    payload.topic_id = options.topicId;
+  }
+
+  const { data, error } = await supabase
+    .from("notes")
+    .insert(payload)
+    .select(NOTE_COLUMNS)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  const note = toNote(data as unknown as NoteRow);
+  note.courseId =
+    typeof options?.courseId === "number" ? options.courseId : null;
+  note.topicId =
+    typeof options?.topicId === "number" ? options.topicId : null;
+  return note;
+}
+
+export async function updateNote(
+  id: string,
+  patch: Partial<Omit<Note, "id">>,
+): Promise<void> {
+  const parsed = toId(id);
+  if (parsed === null) return;
+
+  const values: Record<string, unknown> = {};
+  if (patch.title !== undefined) values.title = patch.title;
+  if (patch.html !== undefined) values.content = sanitizeHtml(patch.html);
+  if (Object.keys(values).length === 0) return;
+
+  await supabase.from("notes").update(values).eq("id", parsed);
+}
+
+export async function deleteNote(id: string): Promise<void> {
+  const parsed = toId(id);
+  if (parsed === null) return;
+  await supabase.from("notes").delete().eq("id", parsed);
+}
