@@ -68,6 +68,12 @@
   - Auth rebuilt in `src/app/login.tsx` — single screen, 5 modes: login/signup/verify/forgot/reset. Animated orbs background (`src/components/auth/orbs.tsx`, native-driver loops), glass card (`Card glass` prop reads `BlurTargetRefContext`; the screen wraps MeshBackground in `BlurTargetView` and provides the ref), animated mode transitions (fade + rise via `formAnim`), Forgot password → reset code → new password, standalone OTP card (`src/components/auth/otp-input.tsx`: 6 boxes, one hidden TextInput, paste + `one-time-code` autofill, 60s resend cooldown, auto-submit on 6th digit).
   - `src/lib/auth.ts` additions: `verifyEmailOtp(email, token, "signup" | "recovery")`, `resendConfirmationOtp`, `requestPasswordReset`, `updatePassword`; `signIn` flags `unverifiedEmail`; readableError covers OTP expired/rate-limit/old-password cases.
   - **Supabase requirements for the OTP flow (user enables these):** Authentication → enable **Confirm email**; add `{{ .Token }}` to the **Confirm signup** and **Reset password** email templates (default templates only contain links, so the app's 6-digit code needs it).
+- **Polish batch 6 (2026-10-16):**
+  - Login background: `AuthOrbs` replaced by `AuthMesh` (`src/components/auth/auth-mesh.tsx`) — 4 large radial-blob mesh gradients drifting on native-driver loops under the glass card; old `orbs.tsx` deleted.
+  - Login fields: floating-label inputs (resting label sits as the placeholder, floats up on focus/filled, 180ms) + animated lilac border glow and colored shadow on focus; Name field got a User icon; labels on all fields.
+  - Login: log-in/sign-up text tabs replaced by `ModeToggle` — a capsule segmented control whose pill slides 450ms between segments; the old bottom "New here?" link is gone.
+  - Legal line under the form links to `/privacy` & `/terms`.
+  - Password: `secureTextEntry` dots + eye toggle reveal (Android/iOS briefly flash the last typed character — OS behavior, can’t remove without a native dev build).
 - Next sensible steps: side-by-side visual diff vs mobile web (`argent-screenshot-diff`), device QA in Expo Go (kill/reopen to avoid stale bundles), then optional `eas build` for native changes.
 
 ## Workflow Preferences (user)

@@ -24,8 +24,9 @@ import {
   Mail,
   RefreshCw,
   ShieldCheck,
+  User,
 } from "lucide-react-native";
-import { AuthOrbs } from "../components/auth/orbs";
+import { AuthMesh } from "../components/auth/auth-mesh";
 import { OtpInput } from "../components/auth/otp-input";
 import { BlurTargetRefContext } from "../components/blur-target";
 import { MeshBackground } from "../components/mesh-background";
@@ -60,7 +61,6 @@ interface Notice {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PLACEHOLDER = "rgba(255,255,255,0.25)";
 const ERROR_ICON = "rgba(252,165,165,0.7)";
 
 export default function LoginScreen() {
@@ -401,9 +401,8 @@ export default function LoginScreen() {
           pointerEvents="none"
         >
           <MeshBackground />
+          <AuthMesh />
         </BlurTargetView>
-
-        <AuthOrbs />
 
         <KeyboardAvoidingView
           style={styles.flex}
@@ -452,29 +451,11 @@ export default function LoginScreen() {
                   </View>
 
                   {showTabs ? (
-                    <View style={styles.tabs}>
-                      {(["login", "signup"] as Mode[]).map((m) => {
-                        const selected = mode === m;
-                        return (
-                          <Pressable
-                            key={m}
-                            accessibilityRole="button"
-                            accessibilityState={{ selected }}
-                            onPress={() => switchMode(m)}
-                            style={[styles.tab, selected && styles.tabActive]}
-                          >
-                            <Text
-                              style={[
-                                styles.tabText,
-                                selected && styles.tabTextActive,
-                              ]}
-                            >
-                              {m === "login" ? "Log in" : "Sign up"}
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
+                    <ModeToggle
+                      value={mode === "signup" ? "signup" : "login"}
+                      disabled={busy}
+                      onChange={switchMode}
+                    />
                   ) : null}
 
                   {notice ? (
@@ -492,14 +473,24 @@ export default function LoginScreen() {
 
                   <View style={styles.form}>
                     {mode === "signup" ? (
-                      <Field label="Name" error={errors.name}>
+                      <Field
+                        label="Name"
+                        icon={
+                          <User
+                            size={16}
+                            color={errors.name ? ERROR_ICON : colors.w30}
+                          />
+                        }
+                        error={errors.name}
+                        focused={focused === "name"}
+                        value={name}
+                      >
                         <TextInput
                           value={name}
                           onChangeText={setName}
                           onFocus={() => setFocused("name")}
                           onBlur={() => setFocused(null)}
-                          placeholder="Ada Lovelace"
-                          placeholderTextColor={PLACEHOLDER}
+                          accessibilityLabel="Name"
                           autoComplete="name"
                           textContentType="name"
                           returnKeyType="next"
@@ -520,6 +511,7 @@ export default function LoginScreen() {
                         }
                         error={errors.email}
                         focused={focused === "email"}
+                        value={email}
                       >
                         <TextInput
                           ref={emailRef}
@@ -527,8 +519,7 @@ export default function LoginScreen() {
                           onChangeText={setEmail}
                           onFocus={() => setFocused("email")}
                           onBlur={() => setFocused(null)}
-                          placeholder="you@domain.com"
-                          placeholderTextColor={PLACEHOLDER}
+                          accessibilityLabel="Email"
                           autoCapitalize="none"
                           autoCorrect={false}
                           keyboardType="email-address"
@@ -552,6 +543,7 @@ export default function LoginScreen() {
                         }
                         error={errors.password}
                         focused={focused === "password"}
+                        value={password}
                         trailing={
                           <Pressable
                             accessibilityRole="button"
@@ -575,8 +567,9 @@ export default function LoginScreen() {
                           onChangeText={setPassword}
                           onFocus={() => setFocused("password")}
                           onBlur={() => setFocused(null)}
-                          placeholder="••••••••"
-                          placeholderTextColor={PLACEHOLDER}
+                          accessibilityLabel={
+                            resetPasswordVisible ? "New password" : "Password"
+                          }
                           secureTextEntry={!showPw}
                           autoCapitalize="none"
                           autoComplete={
@@ -667,24 +660,6 @@ export default function LoginScreen() {
                     />
                   </View>
 
-                  {showTabs ? (
-                    <Pressable
-                      accessibilityRole="button"
-                      onPress={() =>
-                        switchMode(mode === "login" ? "signup" : "login")
-                      }
-                      style={styles.switchLink}
-                      hitSlop={8}
-                    >
-                      <Text style={styles.switchMuted}>
-                        {mode === "login" ? "New here? " : "Already climbing? "}
-                      </Text>
-                      <Text style={styles.switchAccent}>
-                        {mode === "login" ? "Create an account" : "Log in"}
-                      </Text>
-                    </Pressable>
-                  ) : null}
-
                   {mode === "verify" ? (
                     <Pressable
                       accessibilityRole="button"
@@ -712,6 +687,28 @@ export default function LoginScreen() {
                       <Text style={styles.backText}>Back to log in</Text>
                     </Pressable>
                   ) : null}
+
+                  <View style={styles.legal}>
+                    <Text style={styles.legalText}>
+                      By continuing, you agree to our{" "}
+                      <Text
+                        style={styles.legalLink}
+                        onPress={() => router.push("/privacy")}
+                        suppressHighlighting
+                      >
+                        Privacy Policy
+                      </Text>{" "}
+                      and{" "}
+                      <Text
+                        style={styles.legalLink}
+                        onPress={() => router.push("/terms")}
+                        suppressHighlighting
+                      >
+                        Terms & Conditions
+                      </Text>
+                      .
+                    </Text>
+                  </View>
                 </View>
               </Card>
             </Animated.View>
@@ -726,7 +723,8 @@ function Field({
   label,
   icon,
   error,
-  focused,
+  focused = false,
+  value,
   trailing,
   children,
 }: {
@@ -734,27 +732,158 @@ function Field({
   icon?: ReactNode;
   error?: string;
   focused?: boolean;
+  value: string;
   trailing?: ReactNode;
   children: ReactNode;
 }) {
+  const float = useRef(new Animated.Value(value || focused ? 1 : 0)).current;
+  const glow = useRef(new Animated.Value(focused ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.timing(float, {
+      toValue: focused || value.length > 0 ? 1 : 0,
+      duration: 180,
+      easing: ease,
+      useNativeDriver: true,
+    }).start();
+  }, [float, focused, value]);
+
+  useEffect(() => {
+    Animated.timing(glow, {
+      toValue: focused ? 1 : 0,
+      duration: 240,
+      easing: ease,
+      useNativeDriver: false,
+    }).start();
+  }, [glow, focused]);
+
   return (
     <View>
-      <Text style={styles.label}>{label}</Text>
-      <View
+      <Animated.View
         style={[
-          styles.inputRow,
-          error
-            ? styles.inputRowError
-            : focused
-              ? styles.inputRowFocused
-              : null,
+          styles.fieldBox,
+          {
+            borderColor: glow.interpolate({
+              inputRange: [0, 1],
+              outputRange: [
+                "rgba(255,255,255,0.10)",
+                "rgba(157,180,255,0.55)",
+              ],
+            }),
+          },
+          focused && styles.fieldBoxGlow,
+          error && styles.fieldBoxError,
         ]}
       >
         {icon}
-        {children}
+        <View style={styles.fieldBody}>
+          <Animated.Text
+            numberOfLines={1}
+            style={[
+              styles.floatLabel,
+              {
+                color: glow.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [
+                    "rgba(255,255,255,0.40)",
+                    "rgba(207,158,255,0.85)",
+                  ],
+                }),
+                transform: [
+                  {
+                    translateY: float.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, -15],
+                    }),
+                  },
+                  {
+                    scale: float.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [1, 0.76],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            {label}
+          </Animated.Text>
+          {children}
+        </View>
         {trailing}
-      </View>
+      </Animated.View>
       {error ? <Text style={styles.fieldError}>{error}</Text> : null}
+    </View>
+  );
+}
+
+function ModeToggle({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: "login" | "signup";
+  disabled?: boolean;
+  onChange: (value: "login" | "signup") => void;
+}) {
+  const [trackWidth, setTrackWidth] = useState(0);
+  const slide = useRef(new Animated.Value(value === "signup" ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.timing(slide, {
+      toValue: value === "signup" ? 1 : 0,
+      duration: 450,
+      easing: ease,
+      useNativeDriver: true,
+    }).start();
+  }, [slide, value]);
+
+  const pillWidth = trackWidth > 0 ? (trackWidth - 8) / 2 : 0;
+
+  return (
+    <View
+      accessibilityRole="tablist"
+      style={styles.toggle}
+      onLayout={(event) => setTrackWidth(event.nativeEvent.layout.width)}
+    >
+      {pillWidth > 0 ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.togglePill,
+            {
+              width: pillWidth,
+              transform: [
+                {
+                  translateX: slide.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, pillWidth],
+                  }),
+                },
+              ],
+            },
+          ]}
+        />
+      ) : null}
+      {(["login", "signup"] as const).map((option) => {
+        const selected = value === option;
+        return (
+          <Pressable
+            key={option}
+            accessibilityRole="tab"
+            accessibilityState={{ selected }}
+            disabled={disabled}
+            onPress={() => onChange(option)}
+            style={styles.toggleSeg}
+          >
+            <Text
+              style={[styles.toggleText, selected && styles.toggleTextActive]}
+            >
+              {option === "login" ? "Log in" : "Sign up"}
+            </Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -819,7 +948,7 @@ const styles = StyleSheet.create({
     color: colors.w45,
     textAlign: "center",
   },
-  tabs: {
+  toggle: {
     marginTop: 28,
     flexDirection: "row",
     borderRadius: 999,
@@ -828,24 +957,29 @@ const styles = StyleSheet.create({
     backgroundColor: colors.w03,
     padding: 4,
   },
-  tab: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: 10,
+  togglePill: {
+    position: "absolute",
+    top: 4,
+    bottom: 4,
+    left: 4,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "transparent",
+    borderColor: "rgba(207,158,255,0.30)",
+    backgroundColor: "rgba(207,158,255,0.14)",
   },
-  tabActive: {
-    borderColor: colors.w10,
-    backgroundColor: colors.w07,
+  toggleSeg: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    borderRadius: 999,
   },
-  tabText: {
+  toggleText: {
     fontSize: 14,
-    fontFamily: fonts.regular,
+    fontFamily: fonts.medium,
     color: colors.w45,
   },
-  tabTextActive: {
+  toggleTextActive: {
     color: colors.white,
   },
   notice: {
@@ -873,34 +1007,49 @@ const styles = StyleSheet.create({
     marginTop: 24,
     gap: 16,
   },
-  label: {
-    marginBottom: 6,
-    fontSize: 11,
-    fontFamily: fonts.medium,
-    letterSpacing: 2.2,
-    textTransform: "uppercase",
-    color: colors.w40,
-  },
-  inputRow: {
+  fieldBox: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    borderRadius: 12,
+    height: 58,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.w10,
     backgroundColor: colors.w04,
     paddingHorizontal: 14,
-    paddingVertical: 13,
   },
-  inputRowFocused: {
-    borderColor: "rgba(157,180,255,0.45)",
+  fieldBoxGlow: {
+    ...(Platform.OS === "ios"
+      ? {
+          shadowColor: "#9db4ff",
+          shadowOpacity: 0.4,
+          shadowRadius: 14,
+          shadowOffset: { width: 0, height: 0 },
+        }
+      : { elevation: 5, shadowColor: "#9db4ff" }),
   },
-  inputRowError: {
-    borderColor: "rgba(248,113,113,0.5)",
+  fieldBoxError: {
+    borderColor: "rgba(248,113,113,0.55)",
+  },
+  fieldBody: {
+    flex: 1,
+    height: "100%",
+    justifyContent: "center",
+  },
+  floatLabel: {
+    position: "absolute",
+    left: 0,
+    top: 20,
+    fontSize: 14,
+    fontFamily: fonts.regular,
+    color: colors.w40,
+    transformOrigin: "left top",
   },
   input: {
     flex: 1,
     padding: 0,
+    paddingTop: 16,
+    paddingBottom: 2,
     fontSize: 15,
     fontFamily: fonts.regular,
     color: colors.white,
@@ -954,20 +1103,18 @@ const styles = StyleSheet.create({
   submit: {
     paddingVertical: 15,
   },
-  switchLink: {
-    marginTop: 24,
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "center",
+  legal: {
+    marginTop: 26,
   },
-  switchMuted: {
-    fontSize: 13.5,
+  legalText: {
+    fontSize: 11.5,
+    lineHeight: 17,
+    textAlign: "center",
     fontFamily: fonts.regular,
-    color: colors.w45,
+    color: colors.w35,
   },
-  switchAccent: {
-    fontSize: 13.5,
-    fontFamily: fonts.regular,
+  legalLink: {
+    fontFamily: fonts.medium,
     color: colors.star,
   },
   backLink: {
