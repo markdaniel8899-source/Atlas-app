@@ -18,17 +18,12 @@ import {
   ChevronRight,
   FileText,
   Flame,
-  GraduationCap,
-  LayoutDashboard,
-  ListChecks,
+  Info,
+  LifeBuoy,
   LogOut,
-  Map,
-  Settings,
-  Sparkles,
+  Mail,
+  Shield,
   Star,
-  Timer,
-  Trophy,
-  Users,
   X,
   Zap,
 } from "lucide-react-native";
@@ -40,35 +35,20 @@ import { colors, ease, fonts } from "../theme/theme";
 
 const APP_ICON = require("../../assets/icon.png");
 
-type NavRoute =
-  | "/"
-  | "/roadmap"
-  | "/courses"
-  | "/notes"
-  | "/quiz"
-  | "/timer"
-  | "/friends"
-  | "/leaderboard"
-  | "/assistant"
-  | "/settings";
+type InfoRoute = "/about" | "/help" | "/privacy" | "/terms" | "/contact";
 
 interface NavItem {
   label: string;
   icon: ComponentType<{ size?: number; color?: string }>;
-  route: NavRoute;
+  route: InfoRoute;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: "Dashboard", icon: LayoutDashboard, route: "/" },
-  { label: "Courses", icon: GraduationCap, route: "/courses" },
-  { label: "Roadmap", icon: Map, route: "/roadmap" },
-  { label: "Notes", icon: FileText, route: "/notes" },
-  { label: "Quiz", icon: ListChecks, route: "/quiz" },
-  { label: "Timer", icon: Timer, route: "/timer" },
-  { label: "Assistant", icon: Sparkles, route: "/assistant" },
-  { label: "Friends", icon: Users, route: "/friends" },
-  { label: "Leaderboard", icon: Trophy, route: "/leaderboard" },
-  { label: "Settings", icon: Settings, route: "/settings" },
+  { label: "About Us", icon: Info, route: "/about" },
+  { label: "Help & Support", icon: LifeBuoy, route: "/help" },
+  { label: "Privacy Policy", icon: Shield, route: "/privacy" },
+  { label: "Terms & Conditions", icon: FileText, route: "/terms" },
+  { label: "Contact Us", icon: Mail, route: "/contact" },
 ];
 
 interface AccountSheetProps {
@@ -141,10 +121,9 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
     });
   };
 
-  const go = (route: NavRoute) => {
+  const go = (route: InfoRoute) => {
     handleClose();
-    if (route === "/") router.replace("/");
-    else router.push(route);
+    router.push(route);
   };
 
   const handleLogOut = async () => {
@@ -208,7 +187,7 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.grid}
+        contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
       >
         {NAV_ITEMS.map((item) => {
@@ -391,20 +370,16 @@ const styles = StyleSheet.create({
   scroll: {
     flexGrow: 0,
   },
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
+  list: {
+    gap: 8,
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 14,
     paddingBottom: 16,
   },
   navItem: {
-    flexBasis: "47%",
-    flexGrow: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 12,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.w07,

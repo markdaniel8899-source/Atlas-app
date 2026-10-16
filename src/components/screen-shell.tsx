@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import type { Href } from "expo-router";
 import { AppHeader, HEADER_HEIGHT } from "./app-header";
 import { MeshBackground } from "./mesh-background";
 import { NavigationDrawer } from "./navigation-drawer";
@@ -81,9 +82,27 @@ export function ScreenShell({
         {!hideFooter && (
           <View style={styles.footerWrap}>
             <View style={styles.footer}>
-              <Text style={styles.footerLink}>Privacy Policy</Text>
-              <Text style={styles.footerLink}>Terms of Service</Text>
-              <Text style={styles.footerLink}>Contact Us</Text>
+              <Pressable
+                accessibilityRole="link"
+                accessibilityLabel="Privacy Policy"
+                onPress={() => router.push("/privacy" as Href)}
+              >
+                <Text style={styles.footerLink}>Privacy Policy</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="link"
+                accessibilityLabel="Terms of Service"
+                onPress={() => router.push("/terms" as Href)}
+              >
+                <Text style={styles.footerLink}>Terms of Service</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="link"
+                accessibilityLabel="Contact Us"
+                onPress={() => router.push("/contact" as Href)}
+              >
+                <Text style={styles.footerLink}>Contact Us</Text>
+              </Pressable>
             </View>
           </View>
         )}
