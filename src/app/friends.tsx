@@ -20,6 +20,7 @@ import {
   Zap,
 } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
 import { ScreenHeading, ScreenShell } from "../components/screen-shell";
 import {
   acceptInvite,
@@ -131,60 +132,71 @@ function FriendCard({ member }: { member: SquadMember }) {
   const rank = getRankFromXP(member.xp);
 
   return (
-    <View style={styles.friendCard}>
-      <View style={styles.friendTop}>
-        <MemberAvatar member={member} size={64} dot />
+    <View style={styles.friendCardShell}>
+      <BlurView
+        intensity={22}
+        tint="dark"
+        experimentalBlurMethod="dimezisBlurView"
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      />
+      <View style={styles.friendCardTint} pointerEvents="none" />
 
-        <View style={styles.friendIdentity}>
-          <Text numberOfLines={1} style={styles.friendName}>
-            {member.displayName}
-          </Text>
-          <Text numberOfLines={1} style={styles.friendUsername}>
-            @{member.username}
-          </Text>
-          <View style={styles.friendStatusRow}>
-            <Clock size={12} color={colors.w45} />
-            <Text style={styles.friendStatusText}>{member.statusLabel}</Text>
+      <View style={styles.friendCard}>
+        <View style={styles.friendTop}>
+          <MemberAvatar member={member} size={64} dot />
+
+          <View style={styles.friendIdentity}>
+            <Text numberOfLines={1} style={styles.friendName}>
+              {member.displayName}
+            </Text>
+            <Text numberOfLines={1} style={styles.friendUsername}>
+              @{member.username}
+            </Text>
+            <View style={styles.friendStatusRow}>
+              <Clock size={12} color={colors.w45} />
+              <Text style={styles.friendStatusText}>{member.statusLabel}</Text>
+            </View>
+          </View>
+
+          <View
+            style={[
+              styles.friendRankChip,
+              { borderColor: rank.tier.border, backgroundColor: rank.tier.bg },
+            ]}
+          >
+            <Text style={[styles.friendRankText, { color: rank.tier.text }]}>
+              {rank.name}
+            </Text>
           </View>
         </View>
 
-        <View
-          style={[
-            styles.friendRankChip,
-            { borderColor: rank.tier.border, backgroundColor: rank.tier.bg },
-          ]}
-        >
-          <Text style={[styles.friendRankText, { color: rank.tier.text }]}>
-            {rank.name}
+        <View style={styles.friendStats}>
+          <View style={styles.friendXp}>
+            <Zap size={14} color="rgba(147,197,253,0.8)" />
+            <Text style={styles.friendXpValue}>
+              {member.xp.toLocaleString()}
+            </Text>
+            <Text style={styles.friendXpLabel}>total XP</Text>
+          </View>
+          <View style={styles.friendStreak}>
+            <Flame size={14} color="rgba(252,211,77,0.9)" />
+            <Text style={styles.friendStreakText}>
+              {member.streak}d streak
+            </Text>
+          </View>
+        </View>
+
+        <ProgressBar percent={rank.percent} gradient={rank.tier.gradient} />
+
+        <View style={styles.friendFooter}>
+          <Text style={styles.friendTierLabel}>
+            {rank.tier.label.toUpperCase()}
+          </Text>
+          <Text style={styles.friendNext}>
+            {rank.xpToNext} XP to {rank.nextRankName ?? "max"}
           </Text>
         </View>
-      </View>
-
-      <View style={styles.friendStats}>
-        <View style={styles.friendXp}>
-          <Zap size={14} color="rgba(147,197,253,0.8)" />
-          <Text style={styles.friendXpValue}>
-            {member.xp.toLocaleString()}
-          </Text>
-          <Text style={styles.friendXpLabel}>total XP</Text>
-        </View>
-        <View style={styles.friendStreak}>
-          <Flame size={14} color="rgba(252,211,77,0.9)" />
-          <Text style={styles.friendStreakText}>
-            {member.streak}d streak
-          </Text>
-        </View>
-      </View>
-
-      <ProgressBar percent={rank.percent} gradient={rank.tier.gradient} />
-
-      <View style={styles.friendFooter}>
-        <Text style={styles.friendTierLabel}>
-          {rank.tier.label.toUpperCase()}
-        </Text>
-        <Text style={styles.friendNext}>
-          {rank.xpToNext} XP to {rank.nextRankName ?? "max"}
-        </Text>
       </View>
     </View>
   );
@@ -695,11 +707,22 @@ const styles = StyleSheet.create({
   friendList: {
     gap: 16,
   },
-  friendCard: {
+  friendCardShell: {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.w10,
-    backgroundColor: colors.w05,
+    backgroundColor: "rgba(255,255,255,0.02)",
+    overflow: "hidden",
+  },
+  friendCardTint: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255,255,255,0.035)",
+  },
+  friendCard: {
     padding: 16,
   },
   friendTop: {
