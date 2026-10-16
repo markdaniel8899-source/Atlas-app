@@ -563,7 +563,9 @@ export default function RoadmapScreen() {
         <View style={styles.emptyCard}>
           <View style={styles.emptyIconWrap}>
             <View pointerEvents="none" style={styles.emptyIconGlow} />
-            <Compass size={40} color={colors.lilac} />
+            <View style={styles.emptyIconBadge}>
+              <Compass size={34} color={colors.lilac} />
+            </View>
           </View>
           <Text style={styles.emptyEyebrow}>No roadmap yet</Text>
           <Text style={styles.emptyTitle}>
@@ -1023,6 +1025,16 @@ const styles = StyleSheet.create({
     height: 132,
     borderRadius: 999,
     backgroundColor: "rgba(207,158,255,0.10)",
+  },
+  emptyIconBadge: {
+    width: 76,
+    height: 76,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: colors.lilac25,
+    backgroundColor: colors.lilac10,
+    alignItems: "center",
+    justifyContent: "center",
   },
   emptyEyebrow: {
     marginTop: 28,

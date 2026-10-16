@@ -21,6 +21,7 @@ import {
 } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
+import { useBlurTargetRef } from "../components/blur-target";
 import { ScreenHeading, ScreenShell } from "../components/screen-shell";
 import {
   acceptInvite,
@@ -130,13 +131,15 @@ function ProgressBar({ percent, gradient }: { percent: number; gradient: readonl
 
 function FriendCard({ member }: { member: SquadMember }) {
   const rank = getRankFromXP(member.xp);
+  const blurTarget = useBlurTargetRef();
 
   return (
     <View style={styles.friendCardShell}>
       <BlurView
         intensity={22}
         tint="dark"
-        experimentalBlurMethod="dimezisBlurView"
+        blurMethod="dimezisBlurViewSdk31Plus"
+        blurTarget={blurTarget ?? undefined}
         style={StyleSheet.absoluteFill}
         pointerEvents="none"
       />

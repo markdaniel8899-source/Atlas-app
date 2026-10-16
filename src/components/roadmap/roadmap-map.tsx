@@ -17,6 +17,7 @@ import Svg, {
   Stop,
 } from "react-native-svg";
 import { Check, Lock, Skull, Zap } from "lucide-react-native";
+import { useBlurTargetRef } from "../blur-target";
 import type {
   LevelPoint,
   NodeStatus,
@@ -125,7 +126,6 @@ const STATUS_CHIP: Record<NodeStatus, { bg: string; text: string }> = {
 /** Pulsing ring around the current (active) level. */
 function ActiveHalo({ size }: { size: number }) {
   const pulse = useRef(new Animated.Value(0)).current;
-  const radius = Math.round(size * 0.28) + 6;
 
   useEffect(() => {
     const loop = Animated.loop(
@@ -156,7 +156,7 @@ function ActiveHalo({ size }: { size: number }) {
         {
           width: size + 12,
           height: size + 12,
-          borderRadius: radius,
+          borderRadius: (size + 12) / 2,
           opacity: pulse.interpolate({
             inputRange: [0, 1],
             outputRange: [0.4, 1],
@@ -177,6 +177,7 @@ function ActiveHalo({ size }: { size: number }) {
 
 export function RoadmapMap({ graph, selectedKey, onSelect }: RoadmapMapProps) {
   const ordered = useMemo(() => orderedNodes(graph.nodes), [graph]);
+  const blurTarget = useBlurTargetRef();
   const layout = useMemo(() => layoutLevels(graph), [graph]);
   const trail = useMemo(() => {
     const out: LevelPoint[] = [];
@@ -230,7 +231,8 @@ export function RoadmapMap({ graph, selectedKey, onSelect }: RoadmapMapProps) {
       <BlurView
         intensity={28}
         tint="dark"
-        experimentalBlurMethod="dimezisBlurView"
+        blurMethod="dimezisBlurViewSdk31Plus"
+        blurTarget={blurTarget ?? undefined}
         pointerEvents="none"
         style={StyleSheet.absoluteFill}
       />
@@ -383,7 +385,6 @@ export function RoadmapMap({ graph, selectedKey, onSelect }: RoadmapMapProps) {
               const completed = node.status === "completed";
               const active = node.status === "active";
               const size = point.size;
-              const nodeRadius = Math.round(size * 0.28);
               const title = isBoss
                 ? node.title.replace(/^boss battle:\s*/i, "") || node.title
                 : node.title;
@@ -429,7 +430,7 @@ export function RoadmapMap({ graph, selectedKey, onSelect }: RoadmapMapProps) {
                       {
                         width: size,
                         height: size,
-                        borderRadius: nodeRadius,
+                        borderRadius: size / 2,
                         borderColor: spec.border,
                         opacity: spec.opacity,
                         transform: [{ scale: selected ? 1.08 : 1 }],
@@ -452,7 +453,7 @@ export function RoadmapMap({ graph, selectedKey, onSelect }: RoadmapMapProps) {
                       end={{ x: 1, y: 1 }}
                       style={[
                         StyleSheet.absoluteFill,
-                        { borderRadius: nodeRadius },
+                        { borderRadius: size / 2 },
                       ]}
                     />
                     <Icon
@@ -652,36 +653,37 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 0,
     bottom: 0,
-    width: 196,
+    width: 224,
     justifyContent: "center",
   },
   bossBadge: {
     alignSelf: "flex-start",
-    marginBottom: 6,
-    borderRadius: 6,
+    marginBottom: 8,
+    borderRadius: 7,
     borderWidth: 1,
     borderColor: "rgba(251,113,133,0.6)",
     backgroundColor: "rgba(244,63,94,0.25)",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
     shadowColor: "#f43f5e",
     shadowOpacity: 0.45,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 0 },
   },
   bossBadgeText: {
-    fontSize: 9.5,
+    fontSize: 10,
     fontFamily: fonts.semibold,
     letterSpacing: 1.4,
     textTransform: "uppercase",
     color: "#ffe4e6",
   },
   labelCard: {
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.w10,
     backgroundColor: colors.w05,
-    padding: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
     shadowColor: "#000000",
     shadowOpacity: 0.5,
     shadowRadius: 15,
@@ -689,35 +691,35 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   labelTitle: {
-    fontSize: 12.5,
-    lineHeight: 17,
+    fontSize: 13.5,
+    lineHeight: 19,
     fontFamily: fonts.semibold,
     color: "rgba(255,255,255,0.9)",
   },
   metaRow: {
-    marginTop: 7,
+    marginTop: 9,
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 4,
+    gap: 5,
   },
   metaChip: {
-    borderRadius: 4,
+    borderRadius: 5,
     backgroundColor: colors.w10,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
   },
   metaChipText: {
-    fontSize: 10.5,
+    fontSize: 11.5,
     fontFamily: fonts.medium,
     color: "rgba(255,255,255,0.6)",
   },
   statusChip: {
-    borderRadius: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    borderRadius: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
   },
   statusChipText: {
-    fontSize: 10.5,
+    fontSize: 11.5,
     fontFamily: fonts.medium,
   },
 });
