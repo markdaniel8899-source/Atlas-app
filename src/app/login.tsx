@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { BlurTargetView } from "expo-blur";
+import { BlurTargetView, BlurView } from "expo-blur";
 import {
   ArrowLeft,
   ArrowRight,
@@ -28,7 +28,10 @@ import {
 } from "lucide-react-native";
 import { AuthMesh } from "../components/auth/auth-mesh";
 import { OtpInput } from "../components/auth/otp-input";
-import { BlurTargetRefContext } from "../components/blur-target";
+import {
+  BlurTargetRefContext,
+  useBlurTargetRef,
+} from "../components/blur-target";
 import { MeshBackground } from "../components/mesh-background";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
@@ -87,7 +90,8 @@ export default function LoginScreen() {
 
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
-  const formAnim = useRef(new Animated.Value(0)).current;
+  const entrance = useRef(new Animated.Value(0)).current;
+  const formAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     let active = true;
@@ -104,13 +108,13 @@ export default function LoginScreen() {
   }, []);
 
   useEffect(() => {
-    Animated.timing(formAnim, {
+    Animated.timing(entrance, {
       toValue: 1,
       duration: 420,
       easing: ease,
       useNativeDriver: true,
     }).start();
-  }, [formAnim]);
+  }, [entrance]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -145,16 +149,9 @@ export default function LoginScreen() {
         if (nextNotice !== undefined) setNotice(nextNotice);
         return;
       }
-      Animated.timing(formAnim, {
-        toValue: 0,
-        duration: 150,
-        easing: ease,
-        useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (finished) applyMode(next, nextNotice);
-      });
+      applyMode(next, nextNotice);
     },
-    [mode, formAnim, applyMode],
+    [mode, applyMode],
   );
 
   const onVerifyCode = useCallback(
@@ -425,10 +422,10 @@ export default function LoginScreen() {
               style={[
                 styles.cardWrap,
                 {
-                  opacity: formAnim,
+                  opacity: entrance,
                   transform: [
                     {
-                      translateY: formAnim.interpolate({
+                      translateY: entrance.interpolate({
                         inputRange: [0, 1],
                         outputRange: [14, 0],
                       }),
@@ -458,7 +455,20 @@ export default function LoginScreen() {
                     />
                   ) : null}
 
-                  {notice ? (
+                  <Animated.View
+                    style={{
+                      opacity: formAnim,
+                      transform: [
+                        {
+                          translateY: formAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [8, 0],
+                          }),
+                        },
+                      ],
+                    }}
+                  >
+                    {notice ? (
                     <Text
                       style={[
                         styles.notice,
@@ -709,6 +719,7 @@ export default function LoginScreen() {
                       .
                     </Text>
                   </View>
+                  </Animated.View>
                 </View>
               </Card>
             </Animated.View>
@@ -774,15 +785,60 @@ function Field({
     ],
   };
 
+  const blurTarget = useBlurTargetRef();
+
   return (
     <View>
-      <View
-        style={[
-          styles.fieldBox,
-          focused && styles.fieldBoxFocused,
-          error && styles.fieldBoxError,
-        ]}
-      >
+      <View>
+        <View
+          style={[
+            styles.fieldBox,
+            focused && styles.fieldBoxFocused,
+            error && styles.fieldBoxError,
+          ]}
+        >
+          <BlurView
+            intensity={26}
+            tint="dark"
+            blurMethod="dimezisBlurViewSdk31Plus"
+            blurTarget={blurTarget ?? undefined}
+            pointerEvents="none"
+            style={StyleSheet.absoluteFill}
+          />
+          <View pointerEvents="none" style={styles.fieldTint} />
+          {icon}
+          <View style={styles.fieldBody}>
+            <Animated.Text
+              numberOfLines={1}
+              style={[
+                styles.floatLabel,
+                styles.floatLabelRest,
+                floatTransform,
+                {
+                  opacity: focusAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [1, 0],
+                  }),
+                },
+              ]}
+            >
+              {label}
+            </Animated.Text>
+            <Animated.Text
+              numberOfLines={1}
+              style={[
+                styles.floatLabel,
+                styles.floatLabelAccent,
+                floatTransform,
+                { opacity: focusAnim },
+              ]}
+            >
+              {label}
+            </Animated.Text>
+            {children}
+          </View>
+          {trailing}
+        </View>
         <Animated.View
           pointerEvents="none"
           style={[
@@ -791,38 +847,6 @@ function Field({
             { opacity: focusAnim },
           ]}
         />
-        {icon}
-        <View style={styles.fieldBody}>
-          <Animated.Text
-            numberOfLines={1}
-            style={[
-              styles.floatLabel,
-              styles.floatLabelRest,
-              floatTransform,
-              {
-                opacity: focusAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [1, 0],
-                }),
-              },
-            ]}
-          >
-            {label}
-          </Animated.Text>
-          <Animated.Text
-            numberOfLines={1}
-            style={[
-              styles.floatLabel,
-              styles.floatLabelAccent,
-              floatTransform,
-              { opacity: focusAnim },
-            ]}
-          >
-            {label}
-          </Animated.Text>
-          {children}
-        </View>
-        {trailing}
       </View>
       {error ? <Text style={styles.fieldError}>{error}</Text> : null}
     </View>
@@ -1026,13 +1050,20 @@ const styles = StyleSheet.create({
     height: 58,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.w10,
-    backgroundColor: colors.w04,
+    borderColor: colors.lilac25,
+    overflow: "hidden",
     paddingHorizontal: 14,
   },
   fieldBoxFocused: {
-    borderColor: "rgba(157,180,255,0.30)",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    borderColor: colors.lilac45,
+  },
+  fieldTint: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255,255,255,0.03)",
   },
   fieldBoxError: {
     borderColor: "rgba(248,113,113,0.55)",
@@ -1045,7 +1076,7 @@ const styles = StyleSheet.create({
     bottom: -2,
     borderRadius: 16,
     borderWidth: 1.5,
-    borderColor: "rgba(157,180,255,0.55)",
+    borderColor: "rgba(207,158,255,0.55)",
     ...(Platform.OS === "ios"
       ? {
           shadowColor: "#9db4ff",
@@ -1066,13 +1097,14 @@ const styles = StyleSheet.create({
   floatLabel: {
     position: "absolute",
     left: 0,
-    top: 20,
-    fontSize: 14,
+    top: 19,
+    fontSize: 15,
+    lineHeight: 20,
     fontFamily: fonts.regular,
     transformOrigin: "left top",
   },
   floatLabelRest: {
-    color: "rgba(255,255,255,0.40)",
+    color: "rgba(255,255,255,0.45)",
   },
   floatLabelAccent: {
     color: "rgba(207,158,255,0.88)",
