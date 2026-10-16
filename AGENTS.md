@@ -50,6 +50,10 @@
   - RoadmapDetail: `topInset` prop from the screen — safe-area insets read as 0 inside a `Modal` on Android, which pushed the heading off-screen. `safeTop = Math.max(insets.top, topInset, 12)`.
   - `AppHeader`: `HEADER_HEIGHT = 76` exported; all content paddings must use it (`insets.top + HEADER_HEIGHT + …`) — previously hardcoded `+ 64`.
   - New `src/components/account-sheet.tsx`: avatar tap opens a bottom sheet with profile (name, @username, Level/XP/streak chips), 2-col quick links to every page, and Log out (`signOut()` → `/login`). Wired automatically by `AppHeader` unless `onAccountPress` is passed.
+- **Polish batch 3 (2026-10-16, `362b381..27f05e6`):**
+  - New info pages ported from the web site (`C:\Scrap\learning tracker\src\pages\site\*` + landing Footer): `/about`, `/help` (new FAQ), `/privacy`, `/terms`, `/contact`. Shared blocks in `src/components/info-blocks.tsx` (InfoSection/InfoSubheading/InfoParagraph/InfoBullets). Contact form inserts into `contact_messages` (same shape as web: subject = `Message from <name>`).
+  - Dashboard + `ScreenShell` footer links now navigate to those pages; account sheet shows only info links (About Us, Help & Support, Privacy Policy, Terms & Conditions, Contact Us) + Log out; Log out REMOVED from `NavigationDrawer` on user request.
+  - Roadmap level nodes changed from circles to rounded squares (`borderRadius ≈ size * 0.28`; ActiveHalo matches).
 - Next sensible steps: side-by-side visual diff vs mobile web (`argent-screenshot-diff`), device QA in Expo Go (kill/reopen to avoid stale bundles), then optional `eas build` for native changes.
 
 ## Workflow Preferences (user)
