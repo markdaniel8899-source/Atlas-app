@@ -139,8 +139,8 @@ export const TRAIL_ROW_H = 168;
 export const TRAIL_PAD_X = 90;
 export const TRAIL_PAD_Y = 64;
 /** Candy-style node diameters: boss levels are visibly larger. */
-export const LEVEL_D = 84;
-export const LEVEL_BOSS_D = 116;
+export const LEVEL_D = 104;
+export const LEVEL_BOSS_D = 140;
 
 /** XP rewards for finishing a level. */
 export const XP_PER_LEVEL = 50;

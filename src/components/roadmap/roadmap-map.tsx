@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ComponentType } from "react";
 import {
   Animated,
   Easing,
@@ -16,7 +15,6 @@ import Svg, {
   Path,
   Stop,
 } from "react-native-svg";
-import type { PathProps } from "react-native-svg";
 import { Check, Lock, Skull, Zap } from "lucide-react-native";
 import type {
   LevelPoint,
@@ -43,18 +41,6 @@ const STATUS_WORD: Record<NodeStatus, string> = {
   active: "Active",
   locked: "Locked",
 };
-
-/** Deterministic floating sparkles drifting over the map background. */
-const PARTICLES = [
-  { x: 6, y: 4, ch: "✦", color: "rgba(196,181,253,0.7)", size: 13, dur: 11, delay: 0 },
-  { x: 23, y: 16, ch: "·", color: "rgba(103,232,249,0.7)", size: 18, dur: 13, delay: 1.4 },
-  { x: 48, y: 7, ch: "✦", color: "rgba(125,211,252,0.6)", size: 11, dur: 12, delay: 0.6 },
-  { x: 72, y: 22, ch: "✧", color: "rgba(240,171,252,0.6)", size: 14, dur: 14, delay: 2.2 },
-  { x: 89, y: 11, ch: "·", color: "rgba(196,181,253,0.6)", size: 20, dur: 10, delay: 0.9 },
-  { x: 13, y: 61, ch: "✦", color: "rgba(103,232,249,0.6)", size: 12, dur: 15, delay: 1.8 },
-  { x: 64, y: 75, ch: "✧", color: "rgba(196,181,253,0.6)", size: 13, dur: 12, delay: 0.3 },
-  { x: 35, y: 89, ch: "✦", color: "rgba(125,211,252,0.7)", size: 15, dur: 13, delay: 2.6 },
-];
 
 interface SegmentStyle {
   stroke: string;
@@ -135,66 +121,6 @@ const STATUS_CHIP: Record<NodeStatus, { bg: string; text: string }> = {
   locked: { bg: "rgba(255,255,255,0.10)", text: "rgba(255,255,255,0.45)" },
 };
 
-/** Gentle looping twinkle for the background and trail sparkles. */
-function Sparkle({
-  x,
-  y,
-  char,
-  size,
-  color,
-  duration,
-  delay,
-}: {
-  x: number;
-  y: number;
-  char: string;
-  size: number;
-  color: string;
-  duration: number;
-  delay: number;
-}) {
-  const opacity = useRef(new Animated.Value(0.25)).current;
-
-  useEffect(() => {
-    const half = Math.max(600, duration * 500);
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, {
-          toValue: 0.9,
-          duration: half,
-          delay: delay * 1000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacity, {
-          toValue: 0.25,
-          duration: half,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [opacity, duration, delay]);
-
-  return (
-    <Animated.Text
-      pointerEvents="none"
-      style={{
-        position: "absolute",
-        left: x,
-        top: y,
-        fontSize: size,
-        color,
-        opacity,
-      }}
-    >
-      {char}
-    </Animated.Text>
-  );
-}
-
 /** Pulsing ring around the current (active) level. */
 function ActiveHalo({ size }: { size: number }) {
   const pulse = useRef(new Animated.Value(0)).current;
@@ -247,50 +173,6 @@ function ActiveHalo({ size }: { size: number }) {
   );
 }
 
-type AnimatedPathProps = Omit<PathProps, "strokeDashoffset"> & {
-  strokeDashoffset?: Animated.Value | Animated.AnimatedInterpolation<number>;
-};
-
-const AnimatedPath = Animated.createAnimatedComponent(
-  Path,
-) as unknown as ComponentType<AnimatedPathProps>;
-
-/** Flowing light running the whole path. */
-function FlowLight({ d, length }: { d: string; length: number }) {
-  const flow = useRef(new Animated.Value(0)).current;
-  const segment = Math.max(18, length * 0.05);
-
-  useEffect(() => {
-    flow.setValue(0);
-    const loop = Animated.loop(
-      Animated.timing(flow, {
-        toValue: 1,
-        duration: 7000,
-        easing: Easing.linear,
-        useNativeDriver: false,
-      }),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [flow, d, length]);
-
-  return (
-    <AnimatedPath
-      d={d}
-      fill="none"
-      stroke="#f5e8ff"
-      strokeWidth={2.5}
-      strokeDasharray={[segment, length]}
-      strokeLinecap="round"
-      opacity={0.85}
-      strokeDashoffset={flow.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0, -(segment + length)],
-      })}
-    />
-  );
-}
-
 export function RoadmapMap({ graph, selectedKey, onSelect }: RoadmapMapProps) {
   const ordered = useMemo(() => orderedNodes(graph.nodes), [graph]);
   const layout = useMemo(() => layoutLevels(graph), [graph]);
@@ -303,7 +185,6 @@ export function RoadmapMap({ graph, selectedKey, onSelect }: RoadmapMapProps) {
     return out;
   }, [ordered, layout]);
   const ribbon = useMemo(() => trailPath(trail), [trail]);
-  const trailLength = Math.max(600, (ordered.length - 1) * 172);
 
   // Fit the fixed-width canvas into narrow (mobile) viewports.
   const [hostWidth, setHostWidth] = useState(0);
@@ -365,34 +246,7 @@ export function RoadmapMap({ graph, selectedKey, onSelect }: RoadmapMapProps) {
               },
             ]}
           >
-            {/* Soft theme-coloured washes behind the map. */}
-            <View
-              pointerEvents="none"
-              style={[styles.wash, { left: -40, top: 30, backgroundColor: "rgba(207,158,255,0.07)" }]}
-            />
-            <View
-              pointerEvents="none"
-              style={[styles.wash, { right: -50, top: layout.height * 0.42, backgroundColor: "rgba(168,85,247,0.08)" }]}
-            />
-            <View
-              pointerEvents="none"
-              style={[styles.wash, { left: layout.width * 0.2, bottom: 20, backgroundColor: "rgba(124,58,237,0.07)" }]}
-            />
-
-            {PARTICLES.map((particle, index) => (
-              <Sparkle
-                key={`pt-${index}`}
-                x={(particle.x / 100) * layout.width}
-                y={(particle.y / 100) * layout.height}
-                char={particle.ch}
-                size={particle.size}
-                color={particle.color}
-                duration={particle.dur}
-                delay={particle.delay}
-              />
-            ))}
-
-            {/* Trail: gradient ribbon, flowing light, status overlays. */}
+            {/* Trail: gradient ribbon + status overlays. */}
             <Svg
               pointerEvents="none"
               width={layout.width}
@@ -426,9 +280,7 @@ export function RoadmapMap({ graph, selectedKey, onSelect }: RoadmapMapProps) {
                 opacity={0.3}
               />
 
-              <FlowLight d={ribbon} length={trailLength} />
-
-              {/* Progress: completed draws solid, active marches as a bright dash. */}
+              {/* Progress: completed draws solid, active sits as a bright dash. */}
               {ordered.slice(1).map((node, index) => {
                 const spec = overlayStyle(node.status);
                 if (!spec) return null;
@@ -457,26 +309,6 @@ export function RoadmapMap({ graph, selectedKey, onSelect }: RoadmapMapProps) {
                 );
               })}
             </Svg>
-
-            {/* Sparkles sprinkled along the trail. */}
-            {trail.map((point, index) =>
-              index % 3 === 1 ? (
-                <Sparkle
-                  key={`sp-${index}`}
-                  x={point.cx + (index % 2 === 0 ? -38 : 34)}
-                  y={point.cy - 36}
-                  char="✦"
-                  size={11}
-                  color={
-                    index % 6 === 1
-                      ? "rgba(165,243,252,0.8)"
-                      : "rgba(221,214,254,0.8)"
-                  }
-                  duration={3.2}
-                  delay={index * 0.35}
-                />
-              ) : null,
-            )}
 
             {/* Phase dividers: ribbon every 5 levels. */}
             {dividers.map((divider) => (
@@ -597,9 +429,9 @@ export function RoadmapMap({ graph, selectedKey, onSelect }: RoadmapMapProps) {
                         ? {
                             shadowColor: spec.glowColor,
                             shadowOpacity: spec.glowOpacity,
-                            shadowRadius: 18,
+                            shadowRadius: 12,
                             shadowOffset: { width: 0, height: 0 },
-                            elevation: 10,
+                            elevation: 6,
                           }
                         : null,
                     ]}
@@ -614,7 +446,7 @@ export function RoadmapMap({ graph, selectedKey, onSelect }: RoadmapMapProps) {
                       ]}
                     />
                     <Icon
-                      size={isBoss ? 28 : 20}
+                      size={isBoss ? 34 : 24}
                       color={
                         locked && !isBoss ? "rgba(255,255,255,0.7)" : colors.white
                       }
@@ -681,27 +513,16 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: colors.w10,
-    backgroundColor: "#07070f",
+    borderColor: colors.w08,
+    backgroundColor: "rgba(6,6,14,0.45)",
     paddingTop: 40,
     overflow: "hidden",
-    shadowColor: "#7e22ce",
-    shadowOpacity: 0.4,
-    shadowRadius: 40,
-    shadowOffset: { width: 0, height: 24 },
-    elevation: 14,
   },
   canvasHost: {
     alignItems: "center",
   },
   canvas: {
     position: "relative",
-  },
-  wash: {
-    position: "absolute",
-    width: 330,
-    height: 300,
-    borderRadius: 999,
   },
   dividerRow: {
     position: "absolute",
@@ -786,8 +607,8 @@ const styles = StyleSheet.create({
   underglow: {
     position: "absolute",
     bottom: -16,
-    width: 56,
-    height: 14,
+    width: 66,
+    height: 16,
     borderRadius: 999,
     backgroundColor: "rgba(207,158,255,0.7)",
     shadowColor: "#cf9eff",
@@ -810,8 +631,8 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.7)",
   },
   levelNumber: {
-    marginTop: 2,
-    fontSize: 9,
+    marginTop: 3,
+    fontSize: 10,
     fontFamily: fonts.semibold,
     fontVariant: ["tabular-nums"],
     letterSpacing: -0.2,

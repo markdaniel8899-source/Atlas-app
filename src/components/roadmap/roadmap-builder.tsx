@@ -49,46 +49,37 @@ interface RoadmapBuilderProps {
   defaultCourseId?: number | null;
 }
 
-const LEVELS: SelectOption<string>[] = [
-  {
-    value: "beginner",
-    label: "Beginner",
-    hint: "New to this topic",
-    icon: Sprout,
-  },
-  {
-    value: "intermediate",
-    label: "Intermediate",
-    hint: "Some hands-on experience",
-    icon: TrendingUp,
-  },
-  {
-    value: "advanced",
-    label: "Advanced",
-    hint: "Confident and building already",
-    icon: Rocket,
-  },
+const LEVELS: { value: string; label: string; icon: typeof Sprout }[] = [
+  { value: "beginner", label: "Beginner", icon: Sprout },
+  { value: "intermediate", label: "Intermediate", icon: TrendingUp },
+  { value: "advanced", label: "Advanced", icon: Rocket },
 ];
 
-const COMMITMENTS: (SelectOption<string> & { hours: number })[] = [
+const COMMITMENTS: {
+  value: string;
+  label: string;
+  hint: string;
+  icon: typeof Coffee;
+  hours: number;
+}[] = [
   {
     value: "casual",
     label: "Casual",
-    hint: "2-3 hours / week",
+    hint: "2-3 hrs / wk",
     icon: Coffee,
     hours: 3,
   },
   {
     value: "serious",
     label: "Serious",
-    hint: "5-10 hours / week",
+    hint: "5-10 hrs / wk",
     icon: Flame,
     hours: 8,
   },
   {
     value: "intensive",
     label: "Intensive",
-    hint: "15+ hours / week",
+    hint: "15+ hrs / wk",
     icon: Zap,
     hours: 16,
   },
@@ -215,7 +206,7 @@ export function RoadmapBuilder({
     <View style={styles.card}>
       <View style={styles.header}>
         <View style={styles.headerIcon}>
-          <Compass size={18} color={colors.lilac} />
+          <Compass size={20} color={colors.lilac} />
         </View>
         <View style={styles.headerText}>
           <Text style={styles.eyebrow}>AI syllabus</Text>
@@ -236,32 +227,102 @@ export function RoadmapBuilder({
             onChangeText={setGoal}
             multiline
             maxLength={400}
-            placeholder="e.g., Learn Python from basics to advanced, Master Calculus, Build a full-stack web app"
+            placeholder="Learn Python from basics to advanced…"
             placeholderTextColor={colors.w30}
             style={styles.goalInput}
           />
-          <Text style={styles.hint}>
-            Be specific about what you want to learn and your end goal
-          </Text>
+          <View style={styles.goalMetaRow}>
+            <Text style={styles.hint}>
+              Be specific about what you want to learn and your end goal
+            </Text>
+            <Text style={styles.counter}>{goal.length}/400</Text>
+          </View>
         </View>
 
-        <SelectMenu
-          label="Current level"
-          labelIcon={Gauge}
-          value={level}
-          options={LEVELS}
-          onChange={setLevel}
-          disabled={busy}
-        />
+        <View>
+          <View style={styles.labelRow}>
+            <Gauge size={12} color={colors.w40} />
+            <Text style={styles.label}>Current level</Text>
+          </View>
+          <View style={styles.segmentedRow}>
+            {LEVELS.map((entry) => {
+              const Icon = entry.icon;
+              const active = level === entry.value;
+              return (
+                <Pressable
+                  key={entry.value}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active, disabled: busy }}
+                  disabled={busy}
+                  onPress={() => setLevel(entry.value)}
+                  style={({ pressed }) => [
+                    styles.segment,
+                    active && styles.segmentActive,
+                    pressed && !busy && styles.segmentPressed,
+                    busy && styles.disabled,
+                  ]}
+                >
+                  <Icon
+                    size={15}
+                    color={active ? colors.lilac : colors.w40}
+                  />
+                  <Text
+                    style={[
+                      styles.segmentText,
+                      active && styles.segmentTextActive,
+                    ]}
+                  >
+                    {entry.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
 
-        <SelectMenu
-          label="Time commitment"
-          labelIcon={Timer}
-          value={commitment}
-          options={COMMITMENTS}
-          onChange={setCommitment}
-          disabled={busy}
-        />
+        <View>
+          <View style={styles.labelRow}>
+            <Timer size={12} color={colors.w40} />
+            <Text style={styles.label}>Time commitment</Text>
+          </View>
+          <View style={styles.segmentedRow}>
+            {COMMITMENTS.map((entry) => {
+              const Icon = entry.icon;
+              const active = commitment === entry.value;
+              return (
+                <Pressable
+                  key={entry.value}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active, disabled: busy }}
+                  disabled={busy}
+                  onPress={() => setCommitment(entry.value)}
+                  style={({ pressed }) => [
+                    styles.segmentStacked,
+                    active && styles.segmentActive,
+                    pressed && !busy && styles.segmentPressed,
+                    busy && styles.disabled,
+                  ]}
+                >
+                  <View style={styles.segmentStackedTop}>
+                    <Icon
+                      size={15}
+                      color={active ? colors.lilac : colors.w40}
+                    />
+                    <Text
+                      style={[
+                        styles.segmentText,
+                        active && styles.segmentTextActive,
+                      ]}
+                    >
+                      {entry.label}
+                    </Text>
+                  </View>
+                  <Text style={styles.segmentHint}>{entry.hint}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
 
         <SelectMenu
           label="Link to course"
@@ -277,7 +338,7 @@ export function RoadmapBuilder({
 
         <View style={styles.templatesBox}>
           <Text style={styles.templatesLabel}>Or start from a template</Text>
-          <View style={styles.templateRow}>
+          <View style={styles.templateGrid}>
             {TEMPLATES.map((template) => {
               const Icon = template.icon;
               return (
@@ -288,12 +349,17 @@ export function RoadmapBuilder({
                   onPress={() => applyTemplate(template.goal)}
                   disabled={busy}
                   style={({ pressed }) => [
-                    styles.templateChip,
-                    pressed && styles.templateChipPressed,
+                    styles.templateCard,
+                    pressed && styles.templateCardPressed,
+                    busy && styles.disabled,
                   ]}
                 >
-                  <Icon size={14} color={colors.star70} />
-                  <Text style={styles.templateText}>{template.label}</Text>
+                  <View style={styles.templateIcon}>
+                    <Icon size={15} color={colors.star70} />
+                  </View>
+                  <Text numberOfLines={1} style={styles.templateText}>
+                    {template.label}
+                  </Text>
                 </Pressable>
               );
             })}
@@ -313,7 +379,7 @@ export function RoadmapBuilder({
               disabled={busy}
               style={({ pressed }) => [
                 styles.retryChip,
-                pressed && styles.templateChipPressed,
+                pressed && styles.templateCardPressed,
                 busy && styles.disabled,
               ]}
             >
@@ -350,9 +416,7 @@ export function RoadmapBuilder({
             <Text style={styles.generateText}>
               {busy ? "Researching the path…" : "Generate roadmap"}
             </Text>
-            {!busy && (
-              <ArrowRight size={16} color={colors.primaryText} />
-            )}
+            {!busy && <ArrowRight size={16} color={colors.primaryText} />}
           </Pressable>
         </View>
       </View>
@@ -362,16 +426,11 @@ export function RoadmapBuilder({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: colors.w10,
-    backgroundColor: colors.w03,
-    padding: 24,
-    shadowColor: colors.lilac,
-    shadowOpacity: 0.3,
-    shadowRadius: 45,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 12,
+    backgroundColor: "rgba(12,12,22,0.72)",
+    padding: 20,
   },
   header: {
     flexDirection: "row",
@@ -379,8 +438,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   headerIcon: {
-    width: 40,
-    height: 40,
+    width: 42,
+    height: 42,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.lilac25,
@@ -395,22 +454,23 @@ const styles = StyleSheet.create({
   eyebrow: {
     fontSize: 10,
     fontFamily: fonts.medium,
-    letterSpacing: 3.2,
+    letterSpacing: 3,
     textTransform: "uppercase",
     color: colors.star70,
   },
   headerTitle: {
-    marginTop: 2,
-    fontSize: 14,
+    marginTop: 3,
+    fontSize: 15,
     fontFamily: fonts.medium,
+    letterSpacing: -0.3,
     color: colors.white,
   },
   form: {
-    marginTop: 24,
-    gap: 20,
+    marginTop: 22,
+    gap: 18,
   },
   labelRow: {
-    marginBottom: 6,
+    marginBottom: 8,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
@@ -436,10 +496,78 @@ const styles = StyleSheet.create({
     color: colors.white,
     textAlignVertical: "top",
   },
-  hint: {
+  goalMetaRow: {
     marginTop: 8,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  hint: {
+    flex: 1,
     fontSize: 12,
     lineHeight: 18,
+    fontFamily: fonts.regular,
+    color: colors.w35,
+  },
+  counter: {
+    fontSize: 11,
+    fontFamily: fonts.regular,
+    fontVariant: ["tabular-nums"],
+    color: colors.w30,
+  },
+  segmentedRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  segment: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.w08,
+    backgroundColor: colors.w03,
+    paddingHorizontal: 8,
+    paddingVertical: 12,
+  },
+  segmentStacked: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.w08,
+    backgroundColor: colors.w03,
+    paddingHorizontal: 6,
+    paddingVertical: 10,
+  },
+  segmentStackedTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  segmentActive: {
+    borderColor: colors.lilac50,
+    backgroundColor: colors.lilac12,
+  },
+  segmentPressed: {
+    borderColor: colors.lilac45,
+    backgroundColor: colors.w06,
+  },
+  segmentText: {
+    fontSize: 12,
+    fontFamily: fonts.medium,
+    color: colors.w50,
+  },
+  segmentTextActive: {
+    color: colors.white,
+  },
+  segmentHint: {
+    fontSize: 10,
     fontFamily: fonts.regular,
     color: colors.w35,
   },
@@ -448,7 +576,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.w07,
     backgroundColor: colors.w02,
-    padding: 16,
+    padding: 14,
   },
   templatesLabel: {
     fontSize: 10,
@@ -457,30 +585,43 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     color: colors.w35,
   },
-  templateRow: {
+  templateGrid: {
     marginTop: 12,
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
   },
-  templateChip: {
+  templateCard: {
+    flexBasis: "48%",
+    flexGrow: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    borderRadius: 999,
+    gap: 8,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.w10,
-    backgroundColor: colors.w04,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    borderColor: colors.w08,
+    backgroundColor: colors.w03,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
   },
-  templateChipPressed: {
+  templateCardPressed: {
     backgroundColor: colors.lilac10,
     borderColor: colors.lilac45,
   },
+  templateIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.w10,
+    backgroundColor: colors.w04,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   templateText: {
+    flexShrink: 1,
     fontSize: 12,
-    fontFamily: fonts.regular,
+    fontFamily: fonts.medium,
     color: colors.w60,
   },
   errorBox: {
@@ -531,8 +672,8 @@ const styles = StyleSheet.create({
   footer: {
     borderTopWidth: 1,
     borderTopColor: colors.w07,
-    paddingTop: 20,
-    gap: 16,
+    paddingTop: 18,
+    gap: 14,
   },
   footerNote: {
     flexDirection: "row",
@@ -552,16 +693,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    borderRadius: 999,
+    borderRadius: 14,
     backgroundColor: colors.white,
     paddingHorizontal: 28,
-    paddingVertical: 14,
-    alignSelf: "flex-start",
-    shadowColor: colors.star,
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 8,
+    paddingVertical: 15,
   },
   generatePressed: {
     opacity: 0.9,
