@@ -37,6 +37,13 @@
   - CalendarPage was intentionally skipped (not reachable via the web nav either).
 - Port rules in use: plain RN StyleSheet (no NativeWind), legacy Animated only, no hover states, glass = rgba panels, RN-Image can't render SVG (use expo-image/png), Hermes-safe regexes (no lookbehind), no raw `'` in JSX text (use `’`), never `<View>` inside `<Svg>`.
 - Quiz backend sync uses the `record_quiz_session` RPC (fallback `record_activity`) — server-side XP/streak/achievement logic stays authoritative.
+- **Post-parity polish batch (2026-10-16):**
+  - Roadmap: marching-dash FlowLight + particles/washes removed (perf on device), bigger level nodes, translucent map card; builder redesigned (segmented level/commitment, template grid).
+  - Assistant: ChatGPT-style layout (`src/app/assistant.tsx` — no ScreenShell), thread persists 24h via `src/lib/assistant-store.ts` (AsyncStorage, `atlas.assistant.thread.v1`, owner-scoped with `claimAssistantChat`, in-flight request survives navigation).
+  - Quiz: session lives in `src/lib/quiz-store.ts` (module-level) so generation/grading continue across tab switches; `quiz.tsx` is a subscriber.
+  - Notes: all writes go through the persistent offline queue `src/lib/notes-queue.ts` (latest-wins per note, temp `local-…` ids for offline-created notes + id-swap events, retry on edit / 15s interval / app foreground); `db/notes.ts` `updateNote`/`deleteNote` now return booleans, `insertNote` exported. "Offline · N to sync" indicator in the editor header.
+  - Dashboard quick-note widget (`src/components/dashboard/quick-note.tsx`) saves into Notes/General (offline-safe). In-app widget only — a home-screen OS widget needs a dev build, not Expo Go.
+  - Friends cards use expo-blur (`dimezisBlurView` + tint overlay).
 - Next sensible steps: side-by-side visual diff vs mobile web (`argent-screenshot-diff`), device QA in Expo Go (kill/reopen to avoid stale bundles), then optional `eas build` for native changes.
 
 ## Workflow Preferences (user)
