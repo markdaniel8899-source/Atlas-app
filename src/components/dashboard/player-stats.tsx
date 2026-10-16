@@ -72,7 +72,7 @@ export function PlayerStats({ profile, loading }: PlayerStatsProps) {
       duration: 1000,
       delay: 150,
       easing: ease,
-      useNativeDriver: false,
+      useNativeDriver: true,
     }).start();
   }, [loading, bar]);
 
@@ -141,10 +141,18 @@ export function PlayerStats({ profile, loading }: PlayerStatsProps) {
               style={[
                 styles.fill,
                 {
-                  width: bar.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: ["0%", `${rankData.percent}%`],
-                  }),
+                  transform: [
+                    {
+                      scaleX: bar.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [
+                          0,
+                          Math.max(rankData.percent, 0) / 100,
+                        ],
+                      }),
+                    },
+                  ],
+                  transformOrigin: "left",
                 },
               ]}
             >
@@ -271,6 +279,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   fill: {
+    width: "100%",
     height: "100%",
     borderRadius: 999,
     overflow: "hidden",

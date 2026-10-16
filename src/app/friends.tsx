@@ -101,7 +101,7 @@ function ProgressBar({ percent, gradient }: { percent: number; gradient: readonl
       duration: 900,
       delay: 200,
       easing: ease,
-      useNativeDriver: false,
+      useNativeDriver: true,
     }).start();
   }, [anim, percent]);
 
@@ -111,10 +111,15 @@ function ProgressBar({ percent, gradient }: { percent: number; gradient: readonl
         style={[
           styles.progressFill,
           {
-            width: anim.interpolate({
-              inputRange: [0, 100],
-              outputRange: ["0%", "100%"],
-            }),
+            transform: [
+              {
+                scaleX: anim.interpolate({
+                  inputRange: [0, 100],
+                  outputRange: [0, 1],
+                }),
+              },
+            ],
+            transformOrigin: "left",
           },
         ]}
       >
@@ -810,6 +815,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   progressFill: {
+    width: "100%",
     height: "100%",
     borderRadius: 999,
     overflow: "hidden",

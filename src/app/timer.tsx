@@ -108,7 +108,7 @@ export default function TimerScreen() {
       toValue: Math.min(100, progress * 100),
       duration: 400,
       easing: ease,
-      useNativeDriver: false,
+      useNativeDriver: true,
     }).start();
   }, [progress, progressAnim]);
 
@@ -192,10 +192,15 @@ export default function TimerScreen() {
                   style={[
                     styles.fill,
                     {
-                      width: progressAnim.interpolate({
-                        inputRange: [0, 100],
-                        outputRange: ["0%", "100%"],
-                      }),
+                      transform: [
+                        {
+                          scaleX: progressAnim.interpolate({
+                            inputRange: [0, 100],
+                            outputRange: [0, 1],
+                          }),
+                        },
+                      ],
+                      transformOrigin: "left",
                     },
                   ]}
                 >
@@ -391,6 +396,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   fill: {
+    width: "100%",
     height: "100%",
     borderRadius: 999,
     overflow: "hidden",
