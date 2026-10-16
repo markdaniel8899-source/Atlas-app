@@ -490,6 +490,24 @@ export async function syncTopicStatuses(
   return true;
 }
 
+export async function setTopicStatus(
+  courseId: number,
+  topicId: number,
+  status: CourseStatus,
+): Promise<void> {
+  await supabase
+    .from("course_topics")
+    .update({
+      status,
+      progress_percentage: status === "completed" ? 100 : 0,
+      completed_at: status === "completed" ? new Date().toISOString() : null,
+    })
+    .eq("id", topicId);
+
+  await recomputeCourseProgress(courseId);
+  notifyCoursesChanged();
+}
+
 /** Remove one topic and recompute the course progress. */
 export async function removeTopic(
   courseId: number,

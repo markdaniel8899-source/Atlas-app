@@ -36,6 +36,7 @@ const HALO_INSETS = [2, 4, 6, 8, 10, 12, 14, 16];
 type NavRoute =
   | "/"
   | "/roadmap"
+  | "/courses"
   | "/timer"
   | "/friends"
   | "/leaderboard"
@@ -50,7 +51,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", icon: LayoutDashboard, route: "/" },
   { label: "Roadmap", icon: Map, route: "/roadmap" },
-  { label: "Courses", icon: GraduationCap },
+  { label: "Courses", icon: GraduationCap, route: "/courses" },
   { label: "Notes", icon: FileText },
   { label: "Quiz", icon: ListChecks },
   { label: "Timer", icon: Timer, route: "/timer" },

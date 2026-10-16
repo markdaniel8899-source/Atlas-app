@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
+import { useLocalSearchParams } from "expo-router";
 import { BookOpen, Check, Pause, Play, RotateCcw } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { ScreenHeading, ScreenShell } from "../components/screen-shell";
@@ -76,6 +77,25 @@ export default function TimerScreen() {
   const { state, globalTotal, courseTotal, progress, activeCourse } = timer;
   const { courses } = useCourses();
   const [sessions, setSessions] = useState<StudySession[]>([]);
+
+  // /timer?courseId=<id> (Courses / Roadmap pills) preselects the course once.
+  const params = useLocalSearchParams<{ courseId?: string | string[] }>();
+  const appliedCourseRef = useRef<string | null>(null);
+  useEffect(() => {
+    const raw = Array.isArray(params.courseId)
+      ? params.courseId[0]
+      : params.courseId;
+    if (!raw) {
+      appliedCourseRef.current = null;
+      return;
+    }
+    if (appliedCourseRef.current === raw) return;
+    appliedCourseRef.current = raw;
+    const parsed = Number(raw);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      timer.selectCourse(parsed);
+    }
+  }, [params.courseId, timer]);
 
   // Session history list - refreshed after every commit.
   useEffect(() => {
