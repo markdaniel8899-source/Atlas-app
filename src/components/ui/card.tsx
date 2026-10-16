@@ -2,6 +2,7 @@ import { useId } from "react";
 import type { ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import type { StyleProp, ViewStyle } from "react-native";
+import { BlurView } from "expo-blur";
 import Svg, {
   Defs,
   LinearGradient,
@@ -9,6 +10,7 @@ import Svg, {
   Rect,
   Stop,
 } from "react-native-svg";
+import { useBlurTargetRef } from "../blur-target";
 import { RADIUS, colors, shadow } from "../../theme/theme";
 
 interface CardProps {
@@ -16,6 +18,8 @@ interface CardProps {
   style?: StyleProp<ViewStyle>;
   /** Defaults to p-6 (24). Pass false for custom padding. */
   padded?: boolean;
+  /** Frosted backdrop blur behind the card (needs a BlurTargetView above). */
+  glass?: boolean;
 }
 
 /**
@@ -49,9 +53,23 @@ function CardSheen() {
   );
 }
 
-export function Card({ children, style, padded = true }: CardProps) {
+export function Card({ children, style, padded = true, glass = false }: CardProps) {
+  const blurTarget = useBlurTargetRef();
+
   return (
-    <View style={[styles.card, padded && styles.padded, style]}>
+    <View
+      style={[styles.card, glass && styles.cardGlass, padded && styles.padded, style]}
+    >
+      {glass ? (
+        <BlurView
+          intensity={34}
+          tint="dark"
+          blurMethod="dimezisBlurViewSdk31Plus"
+          blurTarget={blurTarget ?? undefined}
+          pointerEvents="none"
+          style={StyleSheet.absoluteFill}
+        />
+      ) : null}
       <CardSheen />
       {children}
     </View>
@@ -66,6 +84,10 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.card,
     overflow: "hidden",
     ...shadow.card,
+  },
+  cardGlass: {
+    backgroundColor: "rgba(10,10,22,0.55)",
+    borderColor: "rgba(255,255,255,0.14)",
   },
   padded: {
     padding: 24,

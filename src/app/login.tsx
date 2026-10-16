@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
+  Animated,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -12,15 +13,40 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ArrowRight, Eye, EyeOff, Lock, Mail } from "lucide-react-native";
+import { BlurTargetView } from "expo-blur";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Lock,
+  Mail,
+  RefreshCw,
+  ShieldCheck,
+} from "lucide-react-native";
+import { AuthOrbs } from "../components/auth/orbs";
+import { OtpInput } from "../components/auth/otp-input";
+import { BlurTargetRefContext } from "../components/blur-target";
 import { MeshBackground } from "../components/mesh-background";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
-import { CONFIG_ERROR, resolveSession, signIn, signUp } from "../lib/auth";
+import {
+  CONFIG_ERROR,
+  requestPasswordReset,
+  resendConfirmationOtp,
+  resolveSession,
+  signIn,
+  signUp,
+  updatePassword,
+  verifyEmailOtp,
+} from "../lib/auth";
 import { isSupabaseConfigured } from "../lib/supabase";
-import { colors, fonts } from "../theme/theme";
+import { colors, ease, fonts } from "../theme/theme";
 
-type Mode = "login" | "signup";
+type Mode = "login" | "signup" | "verify" | "forgot" | "reset";
+type ResetPhase = "code" | "password";
+type VerifyOrigin = "login" | "signup";
 
 interface Errors {
   name?: string;
@@ -33,24 +59,35 @@ interface Notice {
   text: string;
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PLACEHOLDER = "rgba(255,255,255,0.25)";
+const ERROR_ICON = "rgba(252,165,165,0.7)";
+
 export default function LoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const blurTargetRef = useRef<View | null>(null);
 
   const [mode, setMode] = useState<Mode>("login");
+  const [resetPhase, setResetPhase] = useState<ResetPhase>("code");
+  const [verifyOrigin, setVerifyOrigin] = useState<VerifyOrigin>("signup");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
+  const [code, setCode] = useState("");
+  const [pendingEmail, setPendingEmail] = useState("");
   const [focused, setFocused] = useState<"name" | "email" | "password" | null>(
     null,
   );
   const [errors, setErrors] = useState<Errors>({});
   const [notice, setNotice] = useState<Notice | null>(null);
   const [busy, setBusy] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
 
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
+  const formAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     let active = true;
@@ -66,20 +103,168 @@ export default function LoginScreen() {
     if (!isSupabaseConfigured) setNotice({ tone: "error", text: CONFIG_ERROR });
   }, []);
 
-  const switchMode = (next: Mode) => {
-    setMode(next);
-    setErrors({});
+  useEffect(() => {
+    Animated.timing(formAnim, {
+      toValue: 1,
+      duration: 420,
+      easing: ease,
+      useNativeDriver: true,
+    }).start();
+  }, [formAnim]);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const id = setTimeout(
+      () => setCooldown((value) => Math.max(0, value - 1)),
+      1000,
+    );
+    return () => clearTimeout(id);
+  }, [cooldown]);
+
+  const applyMode = useCallback(
+    (next: Mode, nextNotice?: Notice | null) => {
+      setMode(next);
+      setErrors({});
+      setNotice(nextNotice ?? null);
+      setCode("");
+      setShowPw(false);
+      formAnim.setValue(0);
+      Animated.timing(formAnim, {
+        toValue: 1,
+        duration: 300,
+        easing: ease,
+        useNativeDriver: true,
+      }).start();
+    },
+    [formAnim],
+  );
+
+  const switchMode = useCallback(
+    (next: Mode, nextNotice?: Notice | null) => {
+      if (next === mode) {
+        if (nextNotice !== undefined) setNotice(nextNotice);
+        return;
+      }
+      Animated.timing(formAnim, {
+        toValue: 0,
+        duration: 150,
+        easing: ease,
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished) applyMode(next, nextNotice);
+      });
+    },
+    [mode, formAnim, applyMode],
+  );
+
+  const onVerifyCode = useCallback(
+    async (codeValue: string, type: "signup" | "recovery") => {
+      if (busy) return;
+      setBusy(true);
+      setNotice(null);
+      const result = await verifyEmailOtp(pendingEmail, codeValue, type);
+      setBusy(false);
+      if (result.error) {
+        setNotice({ tone: "error", text: result.error });
+        return;
+      }
+      if (type === "signup") {
+        router.replace("/");
+        return;
+      }
+      setPassword("");
+      setCode("");
+      setNotice({ tone: "info", text: "Code verified. Choose your new password." });
+      setResetPhase("password");
+      formAnim.setValue(0);
+      Animated.timing(formAnim, {
+        toValue: 1,
+        duration: 280,
+        easing: ease,
+        useNativeDriver: true,
+      }).start();
+    },
+    [busy, pendingEmail, router, formAnim],
+  );
+
+  const onResend = async () => {
+    if (busy || cooldown > 0) return;
+    setBusy(true);
     setNotice(null);
+    const result =
+      mode === "verify"
+        ? await resendConfirmationOtp(pendingEmail)
+        : await requestPasswordReset(pendingEmail);
+    setBusy(false);
+    if (result.error) {
+      setNotice({ tone: "error", text: result.error });
+      return;
+    }
+    setCooldown(60);
+    setNotice({ tone: "info", text: `New code sent to ${pendingEmail}.` });
   };
 
   const onSubmit = async () => {
     if (busy) return;
 
+    if (mode === "verify" || (mode === "reset" && resetPhase === "code")) {
+      if (code.length !== 6) {
+        setNotice({
+          tone: "error",
+          text: "Enter the 6-digit code from the email.",
+        });
+        return;
+      }
+      await onVerifyCode(code, mode === "verify" ? "signup" : "recovery");
+      return;
+    }
+
+    if (mode === "reset" && resetPhase === "password") {
+      if (password.length < 6) {
+        setErrors({ password: "Use at least 6 characters." });
+        return;
+      }
+      setBusy(true);
+      setNotice(null);
+      const result = await updatePassword(password);
+      setBusy(false);
+      if (result.error) {
+        setNotice({ tone: "error", text: result.error });
+        return;
+      }
+      router.replace("/");
+      return;
+    }
+
+    if (mode === "forgot") {
+      if (!EMAIL_RE.test(email.trim())) {
+        setErrors({ email: "Enter a valid email address." });
+        return;
+      }
+      const target = email.trim();
+      setBusy(true);
+      setNotice(null);
+      const result = await requestPasswordReset(target);
+      setBusy(false);
+      if (result.error) {
+        setNotice({ tone: "error", text: result.error });
+        return;
+      }
+      setPendingEmail(target);
+      setResetPhase("code");
+      setCooldown(60);
+      switchMode("reset", {
+        tone: "info",
+        text: `We emailed a 6-digit reset code to ${target}.`,
+      });
+      return;
+    }
+
     const next: Errors = {};
     if (mode === "signup" && name.trim().length < 2) {
       next.name = "Tell us what to call you.";
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    if (!EMAIL_RE.test(email.trim())) {
       next.email = "Enter a valid email address.";
     }
     if (password.length < 6) {
@@ -90,243 +275,452 @@ export default function LoginScreen() {
 
     setBusy(true);
     setNotice(null);
-
+    const target = email.trim();
     const result =
       mode === "signup"
-        ? await signUp(name.trim(), email.trim(), password)
-        : await signIn(email.trim(), password);
-
+        ? await signUp(name.trim(), target, password)
+        : await signIn(target, password);
     setBusy(false);
 
     if (result.error) {
+      if (result.unverifiedEmail) {
+        setPendingEmail(target);
+        setVerifyOrigin("login");
+        setCooldown(0);
+        switchMode("verify", {
+          tone: "info",
+          text: `Your email isn't verified yet. Enter the code sent to ${target}, or resend it below.`,
+        });
+        return;
+      }
       setNotice({ tone: "error", text: result.error });
       return;
     }
 
     if (result.needsConfirmation) {
-      setNotice({
+      setPendingEmail(target);
+      setVerifyOrigin("signup");
+      setCooldown(60);
+      switchMode("verify", {
         tone: "info",
-        text: `We sent a confirmation link to ${email.trim()}. Confirm it, then sign in.`,
+        text: `We emailed a 6-digit code to ${target}.`,
       });
-      setMode("login");
       return;
     }
 
     router.replace("/");
   };
 
+  const header = useMemo(() => {
+    switch (mode) {
+      case "signup":
+        return {
+          title: "Claim your map.",
+          subtitle: "Set up your learning OS in under a minute.",
+        };
+      case "verify":
+        return {
+          title: "Check your inbox.",
+          subtitle: `Enter the 6-digit code we sent to ${pendingEmail}.`,
+        };
+      case "forgot":
+        return {
+          title: "Reset password.",
+          subtitle: "We'll email you a 6-digit reset code.",
+        };
+      case "reset":
+        return resetPhase === "code"
+          ? {
+              title: "Enter reset code.",
+              subtitle: `Code sent to ${pendingEmail}.`,
+            }
+          : {
+              title: "Set new password.",
+              subtitle: "Almost there - choose a fresh password.",
+            };
+      default:
+        return {
+          title: "Welcome back.",
+          subtitle: "Pick up where the streak left off.",
+        };
+    }
+  }, [mode, resetPhase, pendingEmail]);
+
+  const BadgeIcon =
+    mode === "verify"
+      ? ShieldCheck
+      : mode === "forgot"
+        ? KeyRound
+        : mode === "reset"
+          ? Lock
+          : null;
+
+  const showTabs = mode === "login" || mode === "signup";
+  const otpVisible =
+    mode === "verify" || (mode === "reset" && resetPhase === "code");
+  const resetPasswordVisible = mode === "reset" && resetPhase === "password";
+  const emailVisible =
+    mode === "login" || mode === "signup" || mode === "forgot";
+  const passwordVisible = mode === "login" || mode === "signup";
+
+  const submitLabel = (() => {
+    if (busy) {
+      switch (mode) {
+        case "signup":
+          return "Creating account…";
+        case "verify":
+          return "Verifying…";
+        case "forgot":
+          return "Sending code…";
+        case "reset":
+          return resetPhase === "code" ? "Verifying…" : "Saving…";
+        default:
+          return "Signing in…";
+      }
+    }
+    switch (mode) {
+      case "signup":
+        return "Create account";
+      case "verify":
+        return "Verify & continue";
+      case "forgot":
+        return "Send reset code";
+      case "reset":
+        return resetPhase === "code" ? "Verify code" : "Save new password";
+      default:
+        return "Enter the dashboard";
+    }
+  })();
+
   return (
-    <View style={styles.root}>
-      <MeshBackground />
-
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <ScrollView
-          style={styles.flex}
-          contentContainerStyle={[
-            styles.content,
-            {
-              paddingTop: insets.top + 24,
-              paddingBottom: insets.bottom + 24,
-            },
-          ]}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-          contentInsetAdjustmentBehavior="never"
+    <BlurTargetRefContext.Provider value={blurTargetRef}>
+      <View style={styles.root}>
+        <BlurTargetView
+          ref={blurTargetRef}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
         >
-          <Card style={styles.card} padded={false}>
-            <View style={styles.cardInner}>
-              <View style={styles.header}>
-                <Text style={styles.eyebrow}>ATLAS</Text>
-                <Text style={styles.title}>
-                  {mode === "login" ? "Welcome back." : "Claim your map."}
-                </Text>
-                <Text style={styles.subtitle}>
-                  {mode === "login"
-                    ? "Pick up where the streak left off."
-                    : "Set up your learning OS in under a minute."}
-                </Text>
-              </View>
+          <MeshBackground />
+        </BlurTargetView>
 
-              <View style={styles.tabs}>
-                {(["login", "signup"] as Mode[]).map((m) => {
-                  const selected = mode === m;
-                  return (
-                    <Pressable
-                      key={m}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected }}
-                      onPress={() => switchMode(m)}
-                      style={[styles.tab, selected && styles.tabActive]}
+        <AuthOrbs />
+
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <ScrollView
+            style={styles.flex}
+            contentContainerStyle={[
+              styles.content,
+              {
+                paddingTop: insets.top + 24,
+                paddingBottom: insets.bottom + 24,
+              },
+            ]}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            contentInsetAdjustmentBehavior="never"
+          >
+            <Animated.View
+              style={[
+                styles.cardWrap,
+                {
+                  opacity: formAnim,
+                  transform: [
+                    {
+                      translateY: formAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [14, 0],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              <Card glass style={styles.card} padded={false}>
+                <View style={styles.cardInner}>
+                  <View style={styles.header}>
+                    <Text style={styles.eyebrow}>ATLAS</Text>
+                    {BadgeIcon ? (
+                      <View style={styles.badge}>
+                        <BadgeIcon size={26} color={colors.lilac} />
+                      </View>
+                    ) : null}
+                    <Text style={styles.title}>{header.title}</Text>
+                    <Text style={styles.subtitle}>{header.subtitle}</Text>
+                  </View>
+
+                  {showTabs ? (
+                    <View style={styles.tabs}>
+                      {(["login", "signup"] as Mode[]).map((m) => {
+                        const selected = mode === m;
+                        return (
+                          <Pressable
+                            key={m}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected }}
+                            onPress={() => switchMode(m)}
+                            style={[styles.tab, selected && styles.tabActive]}
+                          >
+                            <Text
+                              style={[
+                                styles.tabText,
+                                selected && styles.tabTextActive,
+                              ]}
+                            >
+                              {m === "login" ? "Log in" : "Sign up"}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  ) : null}
+
+                  {notice ? (
+                    <Text
+                      style={[
+                        styles.notice,
+                        notice.tone === "error"
+                          ? styles.noticeError
+                          : styles.noticeInfo,
+                      ]}
                     >
-                      <Text
-                        style={[styles.tabText, selected && styles.tabTextActive]}
+                      {notice.text}
+                    </Text>
+                  ) : null}
+
+                  <View style={styles.form}>
+                    {mode === "signup" ? (
+                      <Field label="Name" error={errors.name}>
+                        <TextInput
+                          value={name}
+                          onChangeText={setName}
+                          onFocus={() => setFocused("name")}
+                          onBlur={() => setFocused(null)}
+                          placeholder="Ada Lovelace"
+                          placeholderTextColor={PLACEHOLDER}
+                          autoComplete="name"
+                          textContentType="name"
+                          returnKeyType="next"
+                          onSubmitEditing={() => emailRef.current?.focus()}
+                          style={styles.input}
+                        />
+                      </Field>
+                    ) : null}
+
+                    {emailVisible ? (
+                      <Field
+                        label="Email"
+                        icon={
+                          <Mail
+                            size={16}
+                            color={errors.email ? ERROR_ICON : colors.w30}
+                          />
+                        }
+                        error={errors.email}
+                        focused={focused === "email"}
                       >
-                        {m === "login" ? "Log in" : "Sign up"}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
+                        <TextInput
+                          ref={emailRef}
+                          value={email}
+                          onChangeText={setEmail}
+                          onFocus={() => setFocused("email")}
+                          onBlur={() => setFocused(null)}
+                          placeholder="you@domain.com"
+                          placeholderTextColor={PLACEHOLDER}
+                          autoCapitalize="none"
+                          autoCorrect={false}
+                          keyboardType="email-address"
+                          autoComplete="email"
+                          textContentType="emailAddress"
+                          returnKeyType="next"
+                          onSubmitEditing={() => passwordRef.current?.focus()}
+                          style={styles.input}
+                        />
+                      </Field>
+                    ) : null}
 
-              {notice ? (
-                <Text
-                  style={[
-                    styles.notice,
-                    notice.tone === "error"
-                      ? styles.noticeError
-                      : styles.noticeInfo,
-                  ]}
-                >
-                  {notice.text}
-                </Text>
-              ) : null}
+                    {passwordVisible || resetPasswordVisible ? (
+                      <Field
+                        label={resetPasswordVisible ? "New password" : "Password"}
+                        icon={
+                          <Lock
+                            size={16}
+                            color={errors.password ? ERROR_ICON : colors.w30}
+                          />
+                        }
+                        error={errors.password}
+                        focused={focused === "password"}
+                        trailing={
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={
+                              showPw ? "Hide password" : "Show password"
+                            }
+                            onPress={() => setShowPw((value) => !value)}
+                            hitSlop={8}
+                          >
+                            {showPw ? (
+                              <EyeOff size={17} color={colors.w35} />
+                            ) : (
+                              <Eye size={17} color={colors.w35} />
+                            )}
+                          </Pressable>
+                        }
+                      >
+                        <TextInput
+                          ref={passwordRef}
+                          value={password}
+                          onChangeText={setPassword}
+                          onFocus={() => setFocused("password")}
+                          onBlur={() => setFocused(null)}
+                          placeholder="••••••••"
+                          placeholderTextColor={PLACEHOLDER}
+                          secureTextEntry={!showPw}
+                          autoCapitalize="none"
+                          autoComplete={
+                            passwordVisible && mode === "login"
+                              ? "current-password"
+                              : "new-password"
+                          }
+                          textContentType={
+                            passwordVisible && mode === "login"
+                              ? "password"
+                              : "newPassword"
+                          }
+                          returnKeyType="go"
+                          onSubmitEditing={() => void onSubmit()}
+                          style={styles.input}
+                        />
+                      </Field>
+                    ) : null}
 
-              <View style={styles.form}>
-                {mode === "signup" ? (
-                  <Field label="Name" error={errors.name}>
-                    <TextInput
-                      value={name}
-                      onChangeText={setName}
-                      onFocus={() => setFocused("name")}
-                      onBlur={() => setFocused(null)}
-                      placeholder="Ada Lovelace"
-                      placeholderTextColor={PLACEHOLDER}
-                      autoComplete="name"
-                      textContentType="name"
-                      returnKeyType="next"
-                      onSubmitEditing={() => emailRef.current?.focus()}
-                      style={styles.input}
+                    {mode === "login" ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={() => switchMode("forgot")}
+                        style={styles.forgotRow}
+                        hitSlop={8}
+                      >
+                        <Text style={styles.forgotText}>
+                          Forgot password?
+                        </Text>
+                      </Pressable>
+                    ) : null}
+
+                    {otpVisible ? (
+                      <View style={styles.otpBlock}>
+                        <OtpInput
+                          value={code}
+                          onChange={setCode}
+                          onComplete={(value) =>
+                            void onVerifyCode(
+                              value,
+                              mode === "verify" ? "signup" : "recovery",
+                            )
+                          }
+                          autoFocus
+                          error={notice?.tone === "error"}
+                        />
+                        <View style={styles.resendRow}>
+                          <Text style={styles.resendMuted}>
+                            Didn’t get the code?
+                          </Text>
+                          <Pressable
+                            accessibilityRole="button"
+                            onPress={() => void onResend()}
+                            disabled={busy || cooldown > 0}
+                            hitSlop={8}
+                            style={styles.resendActionWrap}
+                          >
+                            {cooldown > 0 ? null : (
+                              <RefreshCw size={13} color={colors.star} />
+                            )}
+                            <Text
+                              style={[
+                                styles.resendAction,
+                                (busy || cooldown > 0) &&
+                                  styles.resendDisabled,
+                              ]}
+                            >
+                              {cooldown > 0
+                                ? `Resend in ${cooldown}s`
+                                : "Resend code"}
+                            </Text>
+                          </Pressable>
+                        </View>
+                      </View>
+                    ) : null}
+
+                    <Button
+                      label={submitLabel}
+                      icon={
+                        !busy ? (
+                          <ArrowRight size={16} color={colors.primaryText} />
+                        ) : undefined
+                      }
+                      disabled={busy}
+                      onPress={() => void onSubmit()}
+                      style={styles.submitWrap}
+                      contentStyle={styles.submit}
                     />
-                  </Field>
-                ) : null}
+                  </View>
 
-                <Field
-                  label="Email"
-                  icon={
-                    <Mail
-                      size={16}
-                      color={errors.email ? ERROR_ICON : colors.w30}
-                    />
-                  }
-                  error={errors.email}
-                  focused={focused === "email"}
-                >
-                  <TextInput
-                    ref={emailRef}
-                    value={email}
-                    onChangeText={setEmail}
-                    onFocus={() => setFocused("email")}
-                    onBlur={() => setFocused(null)}
-                    placeholder="you@domain.com"
-                    placeholderTextColor={PLACEHOLDER}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    keyboardType="email-address"
-                    autoComplete="email"
-                    textContentType="emailAddress"
-                    returnKeyType="next"
-                    onSubmitEditing={() => passwordRef.current?.focus()}
-                    style={styles.input}
-                  />
-                </Field>
-
-                <Field
-                  label="Password"
-                  icon={
-                    <Lock
-                      size={16}
-                      color={errors.password ? ERROR_ICON : colors.w30}
-                    />
-                  }
-                  error={errors.password}
-                  focused={focused === "password"}
-                  trailing={
+                  {showTabs ? (
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel={
-                        showPw ? "Hide password" : "Show password"
+                      onPress={() =>
+                        switchMode(mode === "login" ? "signup" : "login")
                       }
-                      onPress={() => setShowPw((v) => !v)}
+                      style={styles.switchLink}
                       hitSlop={8}
                     >
-                      {showPw ? (
-                        <EyeOff size={17} color={colors.w35} />
-                      ) : (
-                        <Eye size={17} color={colors.w35} />
-                      )}
+                      <Text style={styles.switchMuted}>
+                        {mode === "login" ? "New here? " : "Already climbing? "}
+                      </Text>
+                      <Text style={styles.switchAccent}>
+                        {mode === "login" ? "Create an account" : "Log in"}
+                      </Text>
                     </Pressable>
-                  }
-                >
-                  <TextInput
-                    ref={passwordRef}
-                    value={password}
-                    onChangeText={setPassword}
-                    onFocus={() => setFocused("password")}
-                    onBlur={() => setFocused(null)}
-                    placeholder="••••••••"
-                    placeholderTextColor={PLACEHOLDER}
-                    secureTextEntry={!showPw}
-                    autoCapitalize="none"
-                    autoComplete={
-                      mode === "login" ? "current-password" : "new-password"
-                    }
-                    textContentType={
-                      mode === "login" ? "password" : "newPassword"
-                    }
-                    returnKeyType="go"
-                    onSubmitEditing={() => void onSubmit()}
-                    style={styles.input}
-                  />
-                </Field>
+                  ) : null}
 
-                <Button
-                  label={
-                    busy
-                      ? mode === "login"
-                        ? "Signing in…"
-                        : "Creating account…"
-                      : mode === "login"
-                        ? "Enter the dashboard"
-                        : "Create account"
-                  }
-                  icon={
-                    !busy ? (
-                      <ArrowRight size={16} color={colors.primaryText} />
-                    ) : undefined
-                  }
-                  disabled={busy}
-                  onPress={() => void onSubmit()}
-                  style={styles.submitWrap}
-                  contentStyle={styles.submit}
-                />
-              </View>
+                  {mode === "verify" ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => switchMode(verifyOrigin)}
+                      style={styles.backLink}
+                      hitSlop={8}
+                    >
+                      <ArrowLeft size={14} color={colors.w45} />
+                      <Text style={styles.backText}>
+                        Back to{" "}
+                        {verifyOrigin === "login" ? "log in" : "sign up"}
+                      </Text>
+                    </Pressable>
+                  ) : null}
 
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => switchMode(mode === "login" ? "signup" : "login")}
-                style={styles.switchLink}
-                hitSlop={8}
-              >
-                <Text style={styles.switchMuted}>
-                  {mode === "login" ? "New here? " : "Already climbing? "}
-                </Text>
-                <Text style={styles.switchAccent}>
-                  {mode === "login" ? "Create an account" : "Log in"}
-                </Text>
-              </Pressable>
-            </View>
-          </Card>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </View>
+                  {mode === "forgot" ||
+                  (mode === "reset" && resetPhase === "code") ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => switchMode("login")}
+                      style={styles.backLink}
+                      hitSlop={8}
+                    >
+                      <ArrowLeft size={14} color={colors.w45} />
+                      <Text style={styles.backText}>Back to log in</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+              </Card>
+            </Animated.View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </View>
+    </BlurTargetRefContext.Provider>
   );
 }
-
-const PLACEHOLDER = "rgba(255,255,255,0.25)";
-const ERROR_ICON = "rgba(252,165,165,0.7)";
 
 function Field({
   label,
@@ -378,10 +772,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 24,
   },
-  card: {
+  cardWrap: {
     width: "100%",
     maxWidth: 400,
     alignSelf: "center",
+  },
+  card: {
     borderRadius: 24,
   },
   cardInner: {
@@ -396,6 +792,17 @@ const styles = StyleSheet.create({
     letterSpacing: 5,
     textTransform: "uppercase",
     color: colors.star70,
+  },
+  badge: {
+    marginTop: 20,
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.lilac25,
+    backgroundColor: colors.lilac10,
+    alignItems: "center",
+    justifyContent: "center",
   },
   title: {
     marginTop: 12,
@@ -504,6 +911,42 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     color: "rgba(252,165,165,0.8)",
   },
+  forgotRow: {
+    alignSelf: "flex-end",
+    marginTop: -6,
+  },
+  forgotText: {
+    fontSize: 13,
+    fontFamily: fonts.medium,
+    color: colors.star,
+  },
+  otpBlock: {
+    gap: 14,
+  },
+  resendRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  resendMuted: {
+    fontSize: 13,
+    fontFamily: fonts.regular,
+    color: colors.w45,
+  },
+  resendActionWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  resendAction: {
+    fontSize: 13,
+    fontFamily: fonts.medium,
+    color: colors.star,
+  },
+  resendDisabled: {
+    color: colors.w30,
+  },
   submitWrap: {
     alignSelf: "stretch",
     marginTop: 8,
@@ -526,5 +969,17 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     fontFamily: fonts.regular,
     color: colors.star,
+  },
+  backLink: {
+    marginTop: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "center",
+    gap: 6,
+  },
+  backText: {
+    fontSize: 13,
+    fontFamily: fonts.regular,
+    color: colors.w45,
   },
 });

@@ -42,8 +42,15 @@ export default function RootLayout() {
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: colors.appBg },
+          animation: "slide_from_right",
+          animationDuration: 240,
         }}
-      />
+      >
+        <Stack.Screen
+          name="login"
+          options={{ animation: "fade", animationDuration: 300 }}
+        />
+      </Stack>
       <StatusBar style="light" />
     </TimerProvider>
   );
