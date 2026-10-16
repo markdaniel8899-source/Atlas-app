@@ -737,7 +737,7 @@ function Field({
   children: ReactNode;
 }) {
   const float = useRef(new Animated.Value(value || focused ? 1 : 0)).current;
-  const glow = useRef(new Animated.Value(focused ? 1 : 0)).current;
+  const focusAnim = useRef(new Animated.Value(focused ? 1 : 0)).current;
 
   useEffect(() => {
     Animated.timing(float, {
@@ -749,61 +749,73 @@ function Field({
   }, [float, focused, value]);
 
   useEffect(() => {
-    Animated.timing(glow, {
+    Animated.timing(focusAnim, {
       toValue: focused ? 1 : 0,
       duration: 240,
       easing: ease,
-      useNativeDriver: false,
+      useNativeDriver: true,
     }).start();
-  }, [glow, focused]);
+  }, [focusAnim, focused]);
+
+  const floatTransform = {
+    transform: [
+      {
+        translateY: float.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0, -15],
+        }),
+      },
+      {
+        scale: float.interpolate({
+          inputRange: [0, 1],
+          outputRange: [1, 0.76],
+        }),
+      },
+    ],
+  };
 
   return (
     <View>
-      <Animated.View
+      <View
         style={[
           styles.fieldBox,
-          {
-            borderColor: glow.interpolate({
-              inputRange: [0, 1],
-              outputRange: [
-                "rgba(255,255,255,0.10)",
-                "rgba(157,180,255,0.55)",
-              ],
-            }),
-          },
-          focused && styles.fieldBoxGlow,
+          focused && styles.fieldBoxFocused,
           error && styles.fieldBoxError,
         ]}
       >
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.fieldGlow,
+            error && styles.fieldGlowError,
+            { opacity: focusAnim },
+          ]}
+        />
         {icon}
         <View style={styles.fieldBody}>
           <Animated.Text
             numberOfLines={1}
             style={[
               styles.floatLabel,
+              styles.floatLabelRest,
+              floatTransform,
               {
-                color: glow.interpolate({
+                opacity: focusAnim.interpolate({
                   inputRange: [0, 1],
-                  outputRange: [
-                    "rgba(255,255,255,0.40)",
-                    "rgba(207,158,255,0.85)",
-                  ],
+                  outputRange: [1, 0],
                 }),
-                transform: [
-                  {
-                    translateY: float.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0, -15],
-                    }),
-                  },
-                  {
-                    scale: float.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [1, 0.76],
-                    }),
-                  },
-                ],
               },
+            ]}
+          >
+            {label}
+          </Animated.Text>
+          <Animated.Text
+            numberOfLines={1}
+            style={[
+              styles.floatLabel,
+              styles.floatLabelAccent,
+              floatTransform,
+              { opacity: focusAnim },
             ]}
           >
             {label}
@@ -811,7 +823,7 @@ function Field({
           {children}
         </View>
         {trailing}
-      </Animated.View>
+      </View>
       {error ? <Text style={styles.fieldError}>{error}</Text> : null}
     </View>
   );
@@ -1018,18 +1030,33 @@ const styles = StyleSheet.create({
     backgroundColor: colors.w04,
     paddingHorizontal: 14,
   },
-  fieldBoxGlow: {
-    ...(Platform.OS === "ios"
-      ? {
-          shadowColor: "#9db4ff",
-          shadowOpacity: 0.4,
-          shadowRadius: 14,
-          shadowOffset: { width: 0, height: 0 },
-        }
-      : { elevation: 5, shadowColor: "#9db4ff" }),
+  fieldBoxFocused: {
+    borderColor: "rgba(157,180,255,0.30)",
+    backgroundColor: "rgba(255,255,255,0.06)",
   },
   fieldBoxError: {
     borderColor: "rgba(248,113,113,0.55)",
+  },
+  fieldGlow: {
+    position: "absolute",
+    top: -2,
+    left: -2,
+    right: -2,
+    bottom: -2,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: "rgba(157,180,255,0.55)",
+    ...(Platform.OS === "ios"
+      ? {
+          shadowColor: "#9db4ff",
+          shadowOpacity: 0.45,
+          shadowRadius: 12,
+          shadowOffset: { width: 0, height: 0 },
+        }
+      : { elevation: 4, shadowColor: "#9db4ff" }),
+  },
+  fieldGlowError: {
+    borderColor: "rgba(248,113,113,0.6)",
   },
   fieldBody: {
     flex: 1,
@@ -1042,8 +1069,13 @@ const styles = StyleSheet.create({
     top: 20,
     fontSize: 14,
     fontFamily: fonts.regular,
-    color: colors.w40,
     transformOrigin: "left top",
+  },
+  floatLabelRest: {
+    color: "rgba(255,255,255,0.40)",
+  },
+  floatLabelAccent: {
+    color: "rgba(207,158,255,0.88)",
   },
   input: {
     flex: 1,

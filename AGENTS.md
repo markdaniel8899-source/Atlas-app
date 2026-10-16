@@ -74,6 +74,7 @@
   - Login: log-in/sign-up text tabs replaced by `ModeToggle` — a capsule segmented control whose pill slides 450ms between segments; the old bottom "New here?" link is gone.
   - Legal line under the form links to `/privacy` & `/terms`.
   - Password: `secureTextEntry` dots + eye toggle reveal (Android/iOS briefly flash the last typed character — OS behavior, can’t remove without a native dev build).
+  - **Driver rule (crash fix):** never mix js-driver + native-driver animations on the same animated component — RN moves the whole style node to native and then throws on the JS animation. Login animations are strictly native-driver (opacity/transform only); the field focus glow is an opacity-faded overlay ring (`fieldGlow`), label color is a two-layer crossfade.
 - Next sensible steps: side-by-side visual diff vs mobile web (`argent-screenshot-diff`), device QA in Expo Go (kill/reopen to avoid stale bundles), then optional `eas build` for native changes.
 
 ## Workflow Preferences (user)
