@@ -1,11 +1,16 @@
+import { useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChevronDown, Menu } from "lucide-react-native";
+import { AccountSheet } from "./account-sheet";
 import { colors, fonts } from "../theme/theme";
 
 const APP_ICON = require("../../assets/icon.png");
+
+/** Fixed inner height of the header bar (below the status bar). */
+export const HEADER_HEIGHT = 76;
 
 interface AppHeaderProps {
   title: string;
@@ -21,6 +26,8 @@ export function AppHeader({
   onAccountPress,
 }: AppHeaderProps) {
   const insets = useSafeAreaInsets();
+  const [accountOpen, setAccountOpen] = useState(false);
+  const handleAccountPress = onAccountPress ?? (() => setAccountOpen(true));
 
   const inner = (
     <View style={styles.inner}>
@@ -32,7 +39,7 @@ export function AppHeader({
           hitSlop={6}
           style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
         >
-          <Menu size={20} color={colors.w60} />
+          <Menu size={22} color={colors.w60} />
         </Pressable>
         <Text style={styles.title} numberOfLines={1}>
           {title}
@@ -42,7 +49,7 @@ export function AppHeader({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Account menu"
-        onPress={onAccountPress}
+        onPress={handleAccountPress}
         hitSlop={6}
         style={({ pressed }) => [styles.account, pressed && styles.pressed]}
       >
@@ -60,29 +67,39 @@ export function AppHeader({
             accessibilityLabel="ATLAS profile"
           />
         )}
-        <ChevronDown size={14} color={colors.w40} />
+        <ChevronDown size={16} color={colors.w40} />
       </Pressable>
     </View>
   );
 
-  if (Platform.OS === "android") {
-    return (
+  const bar =
+    Platform.OS === "android" ? (
       <View
         style={[styles.header, styles.headerAndroid, { paddingTop: insets.top }]}
       >
         {inner}
       </View>
+    ) : (
+      <BlurView
+        intensity={20}
+        tint="dark"
+        style={[styles.header, { paddingTop: insets.top }]}
+      >
+        {inner}
+      </BlurView>
     );
-  }
 
   return (
-    <BlurView
-      intensity={20}
-      tint="dark"
-      style={[styles.header, { paddingTop: insets.top }]}
-    >
-      {inner}
-    </BlurView>
+    <>
+      {bar}
+      {onAccountPress ? null : (
+        <AccountSheet
+          open={accountOpen}
+          onClose={() => setAccountOpen(false)}
+          avatarUrl={avatarUrl}
+        />
+      )}
+    </>
   );
 }
 
@@ -102,7 +119,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(9,9,17,0.88)",
   },
   inner: {
-    height: 64,
+    height: HEADER_HEIGHT,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -122,9 +139,9 @@ const styles = StyleSheet.create({
   },
   title: {
     marginLeft: 12,
-    fontSize: 16,
+    fontSize: 17,
     fontFamily: fonts.medium,
-    letterSpacing: -0.32,
+    letterSpacing: -0.34,
     color: colors.white,
     flexShrink: 1,
   },
@@ -134,8 +151,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   avatar: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.w10,

@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { AppHeader } from "./app-header";
+import { AppHeader, HEADER_HEIGHT } from "./app-header";
 import { MeshBackground } from "./mesh-background";
 import { NavigationDrawer } from "./navigation-drawer";
 import { SessionCompleteCard } from "./session-complete-card";
@@ -68,7 +68,7 @@ export function ScreenShell({
         contentContainerStyle={[
           styles.content,
           {
-            paddingTop: insets.top + 64 + 32,
+            paddingTop: insets.top + HEADER_HEIGHT + 32,
             paddingBottom: insets.bottom + 32,
           },
         ]}

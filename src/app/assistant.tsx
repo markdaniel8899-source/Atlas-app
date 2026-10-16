@@ -10,7 +10,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Plus, Sparkles, TriangleAlert } from "lucide-react-native";
-import { AppHeader } from "../components/app-header";
+import { AppHeader, HEADER_HEIGHT } from "../components/app-header";
 import { ChatComposer } from "../components/assistant/chat-composer";
 import { ChatThread } from "../components/assistant/chat-thread";
 import { MeshBackground } from "../components/mesh-background";
@@ -129,7 +129,7 @@ export default function AssistantScreen() {
           style={[
             styles.container,
             {
-              paddingTop: insets.top + 64 + 8,
+              paddingTop: insets.top + HEADER_HEIGHT + 8,
               paddingBottom: insets.bottom + 12,
             },
           ]}
