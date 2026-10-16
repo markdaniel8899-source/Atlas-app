@@ -42,6 +42,7 @@ type NavRoute =
   | "/timer"
   | "/friends"
   | "/leaderboard"
+  | "/assistant"
   | "/settings";
 
 interface NavItem {
@@ -59,7 +60,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Timer", icon: Timer, route: "/timer" },
   { label: "Friends", icon: Users, route: "/friends" },
   { label: "Leaderboard", icon: Trophy, route: "/leaderboard" },
-  { label: "Assistant", icon: Sparkles },
+  { label: "Assistant", icon: Sparkles, route: "/assistant" },
   { label: "Settings", icon: Settings, route: "/settings" },
 ];
 
