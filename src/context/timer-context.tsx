@@ -11,6 +11,7 @@ import type { ReactNode } from "react";
 import { useCourses } from "../hooks/use-courses";
 import { subscribeAuth } from "../lib/auth";
 import { commitFocus, flushFocus } from "../lib/db/focus";
+import { getFocusSeconds } from "../lib/db/courses";
 import { getGlobalFocusSeconds } from "../lib/db/profile";
 import {
   defaultTimerState,
@@ -35,6 +36,8 @@ export interface TimerContextValue {
    * hero HH:MM:SS counter - it never restarts from zero.
    */
   globalTotal: number;
+  /** Lifetime focus seconds for the selected course (0 when none). */
+  courseTotal: number;
   /** Progress toward the current target, 0..1. */
   progress: number;
   /** Course the session belongs to (title shown as "Focusing on: ..."). */
@@ -67,6 +70,7 @@ export function useTimer(): TimerContextValue {
 export function TimerProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<TimerState>(() => defaultTimerState());
   const [globalBase, setGlobalBase] = useState(0);
+  const [courseBase, setCourseBase] = useState(0);
   const [flash, setFlash] = useState<string | null>(null);
   const [historyVersion, setHistoryVersion] = useState(0);
   const [tick, setTick] = useState(0);
@@ -77,6 +81,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   // auto-complete racing a manual stop can never flush the same delta twice.
   const stateRef = useRef(state);
   const baseRef = useRef(0);
+  const courseBaseRef = useRef(0);
   const hydratedRef = useRef(false);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const completionCardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -125,6 +130,21 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  /** Fresh course counter (courses.total_focus_seconds). */
+  const reloadCourseBase = useCallback(async (courseId: number | null) => {
+    const seconds = await getFocusSeconds(courseId);
+    if (courseId !== stateRef.current.courseId) return;
+    courseBaseRef.current = seconds;
+    setCourseBase(seconds);
+  }, []);
+
+  // Read the cumulative counter from the database whenever the target
+  // course changes.
+  const courseId = state.courseId;
+  useEffect(() => {
+    void reloadCourseBase(courseId);
+  }, [courseId, reloadCourseBase]);
+
   useEffect(
     () =>
       subscribeAuth((user) => {
@@ -167,6 +187,11 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     baseRef.current = next;
     setGlobalBase(next);
     saveFocusBase(next);
+
+    if (stateRef.current.courseId != null) {
+      courseBaseRef.current += delta;
+      setCourseBase(courseBaseRef.current);
+    }
   }, []);
 
   const toggle = useCallback(() => {
@@ -177,12 +202,16 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       bumpBase(delta);
       applyState({ ...pauseTimer(current), flushedMs: elapsed });
       void flushFocus(current)
-        .then(() => notifyFocusChanged())
+        .then(() => {
+          void reloadCourseBase(current.courseId);
+          notifyFocusChanged();
+        })
         .catch((err) => console.error("Focus save failed", err));
       return;
     }
+    if (current.mode === "idle") void reloadCourseBase(current.courseId);
     applyState(startTimer(current));
-  }, [applyState, bumpBase]);
+  }, [applyState, bumpBase, reloadCourseBase]);
 
   const stop = useCallback(
     (message?: string) => {
@@ -197,6 +226,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       void commitFocus(current)
         .then((session) => {
           setHistoryVersion((version) => version + 1);
+          void reloadCourseBase(current.courseId);
           notifyFocusChanged();
           showFlash(
             message ??
@@ -210,7 +240,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
           notifyFocusChanged();
         });
     },
-    [applyState, bumpBase, showFlash],
+    [applyState, bumpBase, showFlash, reloadCourseBase],
   );
 
   const setTarget = useCallback(
@@ -235,8 +265,9 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       const current = stateRef.current;
       if (current.mode !== "idle") return;
       applyState(startTimer(setTargetMinutes(current, minutes)));
+      void reloadCourseBase(current.courseId);
     },
-    [applyState],
+    [applyState, reloadCourseBase],
   );
 
   const dismissCompletionCard = useCallback(() => {
@@ -284,6 +315,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     return {
       state,
       globalTotal: globalBase + pending,
+      courseTotal: state.courseId != null ? courseBase + pending : 0,
       progress: Math.min(1, elapsed / (state.targetMin * 60_000)),
       activeCourse,
       flash,
@@ -302,6 +334,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     state,
     tick,
     globalBase,
+    courseBase,
     activeCourse,
     flash,
     historyVersion,

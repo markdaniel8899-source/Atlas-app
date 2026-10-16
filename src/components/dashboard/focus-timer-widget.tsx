@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { useTimer } from "../../context/timer-context";
@@ -184,6 +185,7 @@ function QuickStartDialog({
 
 export function FocusTimerWidget() {
   const timer = useTimer();
+  const router = useRouter();
   const { state, globalTotal, progress, activeCourse, flash } = timer;
   const [quickOpen, setQuickOpen] = useState(false);
   const [preset, setPreset] = useState(state.targetMin);
@@ -228,10 +230,15 @@ export function FocusTimerWidget() {
               </Text>
             </View>
           </View>
-          <View style={styles.openTimer}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open timer"
+            onPress={() => router.push("/timer")}
+            style={styles.openTimer}
+          >
             <Text style={styles.openTimerText}>Open timer</Text>
             <ArrowUpRight size={14} color={colors.w45} />
-          </View>
+          </Pressable>
         </View>
 
         {/* HERO: lifetime focus counter, same number as the timer page. */}

@@ -1,4 +1,8 @@
 import { resolveSession } from "../auth";
+import {
+  notifyCoursesChanged,
+  notifyRoadmapsChanged,
+} from "../events";
 import { supabase } from "../supabase";
 import type {
   Course,
@@ -200,4 +204,210 @@ export async function addFocusSeconds(
     .eq("user_id", user.id);
 
   return !error;
+}
+
+/* ---------------------------------------------------------------
+   COURSE MANAGEMENT (settings page)
+--------------------------------------------------------------- */
+
+async function nextPosition(
+  table: "courses" | "course_topics",
+  filter: { course_id?: number; user_id?: string },
+): Promise<number> {
+  let query = supabase.from(table).select("position");
+
+  if (filter.course_id !== undefined) {
+    query = query.eq("course_id", filter.course_id);
+  }
+  if (filter.user_id !== undefined) {
+    query = query.eq("user_id", filter.user_id);
+  }
+
+  const { data } = await query
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!data) return 0;
+  const value = (data as Record<string, unknown>).position;
+  return typeof value === "number" ? value + 1 : 1;
+}
+
+/** Rename a course and/or change its source description. */
+export async function updateCourse(
+  courseId: number,
+  changes: { title?: string; description?: string },
+): Promise<Course | null> {
+  const patch: { title?: string; description?: string } = {};
+
+  if (changes.title !== undefined) {
+    const trimmed = changes.title.trim();
+    if (!trimmed) return null;
+    patch.title = trimmed;
+  }
+  if (changes.description !== undefined) {
+    patch.description = changes.description.trim();
+  }
+  if (Object.keys(patch).length === 0) return null;
+
+  const { data, error } = await supabase
+    .from("courses")
+    .update(patch)
+    .eq("id", courseId)
+    .select(COURSE_SELECT)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  const course = normaliseCourse(data as unknown as CourseRow);
+  notifyCoursesChanged();
+  return course;
+}
+
+/**
+ * Delete a course together with everything that belongs to it: its roadmap
+ * (nodes and connections cascade from the roadmap row), its study sessions
+ * (the FK would only null them out), its notes (directly linked via
+ * notes.course_id and via the course's topics), topics, quizzes and quiz
+ * attempts. Every step is checked - if a step fails the course row is left
+ * untouched, so a failed delete never orphans a roadmap.
+ */
+export async function deleteCourse(courseId: number): Promise<boolean> {
+  const user = await resolveSession();
+  if (!user) return false;
+
+  // Notes first: they hang off the topics that the course delete cascades.
+  const { data: topicRows } = await supabase
+    .from("course_topics")
+    .select("id")
+    .eq("course_id", courseId)
+    .eq("user_id", user.id);
+  const topicIds = (topicRows ?? [])
+    .map((row) => (row as { id: number }).id)
+    .filter((id) => Number.isSafeInteger(id));
+
+  let notesQuery = supabase.from("notes").delete().eq("user_id", user.id);
+  notesQuery =
+    topicIds.length > 0
+      ? notesQuery.or(
+          `course_id.eq.${courseId},topic_id.in.(${topicIds.join(",")})`,
+        )
+      : notesQuery.eq("course_id", courseId);
+  const { error: notesError } = await notesQuery;
+  if (notesError) return false;
+
+  const { error: roadmapError } = await supabase
+    .from("roadmaps")
+    .delete()
+    .eq("course_id", courseId)
+    .eq("user_id", user.id);
+  if (roadmapError) return false;
+
+  const { error: sessionError } = await supabase
+    .from("learning_sessions")
+    .delete()
+    .eq("course_id", courseId)
+    .eq("user_id", user.id);
+  if (sessionError) return false;
+
+  const { error } = await supabase
+    .from("courses")
+    .delete()
+    .eq("id", courseId)
+    .eq("user_id", user.id);
+  if (error) return false;
+
+  notifyRoadmapsChanged();
+  notifyCoursesChanged();
+  return true;
+}
+
+/** Append a topic to a course (alias of createTopic). */
+export async function addTopic(
+  courseId: number,
+  title: string,
+): Promise<CourseTopic | null> {
+  return createTopic(courseId, title);
+}
+
+export async function createTopic(
+  courseId: number,
+  title: string,
+): Promise<CourseTopic | null> {
+  const user = await resolveSession();
+  if (!user) return null;
+
+  const trimmed = title.trim();
+  if (!trimmed) return null;
+
+  const position = await nextPosition("course_topics", {
+    course_id: courseId,
+  });
+
+  const { data, error } = await supabase
+    .from("course_topics")
+    .insert({
+      user_id: user.id,
+      course_id: courseId,
+      title: trimmed,
+      position,
+      status: "not_started",
+    })
+    .select(
+      "id, title, summary, position, status, progress_percentage, completed_at",
+    )
+    .maybeSingle();
+
+  if (error || !data) return null;
+  notifyCoursesChanged();
+  return normaliseTopic(data as unknown as TopicRow);
+}
+
+/** Remove one topic and recompute the course progress. */
+export async function removeTopic(
+  courseId: number,
+  topicId: number,
+): Promise<boolean> {
+  const { error } = await supabase
+    .from("course_topics")
+    .delete()
+    .eq("id", topicId)
+    .eq("course_id", courseId);
+
+  if (error) return false;
+
+  await recomputeCourseProgress(courseId);
+  notifyCoursesChanged();
+  return true;
+}
+
+async function recomputeCourseProgress(courseId: number): Promise<void> {
+  const { data: topicRows } = await supabase
+    .from("course_topics")
+    .select("status")
+    .eq("course_id", courseId);
+
+  const rows = (topicRows ?? []) as { status: CourseStatus }[];
+  const total = rows.length;
+  const done = rows.filter((row) => row.status === "completed").length;
+  const progress = total > 0 ? Math.round((done / total) * 10000) / 100 : 0;
+
+  const { data: courseRow } = await supabase
+    .from("courses")
+    .select("status")
+    .eq("id", courseId)
+    .maybeSingle();
+
+  const current =
+    ((courseRow as { status?: CourseStatus } | null)?.status) ?? "not_started";
+  const status: CourseStatus =
+    total > 0 && done === total
+      ? "completed"
+      : done > 0
+        ? "in_progress"
+        : current;
+
+  await supabase
+    .from("courses")
+    .update({ progress_percentage: progress, status })
+    .eq("id", courseId);
 }

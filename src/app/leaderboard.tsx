@@ -1,0 +1,614 @@
+import { useEffect, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Animated,
+  Easing,
+  Image,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { Flame, Medal, Trophy, Zap } from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { ScreenHeading, ScreenShell } from "../components/screen-shell";
+import { RankBadge } from "../components/gamification/rank-badge";
+import { getRankFromXP } from "../lib/gamification";
+import { fetchWeeklyLeaderboard } from "../lib/db/leaderboard";
+import type { LeaderboardEntry } from "../lib/db/leaderboard";
+import { pngAvatarUrl } from "../lib/dicebear";
+import { colors, fonts } from "../theme/theme";
+
+/** Premium glassy card configs for podium positions (1st, 2nd, 3rd). */
+const PODIUM_STYLE: Record<
+  number,
+  {
+    icon: string;
+    positionColor: string;
+    borderColor: string;
+    zapColor: string;
+    weeklyColor: string;
+    gradient: readonly [string, string, ...string[]];
+    shine: string;
+    shineDuration: number;
+  }
+> = {
+  1: {
+    icon: "🥇",
+    positionColor: "#facc15",
+    borderColor: "rgba(234,179,8,0.4)",
+    zapColor: "#fde047",
+    weeklyColor: "rgba(254,240,138,0.7)",
+    gradient: [
+      "rgba(234,179,8,0.15)",
+      "rgba(234,179,8,0.10)",
+      "rgba(234,179,8,0.04)",
+    ],
+    shine: "rgba(255,255,255,0.20)",
+    shineDuration: 2500,
+  },
+  2: {
+    icon: "🥈",
+    positionColor: "#e5e7eb",
+    borderColor: "rgba(209,213,219,0.4)",
+    zapColor: "#e5e7eb",
+    weeklyColor: "rgba(243,244,246,0.8)",
+    gradient: [
+      "rgba(203,213,225,0.20)",
+      "rgba(209,213,219,0.15)",
+      "rgba(212,212,216,0.10)",
+    ],
+    shine: "rgba(255,255,255,0.40)",
+    shineDuration: 3000,
+  },
+  3: {
+    icon: "🥉",
+    positionColor: "#d8b4fe",
+    borderColor: "rgba(192,132,252,0.4)",
+    zapColor: "#d8b4fe",
+    weeklyColor: "rgba(233,213,255,0.8)",
+    gradient: [
+      "rgba(192,132,252,0.20)",
+      "rgba(167,139,250,0.15)",
+      "rgba(232,121,249,0.10)",
+    ],
+    shine: "rgba(233,213,255,0.30)",
+    shineDuration: 3500,
+  },
+};
+
+/** Sweeping reflection band inside the podium cards. */
+function PodiumShine({
+  tint,
+  duration,
+}: {
+  tint: string;
+  duration: number;
+}) {
+  const anim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(anim, {
+        toValue: 1,
+        duration,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [anim, duration]);
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        styles.shineBand,
+        {
+          transform: [
+            {
+              translateX: anim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [-160, 720],
+              }),
+            },
+            { rotate: "18deg" },
+          ],
+        },
+      ]}
+    >
+      <LinearGradient
+        colors={["transparent", tint, "transparent"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={StyleSheet.absoluteFill}
+      />
+    </Animated.View>
+  );
+}
+
+function Avatar({ entry, size = 48 }: { entry: LeaderboardEntry; size?: number }) {
+  const uri = pngAvatarUrl(entry.avatarUrl);
+  return (
+    <View
+      style={[
+        styles.avatar,
+        { width: size, height: size, borderRadius: size / 2 },
+      ]}
+    >
+      {uri ? (
+        <Image
+          source={{ uri }}
+          style={{ width: size, height: size, borderRadius: size / 2 }}
+        />
+      ) : (
+        <LinearGradient
+          colors={["#334155", "#1e293b"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        >
+          <View style={styles.avatarInitialsWrap}>
+            <Text style={styles.avatarInitials}>{entry.initials}</Text>
+          </View>
+        </LinearGradient>
+      )}
+    </View>
+  );
+}
+
+function RankChip({
+  entry,
+  withBadge,
+}: {
+  entry: LeaderboardEntry;
+  withBadge?: boolean;
+}) {
+  const rank = getRankFromXP(entry.totalXp);
+  return (
+    <View
+      style={[
+        styles.rankChip,
+        { borderColor: rank.tier.border, backgroundColor: rank.tier.bg },
+      ]}
+    >
+      {withBadge ? (
+        <RankBadge rank={rank.tier.key} tier={rank.current.step} size={24} />
+      ) : null}
+      <Text style={[styles.rankChipText, { color: rank.tier.text }]}>
+        {rank.name}
+      </Text>
+    </View>
+  );
+}
+
+function LeaderRow({ entry, place }: { entry: LeaderboardEntry; place: number }) {
+  const podium = PODIUM_STYLE[place];
+
+  if (podium) {
+    return (
+      <View
+        style={[styles.podiumCard, { borderColor: podium.borderColor }]}
+      >
+        <LinearGradient
+          colors={podium.gradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        <PodiumShine tint={podium.shine} duration={podium.shineDuration} />
+
+        <View style={styles.positionCol}>
+          <Text style={styles.podiumIcon}>{podium.icon}</Text>
+          <Text style={[styles.podiumNumber, { color: podium.positionColor }]}>
+            {place}
+          </Text>
+        </View>
+
+        <Avatar entry={entry} size={52} />
+
+        <View style={styles.identity}>
+          <View style={styles.nameRow}>
+            <Text numberOfLines={1} style={styles.name}>
+              {entry.displayName}
+            </Text>
+            {entry.isYou ? (
+              <View style={styles.youChip}>
+                <Text style={styles.youChipText}>You</Text>
+              </View>
+            ) : null}
+          </View>
+          <View style={styles.metaRow}>
+            <Text numberOfLines={1} style={styles.username}>
+              @{entry.username}
+            </Text>
+            <RankChip entry={entry} withBadge />
+            <View style={styles.streakChip}>
+              <Flame size={12} color="rgba(252,211,77,0.8)" />
+              <Text style={styles.streakText}>{entry.streak}d</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.score}>
+          <View style={styles.scoreRow}>
+            <Zap size={16} color={podium.zapColor} />
+            <Text style={styles.scoreValue}>
+              {entry.weeklyXp.toLocaleString()}
+            </Text>
+          </View>
+          <Text style={[styles.scoreLabel, { color: podium.weeklyColor }]}>
+            weekly XP
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.rowCard, entry.isYou && styles.rowCardYou]}>
+      <View style={styles.positionCol}>
+        <Text style={styles.rowNumber}>{place}</Text>
+      </View>
+
+      <Avatar entry={entry} size={48} />
+
+      <View style={styles.identity}>
+        <View style={styles.nameRow}>
+          <Text numberOfLines={1} style={styles.name}>
+            {entry.displayName}
+          </Text>
+          {entry.isYou ? (
+            <View style={styles.youChip}>
+              <Text style={styles.youChipText}>You</Text>
+            </View>
+          ) : null}
+        </View>
+        <View style={styles.metaRow}>
+          <Text numberOfLines={1} style={styles.username}>
+            @{entry.username}
+          </Text>
+          <RankChip entry={entry} />
+          <View style={styles.streakChip}>
+            <Flame size={12} color="rgba(252,211,77,0.8)" />
+            <Text style={styles.streakText}>{entry.streak}d</Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.score}>
+        <View style={styles.scoreRow}>
+          <Zap size={16} color="rgba(147,197,253,0.8)" />
+          <Text style={styles.scoreValue}>
+            {entry.weeklyXp.toLocaleString()}
+          </Text>
+        </View>
+        <Text style={styles.scoreLabelRegular}>weekly XP</Text>
+      </View>
+    </View>
+  );
+}
+
+export default function LeaderboardScreen() {
+  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchWeeklyLeaderboard(50)
+      .then((rows) => {
+        if (!cancelled) setEntries(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setEntries([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const you = entries.find((entry) => entry.isYou);
+  const myRankIndex = entries.findIndex((entry) => entry.isYou);
+  const myRank = myRankIndex >= 0 ? myRankIndex + 1 : null;
+
+  return (
+    <ScreenShell title="Leaderboard" activeLabel="Leaderboard">
+      <ScreenHeading
+        eyebrow="This week"
+        title="Leaderboard."
+        subtitle="Ranked by weekly XP · resets every Monday 00:00 UTC"
+      />
+
+      {(myRank !== null || you) && (
+        <View style={styles.rankChipsRow}>
+          {myRank !== null ? (
+            <View style={styles.rankChipBig}>
+              <Trophy size={16} color={colors.star} />
+              <Text style={styles.rankChipBigText}>Your rank #{myRank}</Text>
+            </View>
+          ) : null}
+          {you ? (
+            <View style={styles.xpChipBig}>
+              <Zap size={16} color="rgba(147,197,253,0.8)" />
+              <Text style={styles.xpChipValue}>
+                {you.weeklyXp.toLocaleString()}
+              </Text>
+              <Text style={styles.xpChipLabel}>XP this week</Text>
+            </View>
+          ) : null}
+        </View>
+      )}
+
+      {loading ? (
+        <View style={styles.loadingRow}>
+          <ActivityIndicator size="small" color={colors.w40} />
+          <Text style={styles.loadingText}>Loading leaderboard…</Text>
+        </View>
+      ) : entries.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <Medal size={28} color={colors.w20} />
+          <Text style={styles.emptyTitle}>Nobody on the board yet</Text>
+          <Text style={styles.emptyText}>
+            Study, finish quizzes and keep your streak alive to claim the
+            first spot this week.
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.list}>
+          {entries.map((entry, index) => (
+            <LeaderRow key={entry.id} entry={entry} place={index + 1} />
+          ))}
+        </View>
+      )}
+    </ScreenShell>
+  );
+}
+
+const styles = StyleSheet.create({
+  rankChipsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 12,
+  },
+  rankChipBig: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.w10,
+    backgroundColor: colors.w05,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  rankChipBigText: {
+    fontSize: 14,
+    fontFamily: fonts.semibold,
+    color: colors.star,
+  },
+  xpChipBig: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.w10,
+    backgroundColor: colors.w05,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  xpChipValue: {
+    fontSize: 14,
+    fontFamily: fonts.regular,
+    color: colors.w70,
+  },
+  xpChipLabel: {
+    fontSize: 12,
+    fontFamily: fonts.regular,
+    color: colors.w40,
+  },
+  loadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  loadingText: {
+    fontSize: 14,
+    fontFamily: fonts.regular,
+    color: colors.w40,
+  },
+  emptyCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.w10,
+    backgroundColor: colors.w05,
+    padding: 32,
+    alignItems: "center",
+  },
+  emptyTitle: {
+    marginTop: 16,
+    fontSize: 18,
+    fontFamily: fonts.semibold,
+    letterSpacing: -0.5,
+    color: colors.white,
+  },
+  emptyText: {
+    marginTop: 6,
+    maxWidth: 320,
+    textAlign: "center",
+    fontSize: 14,
+    lineHeight: 21,
+    fontFamily: fonts.regular,
+    color: colors.w45,
+  },
+  list: {
+    gap: 12,
+  },
+  podiumCard: {
+    position: "relative",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 16,
+    overflow: "hidden",
+  },
+  shineBand: {
+    position: "absolute",
+    top: -20,
+    bottom: -20,
+    width: 80,
+  },
+  positionCol: {
+    width: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+  },
+  podiumIcon: {
+    fontSize: 18,
+    lineHeight: 22,
+  },
+  podiumNumber: {
+    fontSize: 17,
+    fontFamily: fonts.semibold,
+    letterSpacing: -0.4,
+  },
+  rowNumber: {
+    fontSize: 16,
+    fontFamily: fonts.semibold,
+    letterSpacing: -0.4,
+    color: colors.w40,
+  },
+  avatar: {
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarInitialsWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarInitials: {
+    fontSize: 14,
+    fontFamily: fonts.semibold,
+    color: colors.white,
+  },
+  identity: {
+    flex: 1,
+    minWidth: 0,
+  },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  name: {
+    flexShrink: 1,
+    fontSize: 14,
+    fontFamily: fonts.semibold,
+    letterSpacing: -0.3,
+    color: colors.white,
+  },
+  youChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.w40,
+    backgroundColor: colors.w15,
+    paddingHorizontal: 8,
+    paddingVertical: 1,
+  },
+  youChipText: {
+    fontSize: 9,
+    fontFamily: fonts.semibold,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    color: colors.white,
+  },
+  metaRow: {
+    marginTop: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    columnGap: 10,
+    rowGap: 4,
+  },
+  username: {
+    flexShrink: 1,
+    fontSize: 11,
+    fontFamily: fonts.regular,
+    color: "rgba(255,255,255,0.55)",
+  },
+  rankChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    borderRadius: 6,
+    borderWidth: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  rankChipText: {
+    fontSize: 11,
+    fontFamily: fonts.semibold,
+  },
+  streakChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  streakText: {
+    fontSize: 11,
+    fontFamily: fonts.regular,
+    color: "rgba(252,211,77,0.8)",
+  },
+  score: {
+    alignItems: "flex-end",
+  },
+  scoreRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  scoreValue: {
+    fontSize: 18,
+    fontFamily: fonts.semibold,
+    letterSpacing: -0.4,
+    color: colors.white,
+  },
+  scoreLabel: {
+    marginTop: 2,
+    fontSize: 10,
+    fontFamily: fonts.medium,
+    letterSpacing: 1.8,
+    textTransform: "uppercase",
+  },
+  scoreLabelRegular: {
+    marginTop: 2,
+    fontSize: 10,
+    fontFamily: fonts.medium,
+    letterSpacing: 1.8,
+    textTransform: "uppercase",
+    color: colors.w35,
+  },
+  rowCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.w10,
+    backgroundColor: colors.w05,
+    padding: 16,
+  },
+  rowCardYou: {
+    borderColor: "rgba(157,180,255,0.4)",
+  },
+});

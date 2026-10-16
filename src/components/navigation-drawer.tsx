@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { ComponentType } from "react";
 import {
   Animated,
   Platform,
@@ -32,18 +33,26 @@ const DRAWER_WIDTH = 240;
 
 const HALO_INSETS = [2, 4, 6, 8, 10, 12, 14, 16];
 
-const NAV_ITEMS = [
-  { label: "Dashboard", icon: LayoutDashboard },
+type NavRoute = "/" | "/timer" | "/friends" | "/leaderboard" | "/settings";
+
+interface NavItem {
+  label: string;
+  icon: ComponentType<{ size?: number; color?: string }>;
+  route?: NavRoute;
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { label: "Dashboard", icon: LayoutDashboard, route: "/" },
   { label: "Roadmap", icon: Map },
   { label: "Courses", icon: GraduationCap },
   { label: "Notes", icon: FileText },
   { label: "Quiz", icon: ListChecks },
-  { label: "Timer", icon: Timer },
-  { label: "Friends", icon: Users },
-  { label: "Leaderboard", icon: Trophy },
+  { label: "Timer", icon: Timer, route: "/timer" },
+  { label: "Friends", icon: Users, route: "/friends" },
+  { label: "Leaderboard", icon: Trophy, route: "/leaderboard" },
   { label: "Assistant", icon: Sparkles },
-  { label: "Settings", icon: Settings },
-] as const;
+  { label: "Settings", icon: Settings, route: "/settings" },
+];
 
 interface NavigationDrawerProps {
   open: boolean;
@@ -141,7 +150,12 @@ export function NavigationDrawer({
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
                 accessibilityLabel={item.label}
-                onPress={onClose}
+                onPress={() => {
+                  onClose();
+                  if (!item.route || item.label === activeLabel) return;
+                  if (item.route === "/") router.replace("/");
+                  else router.push(item.route);
+                }}
                 style={({ pressed }) => [
                   styles.item,
                   active ? styles.itemActive : styles.itemIdle,
