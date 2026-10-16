@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import type { Href } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Circle as SvgCircle } from "react-native-svg";
 import {
@@ -172,6 +173,7 @@ function CourseSwitcher({
 
 export default function RoadmapScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ courseId?: string | string[] }>();
   const [graph, setGraph] = useState<RoadmapGraph | null>(null);
   const [loading, setLoading] = useState(true);
@@ -559,8 +561,9 @@ export default function RoadmapScreen() {
         </View>
 
         <View style={styles.emptyCard}>
-          <View style={styles.emptyIconBox}>
-            <Compass size={36} color={colors.lilac} />
+          <View style={styles.emptyIconWrap}>
+            <View pointerEvents="none" style={styles.emptyIconGlow} />
+            <Compass size={40} color={colors.lilac} />
           </View>
           <Text style={styles.emptyEyebrow}>No roadmap yet</Text>
           <Text style={styles.emptyTitle}>
@@ -829,6 +832,7 @@ export default function RoadmapScreen() {
           graph={graph}
           nodeKey={selectedNode}
           busy={nodeBusy}
+          topInset={insets.top}
           onClose={() => setSelected(null)}
           onToggle={(node) => void toggleNode(node)}
         />
@@ -1007,20 +1011,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     overflow: "hidden",
   },
-  emptyIconBox: {
-    width: 80,
-    height: 80,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: colors.lilac25,
-    backgroundColor: colors.lilac10,
+  emptyIconWrap: {
+    width: 96,
+    height: 96,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: colors.lilac,
-    shadowOpacity: 0.55,
-    shadowRadius: 40,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 10,
+  },
+  emptyIconGlow: {
+    position: "absolute",
+    width: 132,
+    height: 132,
+    borderRadius: 999,
+    backgroundColor: "rgba(207,158,255,0.10)",
   },
   emptyEyebrow: {
     marginTop: 28,

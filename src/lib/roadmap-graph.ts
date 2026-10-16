@@ -135,12 +135,12 @@ export const MAP_PAD_Y = 76;
  * the path meanders left-to-right like the world map in the game.
  */
 export const TRAIL_WIDTH = 640;
-export const TRAIL_ROW_H = 168;
+export const TRAIL_ROW_H = 184;
 export const TRAIL_PAD_X = 90;
-export const TRAIL_PAD_Y = 64;
+export const TRAIL_PAD_Y = 68;
 /** Candy-style node diameters: boss levels are visibly larger. */
-export const LEVEL_D = 104;
-export const LEVEL_BOSS_D = 140;
+export const LEVEL_D = 118;
+export const LEVEL_BOSS_D = 158;
 
 /** XP rewards for finishing a level. */
 export const XP_PER_LEVEL = 50;

@@ -440,7 +440,7 @@ const styles = StyleSheet.create({
   headerIcon: {
     width: 42,
     height: 42,
-    borderRadius: 12,
+    borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.lilac25,
     backgroundColor: colors.lilac10,

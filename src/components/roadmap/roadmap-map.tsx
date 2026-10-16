@@ -7,6 +7,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, {
   Defs,
@@ -225,6 +226,13 @@ export function RoadmapMap({ graph, selectedKey, onSelect }: RoadmapMapProps) {
 
   return (
     <View style={styles.card}>
+      <BlurView
+        intensity={28}
+        tint="dark"
+        experimentalBlurMethod="dimezisBlurView"
+        pointerEvents="none"
+        style={StyleSheet.absoluteFill}
+      />
       <View
         style={styles.canvasHost}
         onLayout={(event) => setHostWidth(event.nativeEvent.layout.width)}
@@ -446,7 +454,7 @@ export function RoadmapMap({ graph, selectedKey, onSelect }: RoadmapMapProps) {
                       ]}
                     />
                     <Icon
-                      size={isBoss ? 34 : 24}
+                      size={isBoss ? 40 : 30}
                       color={
                         locked && !isBoss ? "rgba(255,255,255,0.7)" : colors.white
                       }
@@ -514,7 +522,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 1,
     borderColor: colors.w08,
-    backgroundColor: "rgba(6,6,14,0.45)",
+    backgroundColor: "rgba(6,6,14,0.35)",
     paddingTop: 40,
     overflow: "hidden",
   },
@@ -554,7 +562,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   dividerPhase: {
-    fontSize: 10,
+    fontSize: 10.5,
     fontFamily: fonts.semibold,
     letterSpacing: 2.8,
     textTransform: "uppercase",
@@ -569,7 +577,7 @@ const styles = StyleSheet.create({
   },
   dividerTitle: {
     flexShrink: 1,
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: fonts.semibold,
     color: "rgba(255,255,255,0.85)",
   },
@@ -583,7 +591,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(168,85,247,0.25)",
   },
   dividerCountText: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.semibold,
     fontVariant: ["tabular-nums"],
     color: "rgba(255,255,255,0.55)",
@@ -607,8 +615,8 @@ const styles = StyleSheet.create({
   underglow: {
     position: "absolute",
     bottom: -16,
-    width: 66,
-    height: 16,
+    width: 76,
+    height: 18,
     borderRadius: 999,
     backgroundColor: "rgba(207,158,255,0.7)",
     shadowColor: "#cf9eff",
@@ -631,8 +639,8 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.7)",
   },
   levelNumber: {
-    marginTop: 3,
-    fontSize: 10,
+    marginTop: 4,
+    fontSize: 11.5,
     fontFamily: fonts.semibold,
     fontVariant: ["tabular-nums"],
     letterSpacing: -0.2,
@@ -642,7 +650,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 0,
     bottom: 0,
-    width: 160,
+    width: 196,
     justifyContent: "center",
   },
   bossBadge: {
@@ -660,18 +668,18 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   bossBadgeText: {
-    fontSize: 8,
+    fontSize: 9.5,
     fontFamily: fonts.semibold,
     letterSpacing: 1.4,
     textTransform: "uppercase",
     color: "#ffe4e6",
   },
   labelCard: {
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.w10,
     backgroundColor: colors.w05,
-    padding: 10,
+    padding: 12,
     shadowColor: "#000000",
     shadowOpacity: 0.5,
     shadowRadius: 15,
@@ -679,13 +687,13 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   labelTitle: {
-    fontSize: 11,
-    lineHeight: 14,
+    fontSize: 12.5,
+    lineHeight: 17,
     fontFamily: fonts.semibold,
     color: "rgba(255,255,255,0.9)",
   },
   metaRow: {
-    marginTop: 6,
+    marginTop: 7,
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 4,
@@ -693,21 +701,21 @@ const styles = StyleSheet.create({
   metaChip: {
     borderRadius: 4,
     backgroundColor: colors.w10,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
   metaChipText: {
-    fontSize: 9,
+    fontSize: 10.5,
     fontFamily: fonts.medium,
-    color: "rgba(255,255,255,0.55)",
+    color: "rgba(255,255,255,0.6)",
   },
   statusChip: {
     borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
   statusChipText: {
-    fontSize: 9,
+    fontSize: 10.5,
     fontFamily: fonts.medium,
   },
 });

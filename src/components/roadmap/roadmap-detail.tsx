@@ -41,6 +41,9 @@ interface RoadmapDetailProps {
   graph: RoadmapGraph;
   nodeKey: string;
   busy: boolean;
+  /** Safe-area top inset passed down from the screen: insets read inside a
+   *  Modal can be 0 on Android, which pushed the heading off-screen. */
+  topInset?: number;
   onClose: () => void;
   onToggle: (node: GraphNode) => void;
 }
@@ -70,11 +73,13 @@ export function RoadmapDetail({
   graph,
   nodeKey,
   busy,
+  topInset = 0,
   onClose,
   onToggle,
 }: RoadmapDetailProps) {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const safeTop = Math.max(insets.top, topInset, 12);
   const router = useRouter();
   const anim = useRef(new Animated.Value(0)).current;
 
@@ -153,8 +158,8 @@ export function RoadmapDetail({
             styles.panel,
             {
               width,
-              paddingTop: insets.top,
-              paddingBottom: insets.bottom,
+              paddingTop: safeTop,
+              paddingBottom: Math.max(insets.bottom, 16),
               transform: [
                 {
                   translateX: anim.interpolate({
