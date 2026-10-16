@@ -33,7 +33,13 @@ const DRAWER_WIDTH = 240;
 
 const HALO_INSETS = [2, 4, 6, 8, 10, 12, 14, 16];
 
-type NavRoute = "/" | "/timer" | "/friends" | "/leaderboard" | "/settings";
+type NavRoute =
+  | "/"
+  | "/roadmap"
+  | "/timer"
+  | "/friends"
+  | "/leaderboard"
+  | "/settings";
 
 interface NavItem {
   label: string;
@@ -43,7 +49,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", icon: LayoutDashboard, route: "/" },
-  { label: "Roadmap", icon: Map },
+  { label: "Roadmap", icon: Map, route: "/roadmap" },
   { label: "Courses", icon: GraduationCap },
   { label: "Notes", icon: FileText },
   { label: "Quiz", icon: ListChecks },

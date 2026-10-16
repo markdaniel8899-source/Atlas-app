@@ -52,6 +52,16 @@ const COURSE_SELECT =
   "total_focus_seconds, " +
   "course_topics(id, title, summary, position, status, progress_percentage, completed_at)";
 
+const ACCENTS = [
+  "#9db4ff",
+  "#5fbdb2",
+  "#a982e0",
+  "#5aa7cd",
+  "#e0975f",
+  "#cd6f95",
+  "#cf9eff",
+];
+
 function pickActive(rows: FocusRow[]): FocusRow | null {
   return (
     rows.find((row) => row.status === "in_progress") ??
@@ -360,6 +370,124 @@ export async function createTopic(
   if (error || !data) return null;
   notifyCoursesChanged();
   return normaliseTopic(data as unknown as TopicRow);
+}
+
+export interface CourseRef {
+  id: number;
+  title: string;
+}
+
+/** Create a course row (status not_started) and notify listeners. */
+export async function createCourse(
+  title: string,
+  description = "",
+): Promise<Course | null> {
+  const user = await resolveSession();
+  if (!user) return null;
+
+  const trimmed = title.trim();
+  if (!trimmed) return null;
+
+  const position = await nextPosition("courses", { user_id: user.id });
+  const accent = ACCENTS[position % ACCENTS.length];
+
+  const { data, error } = await supabase
+    .from("courses")
+    .insert({
+      user_id: user.id,
+      title: trimmed,
+      description: description.trim(),
+      accent,
+      position,
+      status: "not_started",
+    })
+    .select(COURSE_SELECT)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  const course = normaliseCourse(data as unknown as CourseRow);
+  notifyCoursesChanged();
+  return course;
+}
+
+/**
+ * Find-only lookup: a course whose title matches `title` (case-insensitive),
+ * or null. Used to reuse a course before deciding what title to create.
+ */
+export async function findCourseByTitle(
+  title: string,
+): Promise<CourseRef | null> {
+  const user = await resolveSession();
+  if (!user) return null;
+
+  const clean = title.replace(/\s+/g, " ").trim().slice(0, 160);
+  if (!clean) return null;
+
+  const { data } = await supabase
+    .from("courses")
+    .select("id, title")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: true });
+
+  if (!data || !Array.isArray(data)) return null;
+
+  const target = clean.toLowerCase();
+  const match = (data as unknown as CourseRef[]).find(
+    (row) => row.title.replace(/\s+/g, " ").trim().toLowerCase() === target,
+  );
+  return match ? { id: match.id, title: match.title } : null;
+}
+
+/**
+ * Find a course whose title matches `title` (case-insensitive), or create one
+ * (status 'not_started', progress 0). Used so every generated roadmap is
+ * linked to a course without duplicating rows.
+ */
+export async function findOrCreateCourseByTitle(
+  title: string,
+): Promise<CourseRef | null> {
+  const user = await resolveSession();
+  if (!user) return null;
+
+  const clean = title.replace(/\s+/g, " ").trim().slice(0, 160);
+  if (!clean) return null;
+
+  const existing = await findCourseByTitle(clean);
+  if (existing) return existing;
+
+  const created = await createCourse(clean, "");
+  return created ? { id: created.id, title: created.title } : null;
+}
+
+/**
+ * Bulk status write used by roadmap → course sync, then one progress
+ * recompute for the course.
+ */
+export async function syncTopicStatuses(
+  courseId: number,
+  updates: { id: number; status: CourseStatus }[],
+): Promise<boolean> {
+  if (updates.length === 0) return true;
+
+  const results = await Promise.all(
+    updates.map((update) =>
+      supabase
+        .from("course_topics")
+        .update({
+          status: update.status,
+          progress_percentage: update.status === "completed" ? 100 : 0,
+          completed_at:
+            update.status === "completed" ? new Date().toISOString() : null,
+        })
+        .eq("id", update.id),
+    ),
+  );
+
+  if (!results.every((result) => !result.error)) return false;
+
+  await recomputeCourseProgress(courseId);
+  notifyCoursesChanged();
+  return true;
 }
 
 /** Remove one topic and recompute the course progress. */
