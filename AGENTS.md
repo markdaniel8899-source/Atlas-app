@@ -54,6 +54,13 @@
   - New info pages ported from the web site (`C:\Scrap\learning tracker\src\pages\site\*` + landing Footer): `/about`, `/help` (new FAQ), `/privacy`, `/terms`, `/contact`. Shared blocks in `src/components/info-blocks.tsx` (InfoSection/InfoSubheading/InfoParagraph/InfoBullets). Contact form inserts into `contact_messages` (same shape as web: subject = `Message from <name>`).
   - Dashboard + `ScreenShell` footer links now navigate to those pages; account sheet shows only info links (About Us, Help & Support, Privacy Policy, Terms & Conditions, Contact Us) + Log out; Log out REMOVED from `NavigationDrawer` on user request.
   - Roadmap level nodes changed from circles to rounded squares (`borderRadius ≈ size * 0.28`; ActiveHalo matches).
+- **Polish batch 4 (2026-10-16, `95a890d`):**
+  - Roadmap level nodes reverted to CIRCLES (`borderRadius: size / 2`; ActiveHalo round again) — user preferred the old shape.
+  - Level cards beside nodes enlarged: `labelWrap` 224 wide, `labelCard` padding 14 + radius 16, title 13.5/19, chips 11.5, boss badge 10.
+  - Builder header compass icon back to rounded square (`headerIcon` radius 999 → 14). Empty-state compass regained its rounded-square badge (76×76, radius 24, lilac25 border, lilac10 bg, NO elevation — Android elevation = black box) inside the soft circular glow.
+  - Info pages: `InfoSection` is now a glass card (radius 20, w06 border, `overflow hidden`) with a lilac accent bar + 16px title; subheads 13.5, body 14.5/23, consistent 10–16 margins. Each section card has a `BlurView` backdrop.
+  - **expo-blur new API everywhere**: `experimentalBlurMethod` is gone. BlurViews now use `blurMethod="dimezisBlurViewSdk31Plus"` + `blurTarget={useBlurTargetRef() ?? undefined}`. `ScreenShell` wraps `MeshBackground` in a `BlurTargetView` (absoluteFill, `pointerEvents="none"`) and shares its ref through `BlurTargetRefContext` (`src/components/blur-target.tsx`). Any new BlurView inside a ScreenShell page MUST pass that ref or Android falls back to no-blur with a warning.
+  - iOS-only BlurViews (AppHeader, NavigationDrawer, AccountSheet) need no changes — they are platform-gated and don't set a blur method.
 - Next sensible steps: side-by-side visual diff vs mobile web (`argent-screenshot-diff`), device QA in Expo Go (kill/reopen to avoid stale bundles), then optional `eas build` for native changes.
 
 ## Workflow Preferences (user)
