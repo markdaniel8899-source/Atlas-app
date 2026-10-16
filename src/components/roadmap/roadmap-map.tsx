@@ -125,6 +125,7 @@ const STATUS_CHIP: Record<NodeStatus, { bg: string; text: string }> = {
 /** Pulsing ring around the current (active) level. */
 function ActiveHalo({ size }: { size: number }) {
   const pulse = useRef(new Animated.Value(0)).current;
+  const radius = Math.round(size * 0.28) + 6;
 
   useEffect(() => {
     const loop = Animated.loop(
@@ -155,7 +156,7 @@ function ActiveHalo({ size }: { size: number }) {
         {
           width: size + 12,
           height: size + 12,
-          borderRadius: (size + 12) / 2,
+          borderRadius: radius,
           opacity: pulse.interpolate({
             inputRange: [0, 1],
             outputRange: [0.4, 1],
@@ -382,6 +383,7 @@ export function RoadmapMap({ graph, selectedKey, onSelect }: RoadmapMapProps) {
               const completed = node.status === "completed";
               const active = node.status === "active";
               const size = point.size;
+              const nodeRadius = Math.round(size * 0.28);
               const title = isBoss
                 ? node.title.replace(/^boss battle:\s*/i, "") || node.title
                 : node.title;
@@ -427,7 +429,7 @@ export function RoadmapMap({ graph, selectedKey, onSelect }: RoadmapMapProps) {
                       {
                         width: size,
                         height: size,
-                        borderRadius: size / 2,
+                        borderRadius: nodeRadius,
                         borderColor: spec.border,
                         opacity: spec.opacity,
                         transform: [{ scale: selected ? 1.08 : 1 }],
@@ -450,7 +452,7 @@ export function RoadmapMap({ graph, selectedKey, onSelect }: RoadmapMapProps) {
                       end={{ x: 1, y: 1 }}
                       style={[
                         StyleSheet.absoluteFill,
-                        { borderRadius: size / 2 },
+                        { borderRadius: nodeRadius },
                       ]}
                     />
                     <Icon
