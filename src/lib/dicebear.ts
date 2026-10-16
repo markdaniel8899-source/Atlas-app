@@ -44,10 +44,6 @@ export function dicebearUrl(style: DiceBearStyle, seed: string): string {
   return `${DICEBEAR_BASE}/${style}/png?seed=${encodeURIComponent(seed)}&backgroundColor=${bg}`;
 }
 
-export function isDicebearUrl(url: string): boolean {
-  return url.startsWith("https://api.dicebear.com/");
-}
-
 /**
  * React Native's Image cannot render SVG, so DiceBear URLs saved by the
  * web client (`/svg?…`) are rewritten to the PNG variant for display.

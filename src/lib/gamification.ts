@@ -216,9 +216,3 @@ export function getRankFromXP(totalXP: number): RankData {
   };
 }
 
-/**
- * Get the full rank progression path.
- */
-export function getRankProgression(): RankStep[] {
-  return RANKS;
-}

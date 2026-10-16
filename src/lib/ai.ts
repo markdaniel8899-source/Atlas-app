@@ -132,12 +132,6 @@ export interface ChatResult {
   model: string;
 }
 
-export interface AiHealth {
-  status: string;
-  ai_configured: boolean;
-  routes: Record<string, string>;
-}
-
 export interface RoadmapOptions {
   durationWeeks?: number;
   topics?: string[];
@@ -241,17 +235,6 @@ async function request<T>(
   } finally {
     clearTimeout(timer);
   }
-}
-
-export async function getAiHealth(): Promise<AiHealth> {
-  if (!AI_BASE_URL) {
-    throw new AiError("AI Service Unavailable. Please try again later.", 0);
-  }
-  const response = await fetch(`${AI_BASE_URL}/health`);
-  if (!response.ok) {
-    throw new AiError("AI service health check failed.", response.status);
-  }
-  return (await response.json()) as AiHealth;
 }
 
 export async function generateRoadmapOutline(

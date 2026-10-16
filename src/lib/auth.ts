@@ -11,6 +11,8 @@ export interface AuthResult {
   error?: string;
   /** Sign up succeeded but the address still needs confirming by email. */
   needsConfirmation?: boolean;
+  /** Sign in was blocked because the email still needs confirming. */
+  unverifiedEmail?: boolean;
 }
 
 export const CONFIG_ERROR =
@@ -30,11 +32,6 @@ export function subscribeAuth(
     listener(session?.user ? toAuthUser(session.user) : null);
   });
   return () => data.subscription.unsubscribe();
-}
-
-/** Synchronous read of the cached user; populated by resolveSession(). */
-export function getUser(): AuthUser | null {
-  return cached;
 }
 
 export function toAuthUser(user: User): AuthUser {
@@ -69,6 +66,17 @@ function readableError(message: string): string {
   }
   if (m.includes("rate limit")) {
     return "Too many attempts. Give it a moment and try again.";
+  }
+  if (m.includes("only request this after")) {
+    return "Please wait a moment before requesting another code.";
+  }
+  if (m.includes("expired") || m.includes("invalid")) {
+    if (m.includes("token") || m.includes("otp")) {
+      return "That code is wrong or has expired. Request a new one.";
+    }
+  }
+  if (m.includes("different from the old password")) {
+    return "Pick a password you haven't used before.";
   }
   return message;
 }
@@ -106,6 +114,62 @@ export async function signIn(
     email,
     password,
   });
+
+  if (error) {
+    return {
+      error: readableError(error.message),
+      unverifiedEmail: error.message.toLowerCase().includes("email not confirmed"),
+    };
+  }
+
+  if (data.user) cached = toAuthUser(data.user);
+  return {};
+}
+
+/**
+ * Verifies the 6-digit email code from Supabase — either the signup
+ * confirmation code or the password-recovery code.
+ */
+export async function verifyEmailOtp(
+  email: string,
+  token: string,
+  type: "signup" | "recovery",
+): Promise<AuthResult> {
+  if (!isSupabaseConfigured) return { error: CONFIG_ERROR };
+
+  const { data, error } = await supabase.auth.verifyOtp({ email, token, type });
+
+  if (error) return { error: readableError(error.message) };
+
+  if (data.user) cached = toAuthUser(data.user);
+  return {};
+}
+
+/** Re-sends the signup confirmation code to the address. */
+export async function resendConfirmationOtp(email: string): Promise<AuthResult> {
+  if (!isSupabaseConfigured) return { error: CONFIG_ERROR };
+
+  const { error } = await supabase.auth.resend({ type: "signup", email });
+
+  if (error) return { error: readableError(error.message) };
+  return {};
+}
+
+/** Emails a password-recovery code via Supabase. */
+export async function requestPasswordReset(email: string): Promise<AuthResult> {
+  if (!isSupabaseConfigured) return { error: CONFIG_ERROR };
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email);
+
+  if (error) return { error: readableError(error.message) };
+  return {};
+}
+
+/** Sets a new password for the recovery session (or the signed-in user). */
+export async function updatePassword(password: string): Promise<AuthResult> {
+  if (!isSupabaseConfigured) return { error: CONFIG_ERROR };
+
+  const { data, error } = await supabase.auth.updateUser({ password });
 
   if (error) return { error: readableError(error.message) };
 

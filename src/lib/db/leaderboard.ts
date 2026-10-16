@@ -83,29 +83,3 @@ export async function fetchWeeklyLeaderboard(
 
   return entries;
 }
-
-/**
- * Global position by weekly XP (weekly_xp desc, lifetime XP as tiebreak),
- * computed against every profile so it stays correct outside the top window.
- */
-export async function fetchMyWeeklyRank(): Promise<number | null> {
-  const me = await resolveSession();
-  if (!me) return null;
-
-  const { data: mine } = await supabase
-    .from("profiles")
-    .select("weekly_xp, xp")
-    .eq("id", me.id)
-    .maybeSingle();
-  if (!mine) return null;
-
-  const weekly = (mine as { weekly_xp: number }).weekly_xp ?? 0;
-  const total = (mine as { xp: number }).xp ?? 0;
-
-  const { count } = await supabase
-    .from("profiles")
-    .select("id", { count: "exact", head: true })
-    .or(`weekly_xp.gt.${weekly},and(weekly_xp.eq.${weekly},xp.gt.${total})`);
-
-  return (count ?? 0) + 1;
-}

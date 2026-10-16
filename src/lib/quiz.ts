@@ -185,6 +185,3 @@ export function initialAnswer(question: QuizQuestion): QuizAnswer {
   return "";
 }
 
-export function feedbackTone(evaluation: Evaluation | null): "good" | "bad" {
-  return evaluation?.is_correct ? "good" : "bad";
-}
