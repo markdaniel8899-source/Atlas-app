@@ -2,21 +2,18 @@ import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import {
   Animated,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import { Bot, Sparkles, UserRound } from "lucide-react-native";
+import { Bot, UserRound } from "lucide-react-native";
 import type { Turn } from "../../lib/assistant";
-import { SUGGESTIONS } from "../../lib/assistant";
-import { colors, ease, fonts, RADIUS } from "../../theme/theme";
+import { colors, ease, fonts } from "../../theme/theme";
 
 interface ChatThreadProps {
   turns: Turn[];
   thinking: boolean;
-  onSuggest: (prompt: string) => void;
 }
 
 function FadeSlideIn({ children }: { children: ReactNode }) {
@@ -116,38 +113,6 @@ function TypingIndicator() {
   );
 }
 
-function EmptyThread({ onSuggest }: { onSuggest: (prompt: string) => void }) {
-  return (
-    <View style={styles.emptyWrap}>
-      <View style={styles.emptyBadge}>
-        <Sparkles size={24} color={colors.lilac} />
-      </View>
-      <Text style={styles.emptyTitle}>Ask ATLAS anything</Text>
-      <Text style={styles.emptyText}>
-        It already knows your level, streak and current course, so answers come
-        back tuned to where you actually are.
-      </Text>
-
-      <View style={styles.suggestWrap}>
-        {SUGGESTIONS.map((item) => (
-          <Pressable
-            key={item.label}
-            accessibilityRole="button"
-            accessibilityLabel={`Ask: ${item.label}`}
-            onPress={() => onSuggest(item.prompt)}
-            style={({ pressed }) => [
-              styles.suggestChip,
-              pressed ? styles.suggestChipPressed : null,
-            ]}
-          >
-            <Text style={styles.suggestText}>{item.label}</Text>
-          </Pressable>
-        ))}
-      </View>
-    </View>
-  );
-}
-
 function TurnRow({ turn }: { turn: Turn }) {
   const mine = turn.role === "user";
 
@@ -163,8 +128,12 @@ function TurnRow({ turn }: { turn: Turn }) {
         </View>
 
         <View style={[styles.bubbleWrap, mine ? styles.bubbleWrapMine : null]}>
-          <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleBot]}>
-            <Text style={[styles.bubbleText, mine ? styles.bubbleTextMine : null]}>
+          <View
+            style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleBot]}
+          >
+            <Text
+              style={[styles.bubbleText, mine ? styles.bubbleTextMine : null]}
+            >
               {turn.content}
             </Text>
           </View>
@@ -177,7 +146,7 @@ function TurnRow({ turn }: { turn: Turn }) {
   );
 }
 
-export function ChatThread({ turns, thinking, onSuggest }: ChatThreadProps) {
+export function ChatThread({ turns, thinking }: ChatThreadProps) {
   const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -188,13 +157,7 @@ export function ChatThread({ turns, thinking, onSuggest }: ChatThreadProps) {
     return () => clearTimeout(timer);
   }, [turns.length, thinking]);
 
-  if (turns.length === 0) {
-    return (
-      <View style={styles.emptyFill}>
-        <EmptyThread onSuggest={onSuggest} />
-      </View>
-    );
-  }
+  if (turns.length === 0) return null;
 
   return (
     <ScrollView
@@ -214,72 +177,12 @@ export function ChatThread({ turns, thinking, onSuggest }: ChatThreadProps) {
 }
 
 const styles = StyleSheet.create({
-  emptyFill: {
-    flex: 1,
-  },
-  emptyWrap: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 24,
-    paddingVertical: 32,
-  },
-  emptyBadge: {
-    width: 56,
-    height: 56,
-    borderRadius: RADIUS.card,
-    borderWidth: 1,
-    borderColor: colors.w10,
-    backgroundColor: colors.w04,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  emptyTitle: {
-    marginTop: 20,
-    fontSize: 18,
-    fontFamily: fonts.medium,
-    letterSpacing: -0.36,
-    color: colors.white,
-  },
-  emptyText: {
-    marginTop: 8,
-    maxWidth: 320,
-    textAlign: "center",
-    fontSize: 13.5,
-    lineHeight: 21,
-    fontFamily: fonts.regular,
-    color: colors.w45,
-  },
-  suggestWrap: {
-    marginTop: 28,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: 8,
-  },
-  suggestChip: {
-    borderRadius: RADIUS.chip,
-    borderWidth: 1,
-    borderColor: colors.w10,
-    backgroundColor: colors.w03,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  suggestChipPressed: {
-    backgroundColor: colors.lilac12,
-    borderColor: colors.lilac45,
-  },
-  suggestText: {
-    fontSize: 12,
-    fontFamily: fonts.medium,
-    color: colors.w50,
-  },
   threadScroll: {
     flex: 1,
   },
   threadContent: {
     paddingHorizontal: 16,
-    paddingVertical: 24,
+    paddingVertical: 20,
     gap: 20,
   },
   turnRow: {

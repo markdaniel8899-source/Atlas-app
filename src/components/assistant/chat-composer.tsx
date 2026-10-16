@@ -17,6 +17,8 @@ interface ChatComposerProps {
   canRetry: boolean;
   draft: string;
   onDraftChange: (value: string) => void;
+  /** "hero" is the centred first-run input; "dock" sits under the thread. */
+  variant?: "dock" | "hero";
 }
 
 const MAX_LENGTH = 8000;
@@ -28,8 +30,10 @@ export function ChatComposer({
   canRetry,
   draft,
   onDraftChange,
+  variant = "dock",
 }: ChatComposerProps) {
   const [focused, setFocused] = useState(false);
+  const hero = variant === "hero";
 
   const submit = () => {
     if (disabled) return;
@@ -37,19 +41,25 @@ export function ChatComposer({
   };
 
   return (
-    <View style={styles.wrap}>
-      <View style={[styles.row, focused ? styles.rowFocused : null]}>
+    <View style={[styles.wrap, hero && styles.wrapHero]}>
+      <View
+        style={[
+          styles.row,
+          hero && styles.rowHero,
+          focused ? styles.rowFocused : null,
+        ]}
+      >
         <TextInput
           value={draft}
           maxLength={MAX_LENGTH}
           multiline
-          placeholder="Ask ATLAS anything…"
+          placeholder={hero ? "Ask ATLAS anything…" : "Message ATLAS…"}
           placeholderTextColor={colors.w30}
           accessibilityLabel="Message ATLAS"
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           onChangeText={onDraftChange}
-          style={styles.input}
+          style={[styles.input, hero && styles.inputHero]}
         />
 
         {canRetry && !draft.trim() ? (
@@ -60,6 +70,7 @@ export function ChatComposer({
             onPress={onRetry}
             style={({ pressed }) => [
               styles.iconButton,
+              hero && styles.iconButtonHero,
               styles.retryButton,
               pressed ? styles.retryButtonPressed : null,
               disabled ? styles.disabled : null,
@@ -76,6 +87,7 @@ export function ChatComposer({
           onPress={submit}
           style={({ pressed }) => [
             styles.iconButton,
+            hero && styles.iconButtonHero,
             styles.sendButton,
             pressed ? styles.sendButtonPressed : null,
             disabled || !draft.trim() ? styles.disabled : null,
@@ -84,19 +96,21 @@ export function ChatComposer({
           {disabled ? (
             <ActivityIndicator size="small" color={colors.primaryText} />
           ) : (
-            <ArrowUp size={16} color={colors.primaryText} />
+            <ArrowUp size={hero ? 18 : 16} color={colors.primaryText} />
           )}
         </Pressable>
       </View>
 
-      <View style={styles.footer}>
-        <Text style={styles.footerHint}>
-          Enter to send · Shift + Enter for a new line
-        </Text>
-        <Text style={styles.footerCount}>
-          {draft.length}/{MAX_LENGTH}
-        </Text>
-      </View>
+      {!hero ? (
+        <View style={styles.footer}>
+          <Text style={styles.footerHint}>
+            Enter to send · Shift + Enter for a new line
+          </Text>
+          <Text style={styles.footerCount}>
+            {draft.length}/{MAX_LENGTH}
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -106,6 +120,10 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.w06,
     padding: 12,
+  },
+  wrapHero: {
+    borderTopWidth: 0,
+    padding: 0,
   },
   row: {
     flexDirection: "row",
@@ -117,6 +135,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.w03,
     paddingHorizontal: 12,
     paddingVertical: 8,
+  },
+  rowHero: {
+    borderRadius: 24,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    shadowColor: "#000000",
+    shadowOpacity: 0.4,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
   },
   rowFocused: {
     borderColor: colors.lilac50,
@@ -132,6 +161,11 @@ const styles = StyleSheet.create({
     color: colors.white,
     textAlignVertical: "top",
   },
+  inputHero: {
+    minHeight: 44,
+    fontSize: 15,
+    lineHeight: 22,
+  },
   iconButton: {
     marginBottom: 3,
     width: 36,
@@ -139,6 +173,12 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.inner,
     alignItems: "center",
     justifyContent: "center",
+  },
+  iconButtonHero: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginBottom: 1,
   },
   retryButton: {
     borderWidth: 1,
