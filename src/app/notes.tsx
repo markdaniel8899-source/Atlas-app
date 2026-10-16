@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   Animated,
   Modal,
@@ -30,13 +37,16 @@ import { Card } from "../components/ui/card";
 import { RichNoteEditor } from "../components/notes/rich-note-editor";
 import type { RichNoteEditorHandle } from "../components/notes/rich-note-editor";
 import { useCourses } from "../hooks/use-courses";
-import {
-  createNote,
-  deleteNote,
-  fetchNotes,
-  updateNote,
-} from "../lib/db/notes";
+import { createNote, fetchNotes } from "../lib/db/notes";
 import type { Note } from "../lib/notes";
+import {
+  getNotesQueueSnapshot,
+  makeTempNoteId,
+  queueNoteDelete,
+  queueNoteUpsert,
+  registerNoteIdSwap,
+  subscribeNotesQueue,
+} from "../lib/notes-queue";
 import { inferSubject } from "../lib/subjects";
 import { colors, fonts } from "../theme/theme";
 
@@ -179,13 +189,18 @@ export default function NotesScreen() {
   const [title, setTitle] = useState("");
   const [loading, setLoading] = useState(true);
 
+  const queue = useSyncExternalStore(
+    subscribeNotesQueue,
+    getNotesQueueSnapshot,
+  );
+
   const editorRef = useRef<RichNoteEditorHandle>(null);
   const savedAnim = useRef(new Animated.Value(0)).current;
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const networkRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingRef = useRef<Map<string, Partial<Omit<Note, "id">>>>(new Map());
+  const notesRef = useRef<Note[]>([]);
   const activeRef = useRef<string | null>(activeId);
+  const prevPendingRef = useRef(0);
 
   const rawCourseId = Array.isArray(params.courseId)
     ? params.courseId[0]
@@ -214,18 +229,41 @@ export default function NotesScreen() {
     }
   }, [coursesLoading, selectedCourseId, selectedCourse, router]);
 
-  const flush = useCallback(async () => {
-    if (networkRef.current) {
-      clearTimeout(networkRef.current);
-      networkRef.current = null;
+  /**
+   * Fetch the active scope and merge in any queued offline-created notes so
+   * they never disappear while waiting to sync.
+   */
+  const load = useCallback(async () => {
+    const scope =
+      activeCourseId != null ? { courseId: activeCourseId } : undefined;
+    let rows: Note[] | null = null;
+    try {
+      rows = await fetchNotes(scope);
+    } catch {
+      rows = null;
     }
-    if (pendingRef.current.size === 0) return;
-    const entries = Array.from(pendingRef.current.entries());
-    pendingRef.current.clear();
-    for (const [id, patch] of entries) {
-      await updateNote(id, patch);
-    }
-  }, []);
+    if (!rows) return;
+
+    const pendingTemp = new Set(getNotesQueueSnapshot().tempIds);
+    setNotes((prev) => {
+      const keep = prev.filter(
+        (note) =>
+          pendingTemp.has(note.id) &&
+          (activeCourseId == null || note.courseId === activeCourseId),
+      );
+      const seen = new Set(keep.map((note) => note.id));
+      return [...keep, ...rows.filter((row) => !seen.has(row.id))];
+    });
+    setActiveId((current) => {
+      if (
+        current &&
+        (rows.some((row) => row.id === current) || pendingTemp.has(current))
+      ) {
+        return current;
+      }
+      return rows[0]?.id ?? current ?? null;
+    });
+  }, [activeCourseId]);
 
   // Fetch only the notes of the active context: the selected course's
   // notes when a course is picked, otherwise every note (the list is then
@@ -235,26 +273,41 @@ export default function NotesScreen() {
     if (selectedCourseId != null && activeCourseId == null) return; // stale param
     let alive = true;
     setLoading(true);
-    const scope =
-      activeCourseId != null ? { courseId: activeCourseId } : undefined;
-    void fetchNotes(scope)
-      .then((rows) => {
-        if (!alive) return;
-        setNotes(rows);
-        setActiveId((current) =>
-          current && rows.some((note) => note.id === current)
-            ? current
-            : (rows[0]?.id ?? null),
-        );
-      })
-      .catch(() => undefined)
-      .finally(() => {
-        if (alive) setLoading(false);
-      });
+    void load().finally(() => {
+      if (alive) setLoading(false);
+    });
     return () => {
       alive = false;
     };
-  }, [coursesLoading, selectedCourseId, activeCourseId]);
+  }, [coursesLoading, selectedCourseId, activeCourseId, load]);
+
+  // Queue drained: pull the source of truth back in (temp ids now real).
+  useEffect(() => {
+    const previous = prevPendingRef.current;
+    prevPendingRef.current = queue.pending;
+    if (previous > 0 && queue.pending === 0) {
+      void load();
+    }
+  }, [queue.pending, load]);
+
+  // The queue inserted a temp note for real: swap the id in local state.
+  useEffect(() => {
+    return registerNoteIdSwap((tempId, realId) => {
+      notesRef.current = notesRef.current.map((note) =>
+        note.id === tempId ? { ...note, id: realId } : note,
+      );
+      setNotes((prev) =>
+        prev.map((note) =>
+          note.id === tempId ? { ...note, id: realId } : note,
+        ),
+      );
+      setActiveId((current) => (current === tempId ? realId : current));
+    });
+  }, []);
+
+  useEffect(() => {
+    notesRef.current = notes;
+  }, [notes]);
 
   // Subject groups for the "All notes" view; null in a course view (flat).
   const groupedNotes = useMemo(() => {
@@ -280,9 +333,8 @@ export default function NotesScreen() {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
       if (savedRef.current) clearTimeout(savedRef.current);
-      void flush();
     };
-  }, [flush]);
+  }, []);
 
   const markSaved = () => {
     Animated.timing(savedAnim, {
@@ -301,18 +353,32 @@ export default function NotesScreen() {
   };
 
   const persist = (id: string, patch: Partial<Omit<Note, "id">>) => {
-    pendingRef.current.set(id, {
-      ...(pendingRef.current.get(id) ?? {}),
+    const current = notesRef.current.find((note) => note.id === id);
+    const next: Note = {
+      id,
+      title: "",
+      html: "",
+      courseId: null,
+      topicId: null,
+      courseTitle: null,
+      ...current,
       ...patch,
-    });
-    setNotes((prev) =>
-      prev.map((note) =>
-        note.id === id ? { ...note, ...patch, updatedAt: Date.now() } : note,
-      ),
+      updatedAt: Date.now(),
+    };
+    notesRef.current = notesRef.current.map((note) =>
+      note.id === id ? next : note,
     );
+    setNotes((prev) => prev.map((note) => (note.id === id ? next : note)));
+    // The offline queue is the single write path: it saves locally, then
+    // syncs to Supabase (retrying whenever the connection comes back).
+    queueNoteUpsert({
+      id,
+      title: next.title,
+      html: next.html,
+      courseId: next.courseId,
+      topicId: next.topicId,
+    });
     markSaved();
-    if (networkRef.current) clearTimeout(networkRef.current);
-    networkRef.current = setTimeout(() => void flush(), 700);
   };
 
   const handleEditorChange = (html: string) => {
@@ -327,18 +393,46 @@ export default function NotesScreen() {
     // first topic for subject grouping), so it stays in that course's scope.
     const courseId = selectedCourse?.id ?? null;
     const topicId = selectedCourse?.topics[0]?.id ?? null;
-    const note = await createNote({ courseId, topicId });
-    if (!note) return;
-    setNotes((prev) => [note, ...prev]);
-    setActiveId(note.id);
+
+    let note: Note | null = null;
+    try {
+      note = await createNote({ courseId, topicId });
+    } catch {
+      note = null;
+    }
+    if (note) {
+      setNotes((prev) => [note, ...prev]);
+      setActiveId(note.id);
+      return;
+    }
+
+    // Offline / failed: create the note locally and queue the insert for
+    // when the connection returns (the queue swaps in the real id later).
+    const local: Note = {
+      id: makeTempNoteId(),
+      title: "Untitled note",
+      html: "",
+      updatedAt: Date.now(),
+      courseId,
+      topicId,
+      courseTitle: selectedCourse?.title ?? null,
+    };
+    setNotes((prev) => [local, ...prev]);
+    setActiveId(local.id);
+    queueNoteUpsert({
+      id: local.id,
+      title: local.title,
+      html: local.html,
+      courseId,
+      topicId,
+    });
   };
 
   const removeNote = (id: string) => {
-    pendingRef.current.delete(id);
     const next = notes.filter((note) => note.id !== id);
     setNotes(next);
     if (activeId === id) setActiveId(next[0]?.id ?? null);
-    void deleteNote(id);
+    queueNoteDelete(id);
   };
 
   const renderNoteItem = (note: Note) => {
@@ -458,6 +552,13 @@ export default function NotesScreen() {
                 <Animated.Text style={[styles.savedText, { opacity: savedAnim }]}>
                   Saved
                 </Animated.Text>
+                {queue.pending > 0 ? (
+                  <Text style={styles.queuedText}>
+                    {queue.syncing
+                      ? "Syncing…"
+                      : `Offline · ${queue.pending} to sync`}
+                  </Text>
+                ) : null}
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Delete note"
@@ -737,6 +838,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: fonts.regular,
     color: colors.lilac70,
+  },
+  queuedText: {
+    fontSize: 11,
+    fontFamily: fonts.regular,
+    color: colors.w45,
   },
   titleRow: {
     borderBottomWidth: 1,

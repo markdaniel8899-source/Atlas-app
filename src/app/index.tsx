@@ -6,6 +6,7 @@ import { AppHeader } from "../components/app-header";
 import { ActivityHeatmap } from "../components/dashboard/activity-heatmap";
 import { FocusTimerWidget } from "../components/dashboard/focus-timer-widget";
 import { PlayerStats } from "../components/dashboard/player-stats";
+import { QuickNote } from "../components/dashboard/quick-note";
 import { TodayFocus } from "../components/dashboard/today-focus";
 import { MeshBackground } from "../components/mesh-background";
 import { NavigationDrawer } from "../components/navigation-drawer";
@@ -65,6 +66,7 @@ export default function DashboardScreen() {
           <PlayerStats profile={profile} loading={loading} />
           <FocusTimerWidget />
           <TodayFocus focus={focus} loading={loading} />
+          <QuickNote />
           <ActivityHeatmap days={heatmap} />
         </View>
 

@@ -144,23 +144,29 @@ export async function fetchNotes(scope?: NotesScope): Promise<Note[]> {
   });
 }
 
-export async function createNote(options?: {
-  courseId?: number | null;
-  topicId?: number | null;
+/**
+ * Insert a note with full content. Used both by "New note" and by the
+ * offline queue when flushing locally-created notes.
+ */
+export async function insertNote(input: {
+  title: string;
+  html: string;
+  courseId: number | null;
+  topicId: number | null;
 }): Promise<Note | null> {
   const user = await resolveSession();
   if (!user) return null;
 
   const payload: Record<string, unknown> = {
     user_id: user.id,
-    title: "Untitled note",
-    content: "",
+    title: input.title,
+    content: sanitizeHtml(input.html),
   };
-  if (typeof options?.courseId === "number") {
-    payload.course_id = options.courseId;
+  if (typeof input.courseId === "number") {
+    payload.course_id = input.courseId;
   }
-  if (typeof options?.topicId === "number") {
-    payload.topic_id = options.topicId;
+  if (typeof input.topicId === "number") {
+    payload.topic_id = input.topicId;
   }
 
   const { data, error } = await supabase
@@ -171,30 +177,47 @@ export async function createNote(options?: {
 
   if (error || !data) return null;
   const note = toNote(data as unknown as NoteRow);
-  note.courseId =
-    typeof options?.courseId === "number" ? options.courseId : null;
-  note.topicId =
-    typeof options?.topicId === "number" ? options.topicId : null;
+  note.courseId = typeof input.courseId === "number" ? input.courseId : null;
+  note.topicId = typeof input.topicId === "number" ? input.topicId : null;
   return note;
 }
 
+export async function createNote(options?: {
+  courseId?: number | null;
+  topicId?: number | null;
+}): Promise<Note | null> {
+  return insertNote({
+    title: "Untitled note",
+    html: "",
+    courseId: options?.courseId ?? null,
+    topicId: options?.topicId ?? null,
+  });
+}
+
+/** Returns false when the write failed (offline / server error). */
 export async function updateNote(
   id: string,
   patch: Partial<Omit<Note, "id">>,
-): Promise<void> {
+): Promise<boolean> {
   const parsed = toId(id);
-  if (parsed === null) return;
+  if (parsed === null) return false;
 
   const values: Record<string, unknown> = {};
   if (patch.title !== undefined) values.title = patch.title;
   if (patch.html !== undefined) values.content = sanitizeHtml(patch.html);
-  if (Object.keys(values).length === 0) return;
+  if (Object.keys(values).length === 0) return true;
 
-  await supabase.from("notes").update(values).eq("id", parsed);
+  const { error } = await supabase
+    .from("notes")
+    .update(values)
+    .eq("id", parsed);
+  return !error;
 }
 
-export async function deleteNote(id: string): Promise<void> {
+/** Returns false when the delete failed (offline / server error). */
+export async function deleteNote(id: string): Promise<boolean> {
   const parsed = toId(id);
-  if (parsed === null) return;
-  await supabase.from("notes").delete().eq("id", parsed);
+  if (parsed === null) return false;
+  const { error } = await supabase.from("notes").delete().eq("id", parsed);
+  return !error;
 }
