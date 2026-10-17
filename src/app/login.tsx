@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
   Animated,
-  Easing,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -16,7 +15,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { BlurTargetView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   ArrowLeft,
@@ -32,8 +30,6 @@ import {
 } from "lucide-react-native";
 import { AuthGlow } from "../components/auth/auth-glow";
 import { OtpInput } from "../components/auth/otp-input";
-import { BlurTargetRefContext } from "../components/blur-target";
-import { Card } from "../components/ui/card";
 import {
   CONFIG_ERROR,
   requestPasswordReset,
@@ -48,7 +44,6 @@ import { isSupabaseConfigured } from "../lib/supabase";
 import { colors, ease, fonts } from "../theme/theme";
 
 const APP_ICON = require("../../assets/icon.png");
-const AUTH_ACCENT = "#8fb9ff";
 
 type Mode = "login" | "signup" | "verify" | "forgot" | "reset";
 type ResetPhase = "code" | "password";
@@ -71,7 +66,6 @@ const ERROR_ICON = "rgba(252,165,165,0.7)";
 export default function LoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const blurTargetRef = useRef<View | null>(null);
   const { width: winWidth, height: winHeight } = useWindowDimensions();
   const bgSize = useRef({ width: 0, height: 0 });
   bgSize.current = {
@@ -360,7 +354,7 @@ export default function LoginScreen() {
           ? Lock
           : null;
 
-  const showTabs = mode === "login" || mode === "signup";
+  const showSwitch = mode === "login" || mode === "signup";
   const otpVisible =
     mode === "verify" || (mode === "reset" && resetPhase === "code");
   const resetPasswordVisible = mode === "reset" && resetPhase === "password";
@@ -398,21 +392,8 @@ export default function LoginScreen() {
   })();
 
   return (
-    <BlurTargetRefContext.Provider value={blurTargetRef}>
-      <View style={styles.root}>
-        <BlurTargetView
-          ref={blurTargetRef}
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: bgSize.current.width,
-            height: bgSize.current.height,
-          }}
-          pointerEvents="none"
-        >
-          <AuthGlow width={bgSize.current.width} height={bgSize.current.height} />
-        </BlurTargetView>
+    <View style={styles.root}>
+      <AuthGlow width={bgSize.current.width} height={bgSize.current.height} />
 
         <KeyboardAvoidingView
           style={styles.flex}
@@ -433,7 +414,7 @@ export default function LoginScreen() {
           >
             <Animated.View
               style={[
-                styles.cardWrap,
+                styles.contentWrap,
                 {
                   opacity: entrance,
                   transform: [
@@ -447,29 +428,19 @@ export default function LoginScreen() {
                 },
               ]}
             >
-              <Card glass style={styles.card} padded={false}>
-                <View style={styles.cardInner}>
-                  <View style={styles.header}>
+              <View style={styles.header}>
                     <View style={styles.brandRow}>
                       <Image source={APP_ICON} style={styles.brandIcon} />
                       <Text style={styles.brandName}>ATLAS</Text>
                     </View>
                     {BadgeIcon ? (
                       <View style={styles.badge}>
-                        <BadgeIcon size={26} color={AUTH_ACCENT} />
+                        <BadgeIcon size={26} color={colors.lilac} />
                       </View>
                     ) : null}
                     <Text style={styles.title}>{header.title}</Text>
                     <Text style={styles.subtitle}>{header.subtitle}</Text>
                   </View>
-
-                  {showTabs ? (
-                    <ModeToggle
-                      value={mode === "signup" ? "signup" : "login"}
-                      disabled={busy}
-                      onChange={switchMode}
-                    />
-                  ) : null}
 
                   <Animated.View
                     style={{
@@ -528,7 +499,7 @@ export default function LoginScreen() {
 
                     {emailVisible ? (
                       <Field
-                        label="Email"
+                        label="Email address"
                         icon={
                           <Mail
                             size={16}
@@ -654,7 +625,7 @@ export default function LoginScreen() {
                             style={styles.resendActionWrap}
                           >
                             {cooldown > 0 ? null : (
-                              <RefreshCw size={13} color={AUTH_ACCENT} />
+                              <RefreshCw size={13} color={colors.star} />
                             )}
                             <Text
                               style={[
@@ -712,35 +683,48 @@ export default function LoginScreen() {
                     </Pressable>
                   ) : null}
 
-                  <View style={styles.legal}>
-                    <Text style={styles.legalText}>
-                      By continuing, you agree to our{" "}
-                      <Text
-                        style={styles.legalLink}
-                        onPress={() => router.push("/privacy")}
-                        suppressHighlighting
-                      >
-                        Privacy Policy
-                      </Text>{" "}
-                      and{" "}
-                      <Text
-                        style={styles.legalLink}
-                        onPress={() => router.push("/terms")}
-                        suppressHighlighting
-                      >
-                        Terms & Conditions
+                  {showSwitch ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() =>
+                        switchMode(mode === "login" ? "signup" : "login")
+                      }
+                      style={styles.switchLink}
+                      hitSlop={8}
+                    >
+                      <Text style={styles.switchMuted}>
+                        {mode === "login"
+                          ? "New here? "
+                          : "Already have an account? "}
                       </Text>
-                      .
-                    </Text>
+                      <Text style={styles.switchAccent}>
+                        {mode === "login" ? "Create an account" : "Log in"}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+
+                  <View style={styles.legal}>
+                    <Pressable
+                      accessibilityRole="link"
+                      onPress={() => router.push("/terms")}
+                      hitSlop={6}
+                    >
+                      <Text style={styles.legalLink}>Terms of Service</Text>
+                    </Pressable>
+                    <Text style={styles.legalDivider}>|</Text>
+                    <Pressable
+                      accessibilityRole="link"
+                      onPress={() => router.push("/privacy")}
+                      hitSlop={6}
+                    >
+                      <Text style={styles.legalLink}>Privacy Policy</Text>
+                    </Pressable>
                   </View>
                   </Animated.View>
-                </View>
-              </Card>
             </Animated.View>
           </ScrollView>
         </KeyboardAvoidingView>
       </View>
-    </BlurTargetRefContext.Provider>
   );
 }
 
@@ -792,7 +776,7 @@ function AuthButton({
         onPressOut={pressOut}
       >
         <LinearGradient
-          colors={["#9adcff", "#4d8dff", "#2f63e8"]}
+          colors={["#b394ff", "#8262ef", "#6446d6"]}
           locations={[0, 0.55, 1]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -914,98 +898,6 @@ function Field({
   );
 }
 
-function ModeToggle({
-  value,
-  disabled,
-  onChange,
-}: {
-  value: "login" | "signup";
-  disabled?: boolean;
-  onChange: (value: "login" | "signup") => void;
-}) {
-  const [trackWidth, setTrackWidth] = useState(0);
-  const slide = useRef(new Animated.Value(value === "signup" ? 1 : 0)).current;
-
-  useEffect(() => {
-    Animated.timing(slide, {
-      toValue: value === "signup" ? 1 : 0,
-      duration: 520,
-      easing: Easing.bezier(0.22, 1, 0.36, 1),
-      useNativeDriver: true,
-    }).start();
-  }, [slide, value]);
-
-  const pillWidth = trackWidth > 0 ? (trackWidth - 8) / 2 : 0;
-
-  return (
-    <View
-      accessibilityRole="tablist"
-      style={styles.toggle}
-      onLayout={(event) => setTrackWidth(event.nativeEvent.layout.width)}
-    >
-      {pillWidth > 0 ? (
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            styles.togglePill,
-            {
-              width: pillWidth,
-              transform: [
-                {
-                  translateX: slide.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, pillWidth],
-                  }),
-                },
-              ],
-            },
-          ]}
-        />
-      ) : null}
-      {(["login", "signup"] as const).map((option) => {
-        const onRight = option === "signup";
-        const accentOpacity = onRight
-          ? slide
-          : slide.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
-        const restOpacity = onRight
-          ? slide.interpolate({ inputRange: [0, 1], outputRange: [1, 0] })
-          : slide;
-        return (
-          <Pressable
-            key={option}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: value === option }}
-            disabled={disabled}
-            onPress={() => onChange(option)}
-            style={styles.toggleSeg}
-          >
-            <View style={styles.toggleLabelWrap}>
-              <Animated.Text
-                style={[
-                  styles.toggleText,
-                  styles.toggleTextRest,
-                  { opacity: restOpacity },
-                ]}
-              >
-                {option === "login" ? "Log in" : "Sign up"}
-              </Animated.Text>
-              <Animated.Text
-                style={[
-                  styles.toggleText,
-                  styles.toggleTextActive,
-                  { opacity: accentOpacity },
-                ]}
-              >
-                {option === "login" ? "Log in" : "Sign up"}
-              </Animated.Text>
-            </View>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   root: {
     flex: 1,
@@ -1019,16 +911,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 24,
   },
-  cardWrap: {
+  contentWrap: {
     width: "100%",
     maxWidth: 400,
     alignSelf: "center",
-  },
-  card: {
-    borderRadius: 24,
-  },
-  cardInner: {
-    padding: 28,
   },
   header: {
     alignItems: "center",
@@ -1055,8 +941,8 @@ const styles = StyleSheet.create({
     height: 64,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "rgba(127,178,255,0.25)",
-    backgroundColor: "rgba(127,178,255,0.10)",
+    borderColor: "rgba(207,158,255,0.25)",
+    backgroundColor: "rgba(207,158,255,0.10)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1075,51 +961,6 @@ const styles = StyleSheet.create({
     color: colors.w45,
     textAlign: "center",
   },
-  toggle: {
-    marginTop: 28,
-    flexDirection: "row",
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.w10,
-    backgroundColor: colors.w03,
-    padding: 4,
-  },
-  togglePill: {
-    position: "absolute",
-    top: 4,
-    bottom: 4,
-    left: 4,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(127,178,255,0.35)",
-    backgroundColor: "rgba(96,156,255,0.16)",
-  },
-  toggleSeg: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 10,
-    borderRadius: 999,
-  },
-  toggleLabelWrap: {
-    height: 20,
-    alignSelf: "stretch",
-    justifyContent: "center",
-  },
-  toggleText: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    textAlign: "center",
-    fontSize: 14,
-    fontFamily: fonts.medium,
-  },
-  toggleTextRest: {
-    color: colors.w45,
-  },
-  toggleTextActive: {
-    color: colors.white,
-  },
   notice: {
     marginTop: 22,
     borderRadius: 12,
@@ -1137,12 +978,12 @@ const styles = StyleSheet.create({
     color: "#fecaca",
   },
   noticeInfo: {
-    borderColor: "rgba(96,156,255,0.3)",
-    backgroundColor: "rgba(96,156,255,0.08)",
-    color: "#dcebff",
+    borderColor: "rgba(207,158,255,0.3)",
+    backgroundColor: "rgba(207,158,255,0.08)",
+    color: "#ecdcff",
   },
   form: {
-    marginTop: 24,
+    marginTop: 28,
     gap: 16,
   },
   fieldBox: {
@@ -1167,15 +1008,15 @@ const styles = StyleSheet.create({
     bottom: 0,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: "rgba(96,156,255,0.9)",
+    borderColor: "rgba(157,180,255,0.8)",
     ...(Platform.OS === "ios"
       ? {
-          shadowColor: "#4d8dff",
+          shadowColor: "#9db4ff",
           shadowOpacity: 0.4,
           shadowRadius: 16,
           shadowOffset: { width: 0, height: 4 },
         }
-      : { elevation: 6, shadowColor: "#4d8dff" }),
+      : { elevation: 6, shadowColor: "#9db4ff" }),
   },
   fieldGlowError: {
     borderColor: "rgba(248,113,113,0.7)",
@@ -1198,7 +1039,7 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.45)",
   },
   floatLabelAccent: {
-    color: AUTH_ACCENT,
+    color: colors.lilac,
   },
   input: {
     flex: 1,
@@ -1222,7 +1063,7 @@ const styles = StyleSheet.create({
   forgotText: {
     fontSize: 13,
     fontFamily: fonts.medium,
-    color: AUTH_ACCENT,
+    color: colors.star,
   },
   otpBlock: {
     gap: 14,
@@ -1246,7 +1087,7 @@ const styles = StyleSheet.create({
   resendAction: {
     fontSize: 13,
     fontFamily: fonts.medium,
-    color: AUTH_ACCENT,
+    color: colors.star,
   },
   resendDisabled: {
     color: colors.w30,
@@ -1263,7 +1104,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    borderRadius: 999,
+    borderRadius: 26,
     paddingVertical: 16,
   },
   authButtonText: {
@@ -1272,18 +1113,36 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   legal: {
-    marginTop: 26,
-  },
-  legalText: {
-    fontSize: 11.5,
-    lineHeight: 17,
-    textAlign: "center",
-    fontFamily: fonts.regular,
-    color: colors.w35,
+    marginTop: 40,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
   },
   legalLink: {
+    fontSize: 11.5,
     fontFamily: fonts.medium,
-    color: AUTH_ACCENT,
+    color: colors.w60,
+  },
+  legalDivider: {
+    fontSize: 11.5,
+    color: colors.w30,
+  },
+  switchLink: {
+    marginTop: 22,
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "center",
+  },
+  switchMuted: {
+    fontSize: 13.5,
+    fontFamily: fonts.regular,
+    color: colors.w45,
+  },
+  switchAccent: {
+    fontSize: 13.5,
+    fontFamily: fonts.medium,
+    color: colors.star,
   },
   backLink: {
     marginTop: 24,
