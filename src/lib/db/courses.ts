@@ -248,6 +248,9 @@ export async function updateCourse(
   courseId: number,
   changes: { title?: string; description?: string },
 ): Promise<Course | null> {
+  const user = await resolveSession();
+  if (!user) return null;
+
   const patch: { title?: string; description?: string } = {};
 
   if (changes.title !== undefined) {
@@ -264,6 +267,7 @@ export async function updateCourse(
     .from("courses")
     .update(patch)
     .eq("id", courseId)
+    .eq("user_id", user.id)
     .select(COURSE_SELECT)
     .maybeSingle();
 
@@ -469,6 +473,9 @@ export async function syncTopicStatuses(
 ): Promise<boolean> {
   if (updates.length === 0) return true;
 
+  const user = await resolveSession();
+  if (!user) return false;
+
   const results = await Promise.all(
     updates.map((update) =>
       supabase
@@ -479,7 +486,8 @@ export async function syncTopicStatuses(
           completed_at:
             update.status === "completed" ? new Date().toISOString() : null,
         })
-        .eq("id", update.id),
+        .eq("id", update.id)
+        .eq("user_id", user.id),
     ),
   );
 
@@ -495,6 +503,9 @@ export async function setTopicStatus(
   topicId: number,
   status: CourseStatus,
 ): Promise<void> {
+  const user = await resolveSession();
+  if (!user) return;
+
   await supabase
     .from("course_topics")
     .update({
@@ -502,7 +513,9 @@ export async function setTopicStatus(
       progress_percentage: status === "completed" ? 100 : 0,
       completed_at: status === "completed" ? new Date().toISOString() : null,
     })
-    .eq("id", topicId);
+    .eq("id", topicId)
+    .eq("course_id", courseId)
+    .eq("user_id", user.id);
 
   await recomputeCourseProgress(courseId);
   notifyCoursesChanged();
@@ -513,11 +526,15 @@ export async function removeTopic(
   courseId: number,
   topicId: number,
 ): Promise<boolean> {
+  const user = await resolveSession();
+  if (!user) return false;
+
   const { error } = await supabase
     .from("course_topics")
     .delete()
     .eq("id", topicId)
-    .eq("course_id", courseId);
+    .eq("course_id", courseId)
+    .eq("user_id", user.id);
 
   if (error) return false;
 
@@ -527,10 +544,14 @@ export async function removeTopic(
 }
 
 async function recomputeCourseProgress(courseId: number): Promise<void> {
+  const user = await resolveSession();
+  if (!user) return;
+
   const { data: topicRows } = await supabase
     .from("course_topics")
     .select("status")
-    .eq("course_id", courseId);
+    .eq("course_id", courseId)
+    .eq("user_id", user.id);
 
   const rows = (topicRows ?? []) as { status: CourseStatus }[];
   const total = rows.length;
@@ -541,6 +562,7 @@ async function recomputeCourseProgress(courseId: number): Promise<void> {
     .from("courses")
     .select("status")
     .eq("id", courseId)
+    .eq("user_id", user.id)
     .maybeSingle();
 
   const current =
@@ -555,5 +577,6 @@ async function recomputeCourseProgress(courseId: number): Promise<void> {
   await supabase
     .from("courses")
     .update({ progress_percentage: progress, status })
-    .eq("id", courseId);
+    .eq("id", courseId)
+    .eq("user_id", user.id);
 }

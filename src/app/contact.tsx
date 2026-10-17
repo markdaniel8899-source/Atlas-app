@@ -51,7 +51,9 @@ const DETAILS: Detail[] = [
   },
 ];
 
-type Status = "idle" | "sending" | "sent" | "error";
+type Status = "idle" | "sending" | "sent" | "error" | "invalid";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 export default function ContactScreen() {
   const [name, setName] = useState("");
@@ -71,13 +73,18 @@ export default function ContactScreen() {
     const trimmedMessage = message.trim();
     if (!trimmedName || !trimmedEmail || !trimmedMessage) return;
 
+    if (!EMAIL_RE.test(trimmedEmail)) {
+      setStatus("invalid");
+      return;
+    }
+
     setStatus("sending");
 
     const { error } = await supabase.from("contact_messages").insert({
-      name: trimmedName,
-      email: trimmedEmail,
-      subject: `Message from ${trimmedName}`,
-      message: trimmedMessage,
+      name: trimmedName.slice(0, 80),
+      email: trimmedEmail.slice(0, 120),
+      subject: `Message from ${trimmedName.slice(0, 80)}`,
+      message: trimmedMessage.slice(0, 4000),
     });
 
     if (error) {
@@ -175,7 +182,11 @@ export default function ContactScreen() {
         </Pressable>
 
         <Text style={styles.statusText}>
-          {status === "error" ? (
+          {status === "invalid" ? (
+            <Text style={styles.statusError}>
+              Enter a valid email address so we can reply.
+            </Text>
+          ) : status === "error" ? (
             <Text style={styles.statusError}>
               Could not send your message. Please try again, or email us
               directly.

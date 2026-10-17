@@ -1,5 +1,6 @@
 import type { User } from "@supabase/supabase-js";
 import { isSupabaseConfigured, supabase } from "./supabase";
+import { clearLocalTimerCache } from "./timer";
 
 export interface AuthUser {
   id: string;
@@ -216,6 +217,7 @@ export async function updatePassword(password: string): Promise<AuthResult> {
 export async function signOut(): Promise<void> {
   cached = null;
   if (isSupabaseConfigured) await supabase.auth.signOut();
+  await clearLocalTimerCache();
 }
 
 /** Restores the persisted session on load and refreshes the cached user. */

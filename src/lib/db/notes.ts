@@ -207,10 +207,14 @@ export async function updateNote(
   if (patch.html !== undefined) values.content = sanitizeHtml(patch.html);
   if (Object.keys(values).length === 0) return true;
 
+  const user = await resolveSession();
+  if (!user) return false;
+
   const { error } = await supabase
     .from("notes")
     .update(values)
-    .eq("id", parsed);
+    .eq("id", parsed)
+    .eq("user_id", user.id);
   return !error;
 }
 
@@ -218,6 +222,14 @@ export async function updateNote(
 export async function deleteNote(id: string): Promise<boolean> {
   const parsed = toId(id);
   if (parsed === null) return false;
-  const { error } = await supabase.from("notes").delete().eq("id", parsed);
+
+  const user = await resolveSession();
+  if (!user) return false;
+
+  const { error } = await supabase
+    .from("notes")
+    .delete()
+    .eq("id", parsed)
+    .eq("user_id", user.id);
   return !error;
 }

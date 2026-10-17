@@ -1,3 +1,5 @@
+import { SUPABASE_ORIGIN } from "./supabase";
+
 /**
  * DiceBear avatar generation - free, no API key.
  * Docs: https://www.dicebear.com/how-to-use/http-api/
@@ -45,12 +47,25 @@ export function dicebearUrl(style: DiceBearStyle, seed: string): string {
 }
 
 /**
+ * Avatar URLs are user-supplied and rendered by every other client, so only
+ * our own DiceBear generator and the project's public storage are allowed.
+ */
+const DICEBEAR_HOST = "https://api.dicebear.com/";
+const STORAGE_PREFIX = `${SUPABASE_ORIGIN}/storage/v1/object/public/`;
+
+export function isAllowedAvatarUrl(url: string): boolean {
+  return url.startsWith(DICEBEAR_HOST) || url.startsWith(STORAGE_PREFIX);
+}
+
+/**
  * React Native's Image cannot render SVG, so DiceBear URLs saved by the
  * web client (`/svg?…`) are rewritten to the PNG variant for display.
+ * URLs outside the allowlist are dropped (rendered as fallback initials).
  */
 export function pngAvatarUrl(url: string | null): string | null {
   if (!url) return null;
-  if (url.startsWith("https://api.dicebear.com/") && url.includes("/svg?")) {
+  if (!isAllowedAvatarUrl(url)) return null;
+  if (url.startsWith(DICEBEAR_HOST) && url.includes("/svg?")) {
     return url.replace("/svg?", "/png?");
   }
   return url;

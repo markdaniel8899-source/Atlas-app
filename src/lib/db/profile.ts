@@ -1,4 +1,5 @@
 import { resolveSession } from "../auth";
+import { isAllowedAvatarUrl } from "../dicebear";
 import { supabase } from "../supabase";
 import type { Profile } from "./types";
 
@@ -25,6 +26,15 @@ export async function updateProfile(
   userId: string,
   patch: Partial<Pick<Profile, "display_name" | "avatar_url" | "username">>,
 ): Promise<ProfileUpdateResult> {
+  const me = await resolveSession();
+  if (!me || me.id !== userId) {
+    return { profile: null, error: "You need to sign in again." };
+  }
+
+  if (typeof patch.avatar_url === "string" && !isAllowedAvatarUrl(patch.avatar_url)) {
+    return { profile: null, error: "That avatar source isn't allowed." };
+  }
+
   const { data, error } = await supabase
     .from("profiles")
     .update(patch)

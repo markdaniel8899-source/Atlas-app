@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppState } from "react-native";
+import { subscribeAuth } from "./auth";
 import { deleteNote, insertNote, updateNote } from "./db/notes";
 
 const STORAGE_KEY = "atlas.notes.queue.v1";
@@ -25,6 +26,8 @@ interface QueueOp {
   courseId: number | null;
   topicId: number | null;
   updatedAt: number;
+  /** Account that queued the write; ops never flush into another account. */
+  ownerId: string | null;
 }
 
 export interface NotesQueueSnapshot {
@@ -49,12 +52,49 @@ let retryTimer: ReturnType<typeof setInterval> | null = null;
 const listeners = new Set<() => void>();
 const swapHandlers = new Set<(tempId: string, realId: string) => void>();
 
+/** The signed-in user whose queued writes may flush right now. */
+let currentOwnerId: string | null = null;
+
+/** Ops queued before owner tracking existed are adopted by the first sign-in. */
+function adoptUnownedOps() {
+  if (!currentOwnerId) return;
+  let changed = false;
+  for (const op of ops.values()) {
+    if (!op.ownerId) {
+      op.ownerId = currentOwnerId;
+      changed = true;
+    }
+  }
+  if (changed) persistOps();
+}
+
+function ownOpCount(): number {
+  if (!currentOwnerId) return 0;
+  let count = 0;
+  for (const op of ops.values()) {
+    if (op.ownerId === currentOwnerId) count += 1;
+  }
+  return count;
+}
+
+subscribeAuth((user) => {
+  const next = user?.id ?? null;
+  if (next === currentOwnerId) return;
+  currentOwnerId = next;
+  adoptUnownedOps();
+  emit();
+  void flushNotesQueue();
+});
+
 function buildSnapshot(): NotesQueueSnapshot {
   const tempIds: string[] = [];
+  let pending = 0;
   for (const op of ops.values()) {
+    if (op.ownerId !== currentOwnerId) continue;
+    pending += 1;
     if (op.op === "upsert" && isTempNoteId(op.noteId)) tempIds.push(op.noteId);
   }
-  return { pending: ops.size, tempIds, syncing: flushing };
+  return { pending, tempIds, syncing: flushing };
 }
 
 function emit() {
@@ -115,6 +155,10 @@ async function hydrateQueue() {
                 typeof entry.topicId === "number" ? entry.topicId : null,
               updatedAt:
                 typeof entry.updatedAt === "number" ? entry.updatedAt : 0,
+              ownerId:
+                typeof entry.ownerId === "string" && entry.ownerId
+                  ? entry.ownerId
+                  : currentOwnerId,
             });
           }
         }
@@ -123,8 +167,9 @@ async function hydrateQueue() {
   } catch {
     // Corrupt payload - start fresh.
   }
+  adoptUnownedOps();
   emit();
-  if (ops.size > 0) {
+  if (ownOpCount() > 0) {
     ensureRetryTimer();
     void flushNotesQueue();
   }
@@ -176,6 +221,7 @@ export function queueNoteUpsert(note: {
     courseId: note.courseId,
     topicId: note.topicId,
     updatedAt: Date.now(),
+    ownerId: currentOwnerId,
   });
   persistOps();
   emit();
@@ -199,6 +245,7 @@ export function queueNoteDelete(id: string) {
     courseId: null,
     topicId: null,
     updatedAt: Date.now(),
+    ownerId: currentOwnerId,
   });
   persistOps();
   emit();
@@ -216,17 +263,25 @@ function dropIfSame(key: string, op: QueueOp) {
 
 export async function flushNotesQueue(): Promise<void> {
   await hydrateQueue();
-  if (flushing || ops.size === 0) {
-    if (ops.size === 0) stopRetryTimer();
+  if (flushing || ownOpCount() === 0) {
+    if (ownOpCount() === 0) stopRetryTimer();
     return;
   }
   flushing = true;
   emit();
   try {
-    while (ops.size > 0) {
-      const first = ops.entries().next();
-      if (first.done) break;
-      const [key, op] = first.value;
+    while (ownOpCount() > 0) {
+      // Only the signed-in owner's ops flush; other accounts' pending work
+      // stays on disk untouched until that account signs back in.
+      let next: [string, QueueOp] | null = null;
+      for (const entry of ops.entries()) {
+        if (entry[1].ownerId === currentOwnerId) {
+          next = entry;
+          break;
+        }
+      }
+      if (!next) break;
+      const [key, op] = next;
 
       if (op.op === "delete") {
         if (isTempNoteId(op.noteId)) {
@@ -273,7 +328,7 @@ export async function flushNotesQueue(): Promise<void> {
     flushing = false;
     persistOps();
     emit();
-    if (ops.size > 0) ensureRetryTimer();
+    if (ownOpCount() > 0) ensureRetryTimer();
     else stopRetryTimer();
   }
 }

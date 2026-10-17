@@ -169,14 +169,25 @@ export async function fetchSquad(): Promise<SquadMember[]> {
 }
 
 export async function acceptInvite(friendshipId: number): Promise<void> {
+  const me = await resolveSession();
+  if (!me) return;
+  // Only the addressee may accept an incoming request.
   await supabase
     .from("friendships")
     .update({ status: "accepted" })
-    .eq("id", friendshipId);
+    .eq("id", friendshipId)
+    .eq("addressee_id", me.id);
 }
 
 export async function declineInvite(friendshipId: number): Promise<void> {
-  await supabase.from("friendships").delete().eq("id", friendshipId);
+  const me = await resolveSession();
+  if (!me) return;
+  // Either side may remove the relationship.
+  await supabase
+    .from("friendships")
+    .delete()
+    .eq("id", friendshipId)
+    .or(`requester_id.eq.${me.id},addressee_id.eq.${me.id}`);
 }
 
 export async function inviteFriend(email: string): Promise<InviteResult> {

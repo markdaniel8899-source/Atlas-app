@@ -6,9 +6,12 @@ import {
   useRef,
   useState,
 } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Linking, StyleSheet, View } from "react-native";
 import { WebView } from "react-native-webview";
-import type { WebViewMessageEvent } from "react-native-webview";
+import type {
+  WebViewMessageEvent,
+  WebViewNavigation,
+} from "react-native-webview";
 import { sanitizeHtml } from "../../lib/notes";
 import { colors } from "../../theme/theme";
 
@@ -171,6 +174,29 @@ export const RichNoteEditor = forwardRef<
     }
   }, []);
 
+  /**
+   * The editor only ever loads its own inline document: any other navigation
+   * (link taps, injected JS) is blocked. Safe http(s) links are opened
+   * externally instead; everything else is silently dropped.
+   */
+  const onShouldStartLoadWithRequest = useCallback(
+    (request: WebViewNavigation) => {
+      const url = request.url ?? "";
+      if (
+        url === "" ||
+        url.startsWith("about:") ||
+        url.startsWith("data:text/html")
+      ) {
+        return true;
+      }
+      if (/^https?:\/\//i.test(url)) {
+        void Linking.openURL(url).catch(() => undefined);
+      }
+      return false;
+    },
+    [],
+  );
+
   return (
     <View style={styles.wrap}>
       <WebView
@@ -178,6 +204,7 @@ export const RichNoteEditor = forwardRef<
         originWhitelist={["*"]}
         source={{ html: EDITOR_HTML }}
         onMessage={onMessage}
+        onShouldStartLoadWithRequest={onShouldStartLoadWithRequest}
         style={styles.web}
         containerStyle={styles.webContainer}
         keyboardDisplayRequiresUserAction={false}

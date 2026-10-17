@@ -24,6 +24,19 @@ const STATE_KEY = "atlas.timer";
 const SESSIONS_KEY = "atlas.sessions";
 const BASE_KEY = "atlas.focus.base";
 
+/**
+ * Wipes the local timer/focus caches. Called on sign-out so one account's
+ * counters can never bleed into the next session; state is reconciled from
+ * the server on the following sign-in.
+ */
+export async function clearLocalTimerCache(): Promise<void> {
+  try {
+    await AsyncStorage.multiRemove([STATE_KEY, SESSIONS_KEY, BASE_KEY]);
+  } catch {
+    // Best-effort - a failed clear only means stale local state.
+  }
+}
+
 export function defaultTimerState(targetMin = 25): TimerState {
   return {
     mode: "idle",
