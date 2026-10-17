@@ -51,6 +51,10 @@ export default function RootLayout() {
           name="login"
           options={{ animation: "fade", animationDuration: 300 }}
         />
+        <Stack.Screen
+          name="onboarding"
+          options={{ animation: "fade", animationDuration: 300 }}
+        />
       </Stack>
       <StatusBar style="light" />
     </TimerProvider>

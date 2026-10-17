@@ -13,6 +13,7 @@ import { NavigationDrawer } from "../components/navigation-drawer";
 import { SessionCompleteCard } from "../components/session-complete-card";
 import { RevealText } from "../components/ui/reveal-text";
 import { useDashboard } from "../hooks/use-dashboard";
+import { hasSeenOnboarding } from "../lib/onboarding";
 import { colors, fonts } from "../theme/theme";
 
 function greeting(): string {
@@ -30,7 +31,14 @@ export default function DashboardScreen() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    if (!loading && !user) router.replace("/login");
+    if (loading || user) return;
+    let cancelled = false;
+    void hasSeenOnboarding().then((seen) => {
+      if (!cancelled) router.replace((seen ? "/login" : "/onboarding") as Href);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [loading, user, router]);
 
   const name = profile?.display_name?.trim() || user?.name || "";
