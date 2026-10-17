@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import {
   Animated,
   Easing,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -15,7 +16,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { BlurTargetView, BlurView } from "expo-blur";
+import { BlurTargetView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
 import {
   ArrowLeft,
   ArrowRight,
@@ -28,14 +30,9 @@ import {
   ShieldCheck,
   User,
 } from "lucide-react-native";
-import { AuthMesh } from "../components/auth/auth-mesh";
+import { AuthGlow } from "../components/auth/auth-glow";
 import { OtpInput } from "../components/auth/otp-input";
-import {
-  BlurTargetRefContext,
-  useBlurTargetRef,
-} from "../components/blur-target";
-import { MeshBackground } from "../components/mesh-background";
-import { Button } from "../components/ui/button";
+import { BlurTargetRefContext } from "../components/blur-target";
 import { Card } from "../components/ui/card";
 import {
   CONFIG_ERROR,
@@ -49,6 +46,9 @@ import {
 } from "../lib/auth";
 import { isSupabaseConfigured } from "../lib/supabase";
 import { colors, ease, fonts } from "../theme/theme";
+
+const APP_ICON = require("../../assets/icon.png");
+const AUTH_ACCENT = "#8fb9ff";
 
 type Mode = "login" | "signup" | "verify" | "forgot" | "reset";
 type ResetPhase = "code" | "password";
@@ -411,11 +411,7 @@ export default function LoginScreen() {
           }}
           pointerEvents="none"
         >
-          <MeshBackground />
-          <AuthMesh
-            width={bgSize.current.width}
-            height={bgSize.current.height}
-          />
+          <AuthGlow width={bgSize.current.width} height={bgSize.current.height} />
         </BlurTargetView>
 
         <KeyboardAvoidingView
@@ -454,10 +450,13 @@ export default function LoginScreen() {
               <Card glass style={styles.card} padded={false}>
                 <View style={styles.cardInner}>
                   <View style={styles.header}>
-                    <Text style={styles.eyebrow}>ATLAS</Text>
+                    <View style={styles.brandRow}>
+                      <Image source={APP_ICON} style={styles.brandIcon} />
+                      <Text style={styles.brandName}>ATLAS</Text>
+                    </View>
                     {BadgeIcon ? (
                       <View style={styles.badge}>
-                        <BadgeIcon size={26} color={colors.lilac} />
+                        <BadgeIcon size={26} color={AUTH_ACCENT} />
                       </View>
                     ) : null}
                     <Text style={styles.title}>{header.title}</Text>
@@ -655,7 +654,7 @@ export default function LoginScreen() {
                             style={styles.resendActionWrap}
                           >
                             {cooldown > 0 ? null : (
-                              <RefreshCw size={13} color={colors.star} />
+                              <RefreshCw size={13} color={AUTH_ACCENT} />
                             )}
                             <Text
                               style={[
@@ -673,17 +672,15 @@ export default function LoginScreen() {
                       </View>
                     ) : null}
 
-                    <Button
+                    <AuthButton
                       label={submitLabel}
                       icon={
                         !busy ? (
-                          <ArrowRight size={16} color={colors.primaryText} />
+                          <ArrowRight size={16} color={colors.white} />
                         ) : undefined
                       }
                       disabled={busy}
                       onPress={() => void onSubmit()}
-                      style={styles.submitWrap}
-                      contentStyle={styles.submit}
                     />
                   </View>
 
@@ -747,6 +744,70 @@ export default function LoginScreen() {
   );
 }
 
+function AuthButton({
+  label,
+  icon,
+  disabled,
+  onPress,
+}: {
+  label: string;
+  icon?: ReactNode;
+  disabled?: boolean;
+  onPress?: () => void;
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const pressIn = () =>
+    Animated.spring(scale, {
+      toValue: 0.97,
+      stiffness: 420,
+      damping: 22,
+      mass: 1,
+      useNativeDriver: true,
+    }).start();
+
+  const pressOut = () =>
+    Animated.spring(scale, {
+      toValue: 1,
+      stiffness: 420,
+      damping: 22,
+      mass: 1,
+      useNativeDriver: true,
+    }).start();
+
+  return (
+    <Animated.View
+      style={[
+        styles.authButtonWrap,
+        { transform: [{ scale }] },
+        disabled && styles.authButtonDisabled,
+      ]}
+    >
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        disabled={disabled}
+        onPress={onPress}
+        onPressIn={pressIn}
+        onPressOut={pressOut}
+      >
+        <LinearGradient
+          colors={["#9adcff", "#4d8dff", "#2f63e8"]}
+          locations={[0, 0.55, 1]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.authButton}
+        >
+          {icon}
+          <Text style={styles.authButtonText} numberOfLines={1}>
+            {label}
+          </Text>
+        </LinearGradient>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 function Field({
   label,
   icon,
@@ -802,23 +863,10 @@ function Field({
     ],
   };
 
-  const blurTarget = useBlurTargetRef();
-
   return (
     <View>
       <View>
-        <View
-          style={[styles.fieldBox, error && styles.fieldBoxError]}
-        >
-          <BlurView
-            intensity={26}
-            tint="dark"
-            blurMethod="dimezisBlurViewSdk31Plus"
-            blurTarget={blurTarget ?? undefined}
-            pointerEvents="none"
-            style={StyleSheet.absoluteFill}
-          />
-          <View pointerEvents="none" style={styles.fieldTint} />
+        <View style={[styles.fieldBox, error && styles.fieldBoxError]}>
           {icon}
           <View style={styles.fieldBody}>
             <Animated.Text
@@ -985,12 +1033,21 @@ const styles = StyleSheet.create({
   header: {
     alignItems: "center",
   },
-  eyebrow: {
-    fontSize: 11,
-    fontFamily: fonts.medium,
-    letterSpacing: 5,
-    textTransform: "uppercase",
-    color: colors.star70,
+  brandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  brandIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+  },
+  brandName: {
+    fontSize: 15,
+    fontFamily: fonts.display,
+    letterSpacing: 3,
+    color: colors.w75,
   },
   badge: {
     marginTop: 20,
@@ -998,16 +1055,16 @@ const styles = StyleSheet.create({
     height: 64,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.lilac25,
-    backgroundColor: colors.lilac10,
+    borderColor: "rgba(127,178,255,0.25)",
+    backgroundColor: "rgba(127,178,255,0.10)",
     alignItems: "center",
     justifyContent: "center",
   },
   title: {
-    marginTop: 12,
-    fontSize: 28,
-    fontFamily: fonts.semibold,
-    letterSpacing: -1.1,
+    marginTop: 24,
+    fontSize: 30,
+    fontFamily: fonts.display,
+    letterSpacing: -0.6,
     color: colors.white,
     textAlign: "center",
   },
@@ -1034,8 +1091,8 @@ const styles = StyleSheet.create({
     left: 4,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(207,158,255,0.30)",
-    backgroundColor: "rgba(207,158,255,0.14)",
+    borderColor: "rgba(127,178,255,0.35)",
+    backgroundColor: "rgba(96,156,255,0.16)",
   },
   toggleSeg: {
     flex: 1,
@@ -1080,9 +1137,9 @@ const styles = StyleSheet.create({
     color: "#fecaca",
   },
   noticeInfo: {
-    borderColor: "rgba(207,158,255,0.3)",
-    backgroundColor: "rgba(207,158,255,0.08)",
-    color: "#e9dcff",
+    borderColor: "rgba(96,156,255,0.3)",
+    backgroundColor: "rgba(96,156,255,0.08)",
+    color: "#dcebff",
   },
   form: {
     marginTop: 24,
@@ -1095,17 +1152,9 @@ const styles = StyleSheet.create({
     height: 58,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.lilac25,
-    overflow: "hidden",
+    borderColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "rgba(255,255,255,0.055)",
     paddingHorizontal: 14,
-  },
-  fieldTint: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(255,255,255,0.03)",
   },
   fieldBoxError: {
     borderColor: "rgba(248,113,113,0.55)",
@@ -1118,15 +1167,15 @@ const styles = StyleSheet.create({
     bottom: 0,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: "rgba(207,158,255,0.75)",
+    borderColor: "rgba(96,156,255,0.9)",
     ...(Platform.OS === "ios"
       ? {
-          shadowColor: "#cf9eff",
-          shadowOpacity: 0.35,
+          shadowColor: "#4d8dff",
+          shadowOpacity: 0.4,
           shadowRadius: 16,
           shadowOffset: { width: 0, height: 4 },
         }
-      : { elevation: 6, shadowColor: "#cf9eff" }),
+      : { elevation: 6, shadowColor: "#4d8dff" }),
   },
   fieldGlowError: {
     borderColor: "rgba(248,113,113,0.7)",
@@ -1149,7 +1198,7 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.45)",
   },
   floatLabelAccent: {
-    color: "rgba(207,158,255,0.88)",
+    color: AUTH_ACCENT,
   },
   input: {
     flex: 1,
@@ -1173,7 +1222,7 @@ const styles = StyleSheet.create({
   forgotText: {
     fontSize: 13,
     fontFamily: fonts.medium,
-    color: colors.star,
+    color: AUTH_ACCENT,
   },
   otpBlock: {
     gap: 14,
@@ -1197,17 +1246,30 @@ const styles = StyleSheet.create({
   resendAction: {
     fontSize: 13,
     fontFamily: fonts.medium,
-    color: colors.star,
+    color: AUTH_ACCENT,
   },
   resendDisabled: {
     color: colors.w30,
   },
-  submitWrap: {
+  authButtonWrap: {
     alignSelf: "stretch",
     marginTop: 8,
   },
-  submit: {
-    paddingVertical: 15,
+  authButtonDisabled: {
+    opacity: 0.55,
+  },
+  authButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: 999,
+    paddingVertical: 16,
+  },
+  authButtonText: {
+    fontSize: 15,
+    fontFamily: fonts.semibold,
+    color: colors.white,
   },
   legal: {
     marginTop: 26,
@@ -1221,7 +1283,7 @@ const styles = StyleSheet.create({
   },
   legalLink: {
     fontFamily: fonts.medium,
-    color: colors.star,
+    color: AUTH_ACCENT,
   },
   backLink: {
     marginTop: 24,

@@ -98,8 +98,8 @@ const styles = StyleSheet.create({
     borderColor: colors.w20,
   },
   boxActive: {
-    borderColor: "rgba(157,180,255,0.55)",
-    backgroundColor: colors.star06,
+    borderColor: "rgba(96,156,255,0.65)",
+    backgroundColor: "rgba(96,156,255,0.08)",
   },
   boxError: {
     borderColor: "rgba(248,113,113,0.55)",
