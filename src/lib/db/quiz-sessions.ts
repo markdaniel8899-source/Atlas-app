@@ -9,14 +9,22 @@ export interface QuizSessionInput {
   xp: number;
 }
 
+export interface QuizSessionSaveResult {
+  /** Achievement codes unlocked by this run. */
+  codes: string[];
+  /** False when the full session log could not be written (offline etc.). */
+  recorded: boolean;
+}
+
 /**
  * Persists a finished quiz (feeds the achievement engine), awards XP and
  * refreshes the streak via the `record_quiz_session` RPC. Returns the codes
- * of any achievements unlocked by this run.
+ * of any achievements unlocked by this run, and whether the session log was
+ * actually recorded.
  */
 export async function saveQuizSession(
   input: QuizSessionInput,
-): Promise<string[]> {
+): Promise<QuizSessionSaveResult> {
   const payload = {
     p_topic: input.topic.slice(0, 160),
     p_kind: input.kind ?? "mixed",
@@ -31,7 +39,10 @@ export async function saveQuizSession(
       notifyProfileChanged();
       const unlocked = (data as { achievements?: { unlocked?: unknown } })
         .achievements?.unlocked;
-      return Array.isArray(unlocked) ? (unlocked as string[]) : [];
+      return {
+        codes: Array.isArray(unlocked) ? (unlocked as string[]) : [],
+        recorded: true,
+      };
     }
   } catch {
     // fall through to the XP-only path below
@@ -42,5 +53,5 @@ export async function saveQuizSession(
     await supabase.rpc("record_activity", { p_xp: input.xp });
     notifyProfileChanged();
   }
-  return [];
+  return { codes: [], recorded: false };
 }

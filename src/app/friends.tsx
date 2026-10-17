@@ -33,7 +33,11 @@ import type { SquadMember, SquadStatus } from "../lib/db/squad";
 import { pngAvatarUrl } from "../lib/dicebear";
 import { getRankFromXP } from "../lib/gamification";
 import { PROFILE_CHANGED_EVENT, listen } from "../lib/events";
+import { ensureOnline } from "../lib/net";
 import { colors, ease, fonts } from "../theme/theme";
+
+const SQUAD_ERROR =
+  "Couldn't load your squad. Check your internet connection and try again.";
 
 const STATUS_DOT: Record<SquadStatus, string> = {
   studying: colors.lilac,
@@ -298,13 +302,13 @@ export default function FriendsScreen() {
   const [inviting, setInviting] = useState(false);
 
   const load = useCallback(async () => {
-    try {
-      setMembers(await fetchSquad());
-    } catch {
-      setMembers([]);
-    } finally {
-      setLoading(false);
-    }
+    const result = await fetchSquad();
+    setMembers(result.members);
+    setLoading(false);
+    setError((current) => {
+      if (!result.ok) return SQUAD_ERROR;
+      return current === SQUAD_ERROR ? null : current;
+    });
   }, []);
 
   useEffect(() => {
@@ -346,6 +350,12 @@ export default function FriendsScreen() {
   const onInvite = async () => {
     if (inviting) return;
     setInviting(true);
+    if (
+      !(await ensureOnline("Friend invites need an internet connection."))
+    ) {
+      setInviting(false);
+      return;
+    }
     const result = await inviteFriend(invite);
     setInviting(false);
     if (!result.ok) {

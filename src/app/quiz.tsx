@@ -27,7 +27,9 @@ import { QuizSetup } from "../components/quiz/quiz-setup";
 import { RichText } from "../components/quiz/rich-text";
 import { KIND_ICON } from "../components/quiz/icons";
 import { useCourses } from "../hooks/use-courses";
+import { ensureOnline } from "../lib/net";
 import { canSubmit, KIND_LABEL, summarize } from "../lib/quiz";
+import type { GenerateInput } from "../lib/quiz";
 import {
   dismissQuizError,
   generateQuizSession,
@@ -104,6 +106,7 @@ export default function QuizScreen() {
     topic,
     error,
     unlocked,
+    syncNote,
   } = useSyncExternalStore(subscribeQuizSession, getQuizSessionSnapshot);
 
   const question = attempts[index]?.question ?? null;
@@ -112,6 +115,17 @@ export default function QuizScreen() {
   const percent =
     attempts.length > 0 ? (answered / attempts.length) * 100 : 0;
   const summary = summarize(attempts);
+
+  const handleGenerate = async (input: GenerateInput) => {
+    if (
+      !(await ensureOnline(
+        "Quizzes are generated online — reconnect to start one.",
+      ))
+    ) {
+      return;
+    }
+    await generateQuizSession(input);
+  };
 
   const alert =
     error && !evaluating ? (
@@ -145,7 +159,7 @@ export default function QuizScreen() {
             loading={coursesLoading}
             busy={false}
             error={error}
-            onGenerate={(input) => void generateQuizSession(input)}
+            onGenerate={(input) => void handleGenerate(input)}
           />
         </View>
       ) : null}
@@ -351,6 +365,12 @@ export default function QuizScreen() {
       {phase === "done" ? (
         <View style={styles.phaseWrap}>
           {alert}
+          {syncNote ? (
+            <View accessibilityRole="alert" style={styles.syncNote}>
+              <AlertTriangle size={14} color={colors.w50} />
+              <Text style={styles.syncNoteText}>{syncNote}</Text>
+            </View>
+          ) : null}
           {unlocked.length > 0 ? (
             <FadeIn style={styles.achievementBanner}>
               <View style={styles.achievementIcon}>
@@ -386,6 +406,23 @@ export default function QuizScreen() {
 const styles = StyleSheet.create({
   phaseWrap: {
     gap: 20,
+  },
+  syncNote: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.w10,
+    backgroundColor: colors.w04,
+    padding: 12,
+  },
+  syncNoteText: {
+    flex: 1,
+    fontSize: 12.5,
+    lineHeight: 18,
+    fontFamily: fonts.regular,
+    color: colors.w50,
   },
   loadingCard: {
     alignItems: "center",

@@ -51,13 +51,19 @@ function toEntry(row: ProfileRow, isYou: boolean): LeaderboardEntry {
   };
 }
 
+export interface WeeklyLeaderboardResult {
+  /** False when the fetch failed (offline / server error) - not an empty board. */
+  ok: boolean;
+  entries: LeaderboardEntry[];
+}
+
 /**
  * Global weekly board: everyone ordered by weekly XP (Monday reset).
  * The signed-in learner is always present, even outside the top window.
  */
 export async function fetchWeeklyLeaderboard(
   limit = 50,
-): Promise<LeaderboardEntry[]> {
+): Promise<WeeklyLeaderboardResult> {
   const me = await resolveSession();
 
   const { data, error } = await supabase
@@ -67,7 +73,7 @@ export async function fetchWeeklyLeaderboard(
     .order("xp", { ascending: false })
     .limit(limit);
 
-  if (error || !Array.isArray(data)) return [];
+  if (error || !Array.isArray(data)) return { ok: false, entries: [] };
 
   const rows = data as unknown as ProfileRow[];
   const entries = rows.map((row) => toEntry(row, row.id === me?.id));
@@ -81,5 +87,5 @@ export async function fetchWeeklyLeaderboard(
     if (mine) entries.push(toEntry(mine as unknown as ProfileRow, true));
   }
 
-  return entries;
+  return { ok: true, entries };
 }

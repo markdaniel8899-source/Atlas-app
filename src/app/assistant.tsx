@@ -15,6 +15,7 @@ import { ChatComposer } from "../components/assistant/chat-composer";
 import { ChatThread } from "../components/assistant/chat-thread";
 import { MeshBackground } from "../components/mesh-background";
 import { NavigationDrawer } from "../components/navigation-drawer";
+import { OfflineBanner } from "../components/offline-banner";
 import { SessionCompleteCard } from "../components/session-complete-card";
 import { useDashboard } from "../hooks/use-dashboard";
 import {
@@ -33,6 +34,7 @@ import {
 import { resolveSession } from "../lib/auth";
 import { fetchProfile } from "../lib/db/profile";
 import { PROFILE_CHANGED_EVENT, listen } from "../lib/events";
+import { ensureOnline } from "../lib/net";
 import { colors, fonts } from "../theme/theme";
 
 export default function AssistantScreen() {
@@ -80,11 +82,16 @@ export default function AssistantScreen() {
 
   const send = (text: string) => {
     setDraft("");
-    void sendAssistantMessage(
-      text,
-      systemPrompt,
-      profile?.display_name?.trim(),
-    );
+    void (async () => {
+      if (!(await ensureOnline("ATLAS AI needs an internet connection."))) {
+        return;
+      }
+      await sendAssistantMessage(
+        text,
+        systemPrompt,
+        profile?.display_name?.trim(),
+      );
+    })();
   };
 
   const retry = () => {
@@ -228,6 +235,8 @@ export default function AssistantScreen() {
             onMenuPress={() => setMenuOpen(true)}
             avatarUrl={avatarUrl}
           />
+
+          <OfflineBanner />
 
           <NavigationDrawer
             open={menuOpen}

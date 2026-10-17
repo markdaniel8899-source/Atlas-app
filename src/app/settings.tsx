@@ -34,6 +34,7 @@ import { apiSelectAvatar } from "../lib/gamification-api";
 import { getRankFromXP } from "../lib/gamification";
 import { pngAvatarUrl } from "../lib/dicebear";
 import { notifyProfileChanged } from "../lib/events";
+import { ensureOnline } from "../lib/net";
 import { useCourses } from "../hooks/use-courses";
 import type { Course, Profile } from "../lib/db/types";
 import { colors, fonts } from "../theme/theme";
@@ -95,6 +96,9 @@ export default function SettingsScreen() {
 
   const handleAvatarSelected = async (url: string): Promise<boolean> => {
     if (!user) return false;
+    if (!(await ensureOnline("Profile changes need an internet connection."))) {
+      return false;
+    }
     setSaving(true);
     setError(null);
     setSaved(false);
@@ -123,6 +127,9 @@ export default function SettingsScreen() {
 
   const removeAvatar = async () => {
     if (!user) return;
+    if (!(await ensureOnline("Profile changes need an internet connection."))) {
+      return;
+    }
     setSaving(true);
     setError(null);
     setSaved(false);
@@ -164,6 +171,10 @@ export default function SettingsScreen() {
       setError(
         "Username must be 3-24 characters: lowercase letters, numbers or _.",
       );
+      return;
+    }
+
+    if (!(await ensureOnline("Profile changes need an internet connection."))) {
       return;
     }
 

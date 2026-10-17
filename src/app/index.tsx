@@ -10,6 +10,7 @@ import { PlayerStats } from "../components/dashboard/player-stats";
 import { TodayFocus } from "../components/dashboard/today-focus";
 import { MeshBackground } from "../components/mesh-background";
 import { NavigationDrawer } from "../components/navigation-drawer";
+import { OfflineBanner } from "../components/offline-banner";
 import { SessionCompleteCard } from "../components/session-complete-card";
 import { RevealText } from "../components/ui/reveal-text";
 import { useDashboard } from "../hooks/use-dashboard";
@@ -110,6 +111,8 @@ export default function DashboardScreen() {
         onMenuPress={() => setMenuOpen(true)}
         avatarUrl={profile?.avatar_url ?? null}
       />
+
+      <OfflineBanner />
 
       <NavigationDrawer
         open={menuOpen}

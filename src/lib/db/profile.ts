@@ -50,7 +50,10 @@ export async function updateProfile(
     return { profile: null, error: error.message };
   }
   if (!data) {
-    return { profile: null, error: "Profile not found." };
+    return {
+      profile: null,
+      error: "Couldn't save your changes. Check your connection and try again.",
+    };
   }
   return { profile: data as Profile, error: null };
 }

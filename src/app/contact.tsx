@@ -15,6 +15,7 @@ import {
   Phone,
 } from "lucide-react-native";
 import { ScreenHeading, ScreenShell } from "../components/screen-shell";
+import { ensureOnline } from "../lib/net";
 import { supabase } from "../lib/supabase";
 import { colors, fonts } from "../theme/theme";
 
@@ -75,6 +76,11 @@ export default function ContactScreen() {
 
     if (!EMAIL_RE.test(trimmedEmail)) {
       setStatus("invalid");
+      return;
+    }
+
+    if (!(await ensureOnline("Messages can't be sent while offline."))) {
+      setStatus("error");
       return;
     }
 

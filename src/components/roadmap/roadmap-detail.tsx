@@ -280,7 +280,11 @@ export function RoadmapDetail({
                           key={`${resource.url}-${index}`}
                           accessibilityRole="link"
                           accessibilityLabel={`Open ${resource.title}`}
-                          onPress={() => void Linking.openURL(resource.url)}
+                          onPress={() => {
+                    if (/^https?:\/\//i.test(resource.url)) {
+                      void Linking.openURL(resource.url).catch(() => undefined);
+                    }
+                  }}
                           style={({ pressed }) => [
                             styles.resourceRow,
                             pressed && styles.resourceRowPressed,

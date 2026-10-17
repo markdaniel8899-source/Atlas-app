@@ -9,6 +9,7 @@ import { AppHeader, HEADER_HEIGHT } from "./app-header";
 import { BlurTargetRefContext } from "./blur-target";
 import { MeshBackground } from "./mesh-background";
 import { NavigationDrawer } from "./navigation-drawer";
+import { OfflineBanner } from "./offline-banner";
 import { SessionCompleteCard } from "./session-complete-card";
 import { resolveSession } from "../lib/auth";
 import { fetchProfile } from "../lib/db/profile";
@@ -143,6 +144,8 @@ export function ScreenShell({
               }
               avatarUrl={avatarUrl}
             />
+
+            <OfflineBanner />
 
             <NavigationDrawer
               open={menuOpen}

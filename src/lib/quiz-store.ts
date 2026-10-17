@@ -22,6 +22,8 @@ export interface QuizSessionState {
   topic: string;
   error: string | null;
   unlocked: string[];
+  /** Set when the finished quiz could not be written to history. */
+  syncNote: string | null;
 }
 
 export const OFFLINE_MESSAGE =
@@ -60,6 +62,7 @@ const INITIAL: QuizSessionState = {
   topic: "",
   error: null,
   unlocked: [],
+  syncNote: null,
 };
 
 /**
@@ -150,14 +153,21 @@ export async function quizGoNext() {
   const { attempts, index } = state;
   if (index >= attempts.length - 1) {
     const result = summarize(attempts);
-    const codes = await saveQuizSession({
+    const saved = await saveQuizSession({
       topic: state.topic,
       kind: "mixed",
       correct: result.correct,
       total: result.total,
       xp: result.xp,
     });
-    state = { ...state, unlocked: codes, phase: "done" };
+    state = {
+      ...state,
+      unlocked: saved.codes,
+      syncNote: saved.recorded
+        ? null
+        : "Your result couldn't be saved to history (connection issue). XP may arrive late.",
+      phase: "done",
+    };
     emit();
     return;
   }

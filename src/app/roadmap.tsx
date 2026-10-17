@@ -37,6 +37,7 @@ import { AiError, generateRoadmapOutline, generateRoadmapPhase } from "../lib/ai
 import { useCourses } from "../hooks/use-courses";
 import { fetchCourses } from "../lib/db/courses";
 import { ROADMAPS_CHANGED_EVENT, listen } from "../lib/events";
+import { ensureOnline } from "../lib/net";
 import {
   appendRoadmapPhase,
   awardLevelXp,
@@ -280,6 +281,13 @@ export default function RoadmapScreen() {
 
   const generate = useCallback(
     async (input: RoadmapRequestInput) => {
+      if (
+        !(await ensureOnline(
+          "Roadmaps are generated online — reconnect to start one.",
+        ))
+      ) {
+        return;
+      }
       setBusy(true);
       busyRef.current = true;
       setError(null);

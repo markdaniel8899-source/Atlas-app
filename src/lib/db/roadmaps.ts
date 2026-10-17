@@ -95,10 +95,13 @@ function readResources(value: unknown): GraphNode["resources"] {
   for (const item of value) {
     if (!item || typeof item !== "object") continue;
     const record = item as Record<string, unknown>;
+    const url = asString(record.url, 600).trim();
+    // Resources are opened with Linking - only web links are ever allowed.
+    if (!/^https?:\/\//i.test(url)) continue;
     out.push({
       type: asString(record.type, 24) || "article",
       title: asString(record.title, 300),
-      url: asString(record.url, 600),
+      url,
     });
     if (out.length >= 12) break;
   }

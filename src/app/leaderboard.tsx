@@ -4,11 +4,12 @@ import {
   Animated,
   Easing,
   Image,
+  Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import { Flame, Medal, Trophy, Zap } from "lucide-react-native";
+import { Flame, Medal, Trophy, WifiOff, Zap } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { ScreenHeading, ScreenShell } from "../components/screen-shell";
 import { RankBadge } from "../components/gamification/rank-badge";
@@ -16,6 +17,7 @@ import { getRankFromXP } from "../lib/gamification";
 import { fetchWeeklyLeaderboard } from "../lib/db/leaderboard";
 import type { LeaderboardEntry } from "../lib/db/leaderboard";
 import { pngAvatarUrl } from "../lib/dicebear";
+import { ensureOnline } from "../lib/net";
 import { colors, fonts } from "../theme/theme";
 
 /** Premium glassy card configs for podium positions (1st, 2nd, 3rd). */
@@ -292,15 +294,18 @@ function LeaderRow({ entry, place }: { entry: LeaderboardEntry; place: number })
 export default function LeaderboardScreen() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    setFailed(false);
     fetchWeeklyLeaderboard(50)
-      .then((rows) => {
-        if (!cancelled) setEntries(rows);
-      })
-      .catch(() => {
-        if (!cancelled) setEntries([]);
+      .then((result) => {
+        if (cancelled) return;
+        setEntries(result.entries);
+        setFailed(!result.ok);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -308,7 +313,14 @@ export default function LeaderboardScreen() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadKey]);
+
+  const retry = () => {
+    void (async () => {
+      if (!(await ensureOnline())) return;
+      setReloadKey((key) => key + 1);
+    })();
+  };
 
   const you = entries.find((entry) => entry.isYou);
   const myRankIndex = entries.findIndex((entry) => entry.isYou);
@@ -346,6 +358,25 @@ export default function LeaderboardScreen() {
         <View style={styles.loadingRow}>
           <ActivityIndicator size="small" color={colors.w40} />
           <Text style={styles.loadingText}>Loading leaderboard…</Text>
+        </View>
+      ) : failed && entries.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <WifiOff size={28} color={colors.w20} />
+          <Text style={styles.emptyTitle}>Couldn’t load the leaderboard</Text>
+          <Text style={styles.emptyText}>
+            Check your internet connection, then try again.
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Try again"
+            onPress={retry}
+            style={({ pressed }) => [
+              styles.retryButton,
+              pressed && styles.retryPressed,
+            ]}
+          >
+            <Text style={styles.retryText}>Try again</Text>
+          </Pressable>
         </View>
       ) : entries.length === 0 ? (
         <View style={styles.emptyCard}>
@@ -444,6 +475,23 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     fontFamily: fonts.regular,
     color: colors.w45,
+  },
+  retryButton: {
+    marginTop: 16,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.lilac25,
+    backgroundColor: colors.lilac10,
+    paddingHorizontal: 18,
+    paddingVertical: 9,
+  },
+  retryPressed: {
+    opacity: 0.85,
+  },
+  retryText: {
+    fontSize: 13,
+    fontFamily: fonts.semibold,
+    color: colors.lilac,
   },
   list: {
     gap: 12,
