@@ -959,12 +959,12 @@ const styles = StyleSheet.create({
     height: 64,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(157,180,255,0.18)",
+    borderColor: "rgba(207,158,255,0.2)",
   },
   brandName: {
-    fontSize: 27,
-    fontFamily: fonts.display,
-    letterSpacing: 4,
+    fontSize: 34,
+    fontFamily: fonts.brand,
+    letterSpacing: 5,
     color: colors.white,
   },
   headerBody: {
@@ -1047,7 +1047,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: "rgba(157,180,255,0.8)",
+    borderColor: "rgba(207,158,255,0.85)",
   },
   fieldGlowError: {
     borderColor: "rgba(248,113,113,0.7)",

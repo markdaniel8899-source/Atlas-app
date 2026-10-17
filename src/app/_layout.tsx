@@ -13,6 +13,7 @@ import {
   GeistMono_500Medium,
 } from "@expo-google-fonts/geist-mono";
 import { Outfit_600SemiBold } from "@expo-google-fonts/outfit";
+import { Syne_800ExtraBold } from "@expo-google-fonts/syne";
 import { TimerProvider } from "../context/timer-context";
 import { colors } from "../theme/theme";
 
@@ -26,6 +27,7 @@ export default function RootLayout() {
     GeistMono_400Regular,
     GeistMono_500Medium,
     Outfit_600SemiBold,
+    Syne_800ExtraBold,
   });
 
   useEffect(() => {

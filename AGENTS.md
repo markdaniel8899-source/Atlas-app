@@ -86,6 +86,9 @@
   - **Field focus fix (final):** on focus the box border goes transparent (`fieldBoxFocused`) so only the 1.5px star ring renders — kills the double-edge artifact; glow shadows/elevation removed (the "ajeeb" halo).
   - **Form switch transition** is now two-phase in `applyMode`: fade+slide out 150ms → swap mode → fade+slide in 340ms; header title/subtitle/badge live in `headerBody` Animated.View driven by the same `formAnim` so the header crossfades too.
   - **Info-page links fixed:** `/about /help /privacy /terms /contact` are now `publicPage` screens — `ScreenShell` no longer force-redirects signed-out visitors (the login footer links were bouncing straight back to `/login`); public pages show a back arrow instead of the drawer button (`AppHeader onBackPress`, `router.canGoBack()` → `back()` else `replace("/")`).
+  - Brand wordmark now **Syne ExtraBold** (`fonts.brand = "Syne_800ExtraBold"`, also loaded in `_layout.tsx`), 34px + `letterSpacing 5` — futuristic look.
+  - Active/focus accents switched from star periwinkle to **lilac purple**: field focus ring `rgba(207,158,255,0.85)`, OTP active box lilac, brand icon ring lilac-tinted.
+  - **Metro gotcha:** after replacing `assets/icon.png` (delete + re-create on Windows), Metro's resolver cache goes stale and throws `Unable to resolve "../../assets/icon.png"` even though the file exists — fix is `npx expo start -c` (clear cache).
 - Next sensible steps: side-by-side visual diff vs mobile web (`argent-screenshot-diff`), device QA in Expo Go (kill/reopen to avoid stale bundles), then optional `eas build` for native changes.
 
 ## Workflow Preferences (user)

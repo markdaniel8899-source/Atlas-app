@@ -59,6 +59,7 @@ export const fonts = {
   mono: "GeistMono_400Regular",
   monoMedium: "GeistMono_500Medium",
   display: "Outfit_600SemiBold",
+  brand: "Syne_800ExtraBold",
 } as const;
 
 /** Cubic bezier [0.22, 1, 0.36, 1] — the app's shared ease-out curve. */
