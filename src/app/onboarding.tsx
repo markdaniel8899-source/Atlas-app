@@ -312,7 +312,7 @@ export default function OnboardingScreen() {
 
   function finish() {
     void markOnboardingSeen();
-    router.replace("/login");
+    router.replace("/");
   }
 
   function next() {
