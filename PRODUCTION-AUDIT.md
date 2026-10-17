@@ -1,0 +1,249 @@
+# ATLAS — Production Audit & Feature Report
+
+> **Date:** 2026-10-17 · **Commit:** `45f97c9` · **Branch:** main · **App:** ATLAS (Expo SDK 57 / RN 0.86)
+> Ye file app ki current **production readiness**, tamam **shipped features** aur overall **state** ka single source of truth hai. Koi bhi naya session isay pehle parh le.
+
+---
+
+## 1. Executive Summary
+
+**Production readiness: ~95%** — App code, security aur data-integrity tayyar hai. Launch se pehle ye baqi hai:
+
+| # | Blocker | Severity | Owner | Status |
+|---|---------|----------|-------|--------|
+| 1 | Focus RPCs se `anon` execute revoke (2 SQL lines) | High (2 min ka kaam) | User | ⏳ Pending |
+| 2 | APK / native build + real-device QA | High | User (test) | ❌ Not built |
+| 3 | AI backend stable hosting (abhi temporary trycloudflare tunnel) | High | User (decide) | ⚠️ Temp |
+| 4 | Crash / error monitoring (Sentry type) | Medium | Next dev batch | ❌ |
+| 5 | Play Store logistics (listing, screenshots, signing track) | Medium | User | ❌ |
+
+---
+
+## 2. Production Readiness Scorecard
+
+| Area | Status | Notes |
+|------|--------|-------|
+| Auth & Account | ✅ Done | 5 modes, OTP, SecureStore sessions |
+| Dashboard | ✅ Done | Focus card, stats, quick links |
+| Focus Timer | ✅ Done | Offline-safe, server-authoritative XP |
+| Roadmap | ✅ Done | Map + builder + AI generation + resources |
+| Courses | ✅ Done | Topics CRUD, progress recompute, user-scoped |
+| Notes | ✅ Done | Rich editor, offline queue, sanitizer |
+| Quiz | ✅ Done | AI generation, tab-switch proof store, honest sync note |
+| AI Assistant | ✅ Done | Thread 24h persist, in-flight survival (backend-dependent) |
+| Leaderboard | ✅ Done | Weekly, honest error/empty states |
+| Friends / Squad | ✅ Done | Invite/accept/decline, scoped |
+| Settings & Profile | ✅ Done | Validated inputs, avatar allowlist |
+| Info Pages | ✅ Done | About / Help / Privacy / Terms / Contact |
+| Onboarding | ⚠️ Built, bypassed | `SKIP_ONBOARDING_FOR_NOW = true` |
+| Offline & Sync | ✅ Done | Guards + banner + queues |
+| Security Hardening | ✅ Done | 1 SQL fix pending (anon revoke) |
+| Web SEO / Static Export | ✅ Done | 19/19 routes prerender (`output: "static"`) |
+| Web hosting (deploy) | ❌ Not deployed | Static export ready |
+| Native build / APK | ❌ Not built | Expo Go only so far |
+| Device QA (user-led) | ⏳ Pending | Kill/reopen Expo Go to avoid stale bundle |
+| Monitoring | ❌ None | No crash visibility in production |
+| CI/CD | ❌ None | Manual workflow (tsc → lint → commit → push) |
+
+---
+
+## 3. Features (A → Z)
+
+### 3.1 Auth & Account (`src/app/login.tsx`)
+- Single screen, 5 modes: **login / signup / verify / forgot / reset** (animated two-phase mode switches)
+- **OTP card** (`src/components/auth/otp-input.tsx`): 6 boxes, paste + `one-time-code` autofill, 60s resend cooldown, auto-submit on 6th digit
+- Floating-label fields, lilac focus ring, password eye toggle, legal links
+- `AuthGlow` fixed backdrop (no blurs on login — tap-time perf), brand row (formicon + CreateFuture wordmark)
+- `readableError` (network/DNS → "No internet connection") + auto-retry once on network-layer failures
+- Sessions **encrypted** in `expo-secure-store` (chunked >1800 chars, pointer written last, AsyncStorage migration, web/memory fallback)
+- Account sheet (`src/components/account-sheet.tsx`): avatar tap → profile + Level/XP/streak chips + quick links + logout + info links
+- `signOut()` clears local timer caches + exact-account queue safety (counters accounts ke beech leak nahi hoti)
+
+### 3.2 Dashboard (`src/app/index.tsx`)
+- Today's focus card with working CTAs: Start session → `/timer?courseId`, Roadmap → `/roadmap?courseId`, Courses → `/courses`
+- Player stats, focus timer widget, quick links, footer info links, offline banner
+- Onboarding gate: fresh install → `/onboarding` → `/login`
+
+### 3.3 Focus Timer (`src/app/timer.tsx`, `src/lib/timer.ts`)
+- Focus sessions with optional course link; XP via `record_activity` (server clamps 1440/day, negative = no-op)
+- Offline commit handling (`CommitFocusResult`) — honest messaging, no fake XP
+- Counters cached (`atlas.timer` / `atlas.sessions` / `atlas.focus.base`) and cleared on signOut
+
+### 3.4 Roadmap (`src/app/roadmap.tsx`, `src/components/roadmap/*`)
+- Map view: circular level nodes, boss levels, translucent blurred map card, soft-glow empty state
+- **Builder**: segmented level/commitment controls, template grid, AI generation (offline-guarded)
+- Detail sheet: objectives + resources; resource URLs scheme-validated (sirf http/s khulti hain)
+
+### 3.5 Courses (`src/app/courses.tsx`, `src/lib/db/courses.ts`)
+- Course list with progress; topics add/remove/status; `recomputeCourseProgress`
+- Har write `.eq(user_id)` scoped
+
+### 3.6 Notes (`src/app/notes.tsx`, `src/lib/notes.ts`, `src/lib/notes-queue.ts`)
+- Rich editor (WebView) + **allowlist sanitizer** (runtime-verified: script/style/iframe/svg blocks drop, entity-encoded `javascript:` reject, unclosed tags escape)
+- WebView navigation gate: sirf inline document load hota hai; bahar wale safe http(s) links system browser mein
+- **Offline queue**: latest-wins per note, temp `local-…` ids + id-swap, retry on edit / 15s interval / foreground; per-account alag (owner-scoped)
+- Title cap 200, "Offline · N to sync" indicator, delete confirm
+
+### 3.7 Quiz (`src/app/quiz.tsx`, `src/lib/quiz-store.ts`)
+- AI generation + auto-grading (backend: qwen3.8-27b)
+- Session **module-level store** mein (tab switch / navigation ke across survive)
+- Done screen: honest sync note jab history save fail ho (XP fallback RPC alag chalta rehta hai)
+- `saveQuizSession` returns `{codes, recorded}`
+
+### 3.8 AI Assistant (`src/app/assistant.tsx`, `src/lib/assistant-store.ts`)
+- ChatGPT-style layout; thread 24h persist (AsyncStorage, owner-scoped)
+- In-flight request navigation ke baad bhi complete hoti hai; offline guard on send
+
+### 3.9 Leaderboard (`src/app/leaderboard.tsx`)
+- Weekly ranking; `{ok, entries}` shape — connection failure pe "Couldn't load…" + **Try again**, empty state jhooti nahi
+
+### 3.10 Friends / Squad (`src/app/friends.tsx`, `src/lib/db/squad.ts`)
+- Invite create / accept (addressee only) / decline (either side)
+- Blurred glass cards; `{ok, members}` honest states
+
+### 3.11 Settings & Profile (`src/app/settings.tsx`, `src/lib/db/profile.ts`)
+- Display name (max 60), username (`^[a-z0-9_]{3,24}$`), avatar select/remove
+- Avatar **host allowlist** (DiceBear API ya project storage only) — client + DB dono side
+
+### 3.12 Navigation & Shell
+- NavigationDrawer (logout removed per user request), AppHeader (76px standard), ScreenShell (BlurTarget + offline banner + footer links)
+- Global stack transitions: `slide_from_right` 240ms; login/onboarding fade 300ms
+
+### 3.13 Info Pages (`/about` `/help` `/privacy` `/terms` `/contact`)
+- Public (signed-out accessible), glass cards + BlurView backdrops
+- Contact form → `contact_messages` (email validation, length clamps, offline guard)
+
+### 3.14 Onboarding (`src/app/onboarding.tsx`)
+- 4 swipeable slides, pure-View visuals, native-driver float loops
+- **Filhal skipped**: `SKIP_ONBOARDING_FOR_NOW = true` (`src/lib/onboarding.ts`) — gate seedha `/login` bhejta hai; screen intact hai
+
+### 3.15 Offline & Sync Infrastructure (`src/lib/net.ts`, `src/components/offline-banner.tsx`)
+- `isOnline()` / `ensureOnline(msg)` (instant "No internet" Alert) / `subscribeNetwork`
+- Floating offline pill: ScreenShell + dashboard + assistant mein mounted
+- Guards: quiz generate, assistant send, roadmap generate, friend invite, avatar/profile save, contact submit
+
+### 3.16 Security Layer
+- Notes sanitizer + WebView gate + avatar allowlist + owner-scoped queue + SecureStore sessions + timer cache clear on signOut
+- Ownership predicates: notes update/delete, squad accept/decline, courses/topics/recompute, sessions insert with `user_id`
+- DB hardening (`supabase/security-hardening.sql` — user ne run ki): length CHECKs (NOT VALID → sirf naye writes), avatar host CHECK, focus RPCs, RLS audit query
+
+### 3.17 Web (SEO / Static Export)
+- `app.json` → `web.output: "static"`; `src/app/+html.tsx` (description/og/twitter/theme-color + dark pre-hydration bg); `<Head>` title in `_layout.tsx`
+- `npx expo export --platform web` → **19/19 routes** prerender clean; `dist/` gitignored
+- Hosting/deploy abhi nahi hui
+
+---
+
+## 4. Live Verified Facts (probes, 2026-10-17)
+
+| Check | Result |
+|-------|--------|
+| Supabase GoTrue health | ✅ `v2.197.0` |
+| AI backend health | ✅ `ok`, `ai_configured=true` (roadmap=gemini-3.5-flash, quiz/code=qwen3.8-27b, chat=gpt-oss-20b) |
+| XP authority | ✅ `record_activity` server-side clamp (999999 → 1440/day; negative → no-op) |
+| RLS (anon) | ✅ notes / learning_sessions / profiles → `[]` (no leakage) |
+| Contact form (anon) | ✅ insert 201 (public form works) |
+| `learning_sessions.user_id` | ✅ column exists |
+| SQL hardening run | ✅ RPCs exist (404 only for missing-fn control) |
+| Sanitizer | ✅ runtime node-test pass (XSS cases blocked) |
+| `tsc --noEmit` / `expo lint` | ✅ clean |
+| Web static export | ✅ 19/19 routes, SEO meta verified |
+
+---
+
+## 5. Security Audit Findings
+
+| Finding | Severity | Impact | Status |
+|---------|----------|--------|--------|
+| Focus RPCs **anon-callable** (Supabase default privileges direct `anon` grant — `revoke from public` kaafi nahi) | **Low** (body `where id = auth.uid()`, anon uid = null → no-op) | Koi data change nahi hota, magar defense-in-depth | ⏳ File updated; **user ko 2 lines run karni hain**: `revoke all on function increment_global_focus(integer) from anon;` + same for `increment_course_focus(bigint, integer)` |
+| npm audit: 30 vulns (11 moderate / 19 high) | Low (tooling only) | Expo tooling chain (@expo/config-plugins etc.) — app runtime pe asar nahi | Deliberately not auto-fixed; next SDK upgrade pe re-check |
+| Test users in DB | Housekeeping | `atlas.devcheck.1017@gmail.com`, `atlas.probe.1017@gmail.com` + "Message from RLS Probe" row | ⏳ Dashboard se delete karo |
+
+---
+
+## 6. Backend & Infrastructure
+
+- **Supabase project:** `bzwqiguoihztbvnammqx` — RLS verified, XP server-authoritative, constraints live
+- **AI backend:** external service via `EXPO_PUBLIC_AI_API_URL` — **temporary trycloudflare tunnel**; tunnel badla → quiz/assistant/roadmap AI dead (EAS env + `.env` update zaroori)
+- **Auth config:** Confirm email DISABLED (signup returns session instantly); OTP screens fallback ke tor pe maujood
+- **Env:** `.env` local + EAS "production" environment set (eas.json); `eas build` pe `--environment` flag nahi hota (eas.json se aata hai)
+- **Versioning:** `versionCode 2`, `runtimeVersion: { policy: "appVersion" }` — OTA ka scope app version se bandha hua
+
+---
+
+## 7. Build & Release State
+
+- APK **abhi bani hi nahi** (pehla build queued tha, user request pe cancel) — sab kuch Expo Go pe test hua hai
+- 2 old finished EAS builds (Oct 14) delete nahi ho sakte; artifacts ~Nov 13 expire
+- Keystore: remote EAS-managed
+- **Zaroori:** `expo-secure-store` + `expo-network` ab app.json plugins/extras mein hain — next `eas build` unhein include karega (Expo Go mein filhal chal rahe hain)
+- OTA: production channel ready, koi update publish nahi hui (policy: sirf device tests pass hone ke baad)
+
+---
+
+## 8. Known Gaps / Risks
+
+1. **AI tunnel** — production SLA nahi, kabhi bhi change ho sakta hai
+2. **No monitoring** — production crash/error blindness
+3. **Onboarding root cause** — kyun nahi dikh raha tha, root cause abhi tak nahi mila (deliberately parked)
+4. **Device QA** — real phone pe user-led testing abhi baqi (jank/feel/notch issues sirf phone pe pakre jate hain)
+5. **Web not deployed** — SEO shell tayyar hai magar kahin host nahi hui
+6. **Multi-device races** — focus counters read-modify-write hain; atomic RPCs file mein ready hain, jab zaroorat ho switch karna
+7. **npm vulns** — tooling chain, blocking nahi
+
+---
+
+## 9. Action Items
+
+### User ke liye (immediate)
+1. Supabase SQL Editor: `revoke all on function increment_global_focus(integer) from anon;` aur `revoke all on function increment_course_focus(bigint, integer) from anon;`
+2. Dashboard se: 2 test users + "Message from RLS Probe" row delete
+3. `npx expo start -c` → Expo Go kill/reopen → full device QA pass
+
+### Next dev batches (recommended order)
+1. Sentry integration (`sentry-react-native-sdk`)
+2. AI backend stable hosting (Vercel/Railway/Fly.io) + EAS env update
+3. APK build (`eas build --platform android --profile production`) + closed testing
+4. Web deploy (EAS Hosting / any static host)
+5. Onboarding root-cause + enable
+6. Focus counters → atomic RPCs (multi-device)
+
+---
+
+## 10. Tech Stack & Key Files
+
+**Stack:** Expo SDK 57 · RN 0.86 · expo-router (typed routes) · Supabase (Auth + Postgres) · expo-secure-store · expo-network · expo-blur · expo-image · legacy Animated only (native-driver) · plain StyleSheet (no NativeWind) · Geist / Outfit / CreateFuture fonts
+
+**Key files:**
+| File | Role |
+|------|------|
+| `src/app/_layout.tsx` | Stack transitions, fonts, Head (SEO), TimerProvider |
+| `src/app/login.tsx` | Auth 5-mode screen |
+| `src/lib/supabase.ts` | Client + `SUPABASE_ORIGIN` + SecureStore session storage |
+| `src/lib/auth.ts` | Auth calls, `withRetry`, `readableError`, signOut |
+| `src/lib/net.ts` | Online/offline detection + guards |
+| `src/lib/notes-queue.ts` | Per-account offline notes queue |
+| `src/lib/quiz-store.ts` | Module-level quiz session |
+| `src/lib/timer.ts` | Focus timer + local caches |
+| `src/lib/dicebear.ts` | Avatar allowlist |
+| `supabase/security-hardening.sql` | DB hardening (constraints + RPCs + audit) |
+| `src/app/+html.tsx` | Web document shell (SEO) |
+
+---
+
+## 11. Recent Commit Timeline
+
+| Commit | What |
+|--------|------|
+| `45f97c9` | Revoke anon execute on focus RPCs, note SQL run |
+| `1317a2a` | Make hardening SQL idempotent and signup-safe |
+| `adf2beb` | Add web SEO shell, static export and DB hardening SQL |
+| `f4dd7d5` | Add offline guards and honest sync states across app |
+| `856fd49` | Harden notes, sync writes, avatars and session storage |
+| `de7cd31` | Phase A: dead code removal, onboarding bypass, honest offline focus handling |
+| `5886d99` | Set EAS environment on production build profile (versionCode 2) |
+| `874bed1` → `a780788` | Onboarding finalize, design-reference cycle, screenshots |
+
+---
+
+*Report generated from live probes + repo state. Har naye batch ke baad ye file update karni chahiye.*

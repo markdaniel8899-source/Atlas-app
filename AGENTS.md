@@ -24,6 +24,7 @@
 | React Native general | `react-native-best-practices`, `mobile-native`, `design-mobile-apps` |
 
 ## Project Context
+- **`PRODUCTION-AUDIT.md` (root)** — full app audit report: production readiness (~95%), tamam features A→Z, live probe results, security findings, blockers + action items. Read it before big decisions; update it after each batch.
 - Expo SDK 57 (React Native 0.86) app at `C:\Scrap\App`. Entry: `src/app` (expo-router).
 - App identity: `app.json` → name ATLAS, slug `atlas-mobile`, EAS projectId `e3da5166-3d70-4bfa-ae8f-0a703790c725`.
 - Backend: Supabase. Env in `.env` (kept after reset; gitignored).
