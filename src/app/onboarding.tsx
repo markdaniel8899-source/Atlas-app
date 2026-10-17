@@ -310,9 +310,11 @@ export default function OnboardingScreen() {
   );
   const last = index === SLIDES.length - 1;
 
-  function finish() {
-    void markOnboardingSeen();
-    router.replace("/");
+  async function finish() {
+    await markOnboardingSeen();
+    // Straight to login: index.tsx would bounce signed-out users here anyway,
+    // and login auto-redirects to "/" for the signed-in deep-link edge case.
+    router.replace("/login");
   }
 
   function next() {
