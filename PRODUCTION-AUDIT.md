@@ -1,6 +1,6 @@
 # ATLAS — Production Audit & Feature Report
 
-> **Date:** 2026-10-17 · **Commit:** `45f97c9` · **Branch:** main · **App:** ATLAS (Expo SDK 57 / RN 0.86)
+> **Date:** 2026-10-17 · **Commit:** `3c87b04` · **Branch:** main · **App:** ATLAS (Expo SDK 57 / RN 0.86)
 > Ye file app ki current **production readiness**, tamam **shipped features** aur overall **state** ka single source of truth hai. Koi bhi naya session isay pehle parh le.
 
 ---
@@ -12,7 +12,7 @@
 | # | Blocker | Severity | Owner | Status |
 |---|---------|----------|-------|--------|
 | 1 | Focus RPCs se `anon` execute revoke (2 SQL lines) | High (2 min ka kaam) | User | ⏳ Pending |
-| 2 | APK / native build + real-device QA | High | User (test) | ❌ Not built |
+| 2 | **Naya APK build (versionCode 3)** — notifications + widget native modules ke liye | High | User (build) | ⏳ Code ready (`3c87b04`) |
 | 3 | AI backend stable hosting (abhi temporary trycloudflare tunnel) | High | User (decide) | ⚠️ Temp |
 | 4 | Crash / error monitoring (Sentry type) | Medium | Next dev batch | ❌ |
 | 5 | Play Store logistics (listing, screenshots, signing track) | Medium | User | ❌ |
@@ -37,11 +37,13 @@
 | Info Pages | ✅ Done | About / Help / Privacy / Terms / Contact |
 | Onboarding | ✅ Done | One-time first-launch gate (fresh install → onboarding → login) |
 | Offline & Sync | ✅ Done | Guards + banner + queues |
+| Notifications | 🟡 Code ready | Session-end alert (expo-notifications) — **next build** mein active |
+| Android Widget | 🟡 Code ready | Streak/rank card (react-native-android-widget) — **next build** mein active |
 | Security Hardening | ✅ Done | 1 SQL fix pending (anon revoke) |
 | Web SEO / Static Export | ✅ Done | 19/19 routes prerender (`output: "static"`) |
 | Web hosting (deploy) | ❌ Not deployed | Static export ready |
-| Native build / APK | ❌ Not built | Expo Go only so far |
-| Device QA (user-led) | ⏳ Pending | Kill/reopen Expo Go to avoid stale bundle |
+| Native build / APK | ✅ Built (vc2) | Production APK installed; vc3 build notifications + widget ke sath aayega |
+| Device QA (user-led) | 🔄 In progress | 7 bug-fix batches device pe test ho chuke; OTA after each fix |
 | Monitoring | ❌ None | No crash visibility in production |
 | CI/CD | ❌ None | Manual workflow (tsc → lint → commit → push) |
 
@@ -133,6 +135,11 @@
 - `npx expo export --platform web` → **19/19 routes** prerender clean; `dist/` gitignored
 - Hosting/deploy abhi nahi hui
 
+### 3.18 Notifications & Home-Screen Widget (`3c87b04` — next build mein active)
+- **Session-end local notification** (`src/lib/notifications.ts` + `timer-context.tsx`): session start/resume pe end-time ka DATE-trigger alert schedule hota hai ("Session complete — Your focus session has ended. Open ATLAS to bank your XP."), pause/stop/sign-out pe cancel. App open ho to foreground handler banner SUPPRESS karta hai (in-app completion card hi UI hai) — app background/killed ho to notification fire hoti hai. Channel `session-alerts` (HIGH importance, lilac). Permission pehli session pe mangti hai.
+- **Android widget** (`src/lib/widgets/*`): dark lilac-gradient card — "ATLAS" (CreateFuture) + LV, bara 🔥 streak number, rank name + XP. Tap → app open. Data `atlas.widget.data.v1` cache se (dashboard ke har profile fetch pe `syncAtlasWidget` update karta hai; sign-out pe reset — account leak nahi). Task handler `_layout` module scope pe registered (headless redraw).
+- **Crash-safety:** dono modules lazy `require` + try/catch ke peeche hain — purani APK / Expo Go / web pe silently skip (isliye ye batch OTA-publish NAHI hui; vc3 build chahiye).
+
 ---
 
 ## 4. Live Verified Facts (probes, 2026-10-17)
@@ -157,7 +164,7 @@
 | Finding | Severity | Impact | Status |
 |---------|----------|--------|--------|
 | Focus RPCs **anon-callable** (Supabase default privileges direct `anon` grant — `revoke from public` kaafi nahi) | **Low** (body `where id = auth.uid()`, anon uid = null → no-op) | Koi data change nahi hota, magar defense-in-depth | ⏳ File updated; **user ko 2 lines run karni hain**: `revoke all on function increment_global_focus(integer) from anon;` + same for `increment_course_focus(bigint, integer)` |
-| npm audit: 30 vulns (11 moderate / 19 high) | Low (tooling only) | Expo tooling chain (@expo/config-plugins etc.) — app runtime pe asar nahi | Deliberately not auto-fixed; next SDK upgrade pe re-check |
+| npm audit: 33 vulns (11 moderate / 22 high) | Low (tooling only) | Expo tooling chain (@expo/config-plugins etc.) — app runtime pe asar nahi | Deliberately not auto-fixed; next SDK upgrade pe re-check |
 | Test users in DB | Housekeeping | `atlas.devcheck.1017@gmail.com`, `atlas.probe.1017@gmail.com` + "Message from RLS Probe" row | ⏳ Dashboard se delete karo |
 
 ---
@@ -174,11 +181,12 @@
 
 ## 7. Build & Release State
 
-- APK **abhi bani hi nahi** (pehla build queued tha, user request pe cancel) — sab kuch Expo Go pe test hua hai
+- **Production APK built + installed:** `453427c7-9ce8-452e-b893-4c1ad28b460c` (commit `4097b09`, versionCode 2, channel `production`, runtime 1.0.0)
+- **OTA live:** 3 update groups device pe test ho chuke — `b563d481…` (6-bug batch), `0f7d6a99…` (assistant keyboard flush), `ffe8892b…` (friends/drawer/offline). Publish cmd: `$env:CI=1; eas update --branch production --platform android --environment production --message "…"`
+- **Next build (user, morning):** `eas build --platform android --profile production` — versionCode **3**, notifications + widget native modules include honge. Ye batch OTA se NAHI aa sakta (native modules).
 - 2 old finished EAS builds (Oct 14) delete nahi ho sakte; artifacts ~Nov 13 expire
-- Keystore: remote EAS-managed
-- **Zaroori:** `expo-secure-store` + `expo-network` ab app.json plugins/extras mein hain — next `eas build` unhein include karega (Expo Go mein filhal chal rahe hain)
-- OTA: production channel ready, koi update publish nahi hui (policy: sirf device tests pass hone ke baad)
+- Keystore: remote EAS-managed (`lFBi1Xtp8Y`)
+- OTA policy: sirf device-safe JS changes publish karo; native changes (icons/splash/plugins/modules) ke liye `eas build` zaroori
 
 ---
 
@@ -196,22 +204,21 @@
 ## 9. Action Items
 
 ### User ke liye (immediate)
-1. Supabase SQL Editor: `revoke all on function increment_global_focus(integer) from anon;` aur `revoke all on function increment_course_focus(bigint, integer) from anon;`
-2. Dashboard se: 2 test users + "Message from RLS Probe" row delete
-3. `npx expo start -c` → Expo Go kill/reopen → full device QA pass
+1. **Naya APK build (morning):** `eas build --platform android --profile production` (versionCode 3) → install → notifications + widget live ho jayenge. Widget: long-press home screen → Widgets → "ATLAS — Streak & Rank" pin karo.
+2. Supabase SQL Editor: `revoke all on function increment_global_focus(integer) from anon;` aur `revoke all on function increment_course_focus(bigint, integer) from anon;`
+3. Dashboard se: 2 test users + "Message from RLS Probe" row delete
 
 ### Next dev batches (recommended order)
 1. Sentry integration (`sentry-react-native-sdk`)
 2. AI backend stable hosting (Vercel/Railway/Fly.io) + EAS env update
-3. APK build (`eas build --platform android --profile production`) + closed testing
-4. Web deploy (EAS Hosting / any static host)
-5. Focus counters → atomic RPCs (multi-device)
+3. Web deploy (EAS Hosting / any static host)
+4. Focus counters → atomic RPCs (multi-device)
 
 ---
 
 ## 10. Tech Stack & Key Files
 
-**Stack:** Expo SDK 57 · RN 0.86 · expo-router (typed routes) · Supabase (Auth + Postgres) · expo-secure-store · expo-network · expo-blur · expo-image · legacy Animated only (native-driver) · plain StyleSheet (no NativeWind) · Geist / Outfit / CreateFuture fonts
+**Stack:** Expo SDK 57 · RN 0.86 · expo-router (typed routes) · Supabase (Auth + Postgres) · expo-secure-store · expo-network · expo-blur · expo-image · expo-notifications · react-native-android-widget · legacy Animated only (native-driver) · plain StyleSheet (no NativeWind) · Geist / Outfit / CreateFuture fonts
 
 **Key files:**
 | File | Role |
@@ -225,6 +232,8 @@
 | `src/lib/quiz-store.ts` | Module-level quiz session |
 | `src/lib/timer.ts` | Focus timer + local caches |
 | `src/lib/dicebear.ts` | Avatar allowlist |
+| `src/lib/notifications.ts` | Session-end alert (lazy expo-notifications, crash-safe) |
+| `src/lib/widgets/*` | Android streak/rank widget (data cache, UI, task handler, sync) |
 | `supabase/security-hardening.sql` | DB hardening (constraints + RPCs + audit) |
 | `src/app/+html.tsx` | Web document shell (SEO) |
 
@@ -234,6 +243,11 @@
 
 | Commit | What |
 |--------|------|
+| `3c87b04` | Session-end notifications + Android streak/rank widget (vc3, next build) |
+| `730204e` | Friends reload fix, drawer brand row, 3s offline pill |
+| `29001c8` | Assistant composer docks flush onto keyboard |
+| `a443f83` | 6 device-test fixes: assistant thread, avatar policy, courses, notes |
+| `4097b09` | Production APK build (vc2) + device-test fix batch |
 | `f4ebe1d` | Re-enable onboarding one-time gate for fresh installs |
 | `45f97c9` | Revoke anon execute on focus RPCs, note SQL run |
 | `1317a2a` | Make hardening SQL idempotent and signup-safe |
