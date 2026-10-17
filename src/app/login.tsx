@@ -938,13 +938,14 @@ const styles = StyleSheet.create({
   },
   content: {
     flexGrow: 1,
-    justifyContent: "center",
+    justifyContent: "flex-start",
     paddingHorizontal: 24,
   },
   contentWrap: {
     width: "100%",
     maxWidth: 400,
     alignSelf: "center",
+    marginTop: 16,
   },
   header: {
     alignItems: "center",
@@ -964,7 +965,7 @@ const styles = StyleSheet.create({
   brandName: {
     fontSize: 34,
     fontFamily: fonts.brand,
-    letterSpacing: 5,
+    letterSpacing: 2,
     color: colors.white,
   },
   headerBody: {
