@@ -11,6 +11,17 @@
 --   * contact_messages accepts anonymous inserts (public contact form works).
 
 -- ---------------------------------------------------------------- 1. Length caps
+-- Cross-checked against every client write path (2026-10-17):
+--   contact form clamps name<=80 / email<=120 / message<=4000, subject ~95;
+--   settings input maxLength display_name=60, username regex {3,24};
+--   note title input maxLength=200. All safely inside these caps.
+-- NOT VALID: existing rows are never checked or touched; only new writes
+-- are validated. Re-running this file is safe (drop-then-add).
+
+alter table contact_messages drop constraint if exists contact_messages_name_len;
+alter table contact_messages drop constraint if exists contact_messages_email_len;
+alter table contact_messages drop constraint if exists contact_messages_subject_len;
+alter table contact_messages drop constraint if exists contact_messages_message_len;
 alter table contact_messages
   add constraint contact_messages_name_len
     check (char_length(name) <= 120) not valid,
@@ -21,12 +32,16 @@ alter table contact_messages
   add constraint contact_messages_message_len
     check (char_length(message) <= 8000) not valid;
 
+alter table profiles drop constraint if exists profiles_display_name_len;
+alter table profiles drop constraint if exists profiles_username_len;
 alter table profiles
   add constraint profiles_display_name_len
     check (char_length(coalesce(display_name, '')) <= 80) not valid,
   add constraint profiles_username_len
-    check (char_length(username) between 3 and 32) not valid;
+    check (char_length(username) <= 32) not valid;
 
+alter table notes drop constraint if exists notes_title_len;
+alter table notes drop constraint if exists notes_content_len;
 alter table notes
   add constraint notes_title_len
     check (char_length(title) <= 200) not valid,
@@ -35,10 +50,13 @@ alter table notes
 
 -- ------------------------------------------------- 2. Avatar URL host allowlist
 -- Mirrors the client allowlist (lib/dicebear.ts): DiceBear API or this
--- project's public storage bucket only.
+-- project's public storage bucket only. Empty string is tolerated so an
+-- unknown signup trigger seeding '' cannot break new signups.
+alter table profiles drop constraint if exists profiles_avatar_url_host;
 alter table profiles
   add constraint profiles_avatar_url_host check (
     avatar_url is null
+    or avatar_url = ''
     or avatar_url like 'https://api.dicebear.com/%'
     or avatar_url like 'https://bzwqiguoihztbvnammqx.supabase.co/storage/v1/object/public/%'
   ) not valid;
