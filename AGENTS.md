@@ -75,6 +75,7 @@
   - Legal line under the form links to `/privacy` & `/terms`.
   - Password: `secureTextEntry` dots + eye toggle reveal (Android/iOS briefly flash the last typed character — OS behavior, can’t remove without a native dev build).
   - **Driver rule (crash fix):** never mix js-driver + native-driver animations on the same animated component — RN moves the whole style node to native and then throws on the JS animation. Login animations are strictly native-driver (opacity/transform only); the field focus glow is an opacity-faded overlay ring (`fieldGlow`), label color is a two-layer crossfade.
+  - **Addendum:** focus ring sits at `inset 0` aligned with the box border (no double outline) + soft lilac shadow; ModeToggle pill = 520ms `Easing.bezier(0.22,1,0.36,1)` with label crossfade; auth background is FIXED-SIZE (`bgSize` max-ever window dims in `login.tsx`, `AuthMesh` takes `width`/`height` props) so Android keyboard resize no longer re-layouts the mesh (was the tap-time "background jerk"); AuthMesh drift loops lazy-start after 450ms.
 - Next sensible steps: side-by-side visual diff vs mobile web (`argent-screenshot-diff`), device QA in Expo Go (kill/reopen to avoid stale bundles), then optional `eas build` for native changes.
 
 ## Workflow Preferences (user)

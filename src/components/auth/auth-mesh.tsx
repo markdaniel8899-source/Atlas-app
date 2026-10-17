@@ -1,11 +1,5 @@
 import { useEffect, useRef } from "react";
-import {
-  Animated,
-  Easing,
-  StyleSheet,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { Animated, Easing, StyleSheet, View } from "react-native";
 import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 
 interface BlobSpec {
@@ -92,8 +86,11 @@ function MeshBlob({ spec, base }: { spec: BlobSpec; base: number }) {
         }),
       ]),
     );
-    loop.start();
-    return () => loop.stop();
+    const timer = setTimeout(() => loop.start(), 450);
+    return () => {
+      clearTimeout(timer);
+      loop.stop();
+    };
   }, [drift, spec.duration]);
 
   const size = base * spec.size;
@@ -142,8 +139,13 @@ function MeshBlob({ spec, base }: { spec: BlobSpec; base: number }) {
   );
 }
 
-export function AuthMesh() {
-  const { width, height } = useWindowDimensions();
+export function AuthMesh({
+  width,
+  height,
+}: {
+  width: number;
+  height: number;
+}) {
   const base = Math.max(width, height);
 
   return (

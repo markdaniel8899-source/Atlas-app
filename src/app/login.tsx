@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
   Animated,
+  Easing,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -10,6 +11,7 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -70,6 +72,12 @@ export default function LoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const blurTargetRef = useRef<View | null>(null);
+  const { width: winWidth, height: winHeight } = useWindowDimensions();
+  const bgSize = useRef({ width: 0, height: 0 });
+  bgSize.current = {
+    width: Math.max(bgSize.current.width, winWidth),
+    height: Math.max(bgSize.current.height, winHeight),
+  };
 
   const [mode, setMode] = useState<Mode>("login");
   const [resetPhase, setResetPhase] = useState<ResetPhase>("code");
@@ -394,11 +402,20 @@ export default function LoginScreen() {
       <View style={styles.root}>
         <BlurTargetView
           ref={blurTargetRef}
-          style={StyleSheet.absoluteFill}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: bgSize.current.width,
+            height: bgSize.current.height,
+          }}
           pointerEvents="none"
         >
           <MeshBackground />
-          <AuthMesh />
+          <AuthMesh
+            width={bgSize.current.width}
+            height={bgSize.current.height}
+          />
         </BlurTargetView>
 
         <KeyboardAvoidingView
@@ -791,11 +808,7 @@ function Field({
     <View>
       <View>
         <View
-          style={[
-            styles.fieldBox,
-            focused && styles.fieldBoxFocused,
-            error && styles.fieldBoxError,
-          ]}
+          style={[styles.fieldBox, error && styles.fieldBoxError]}
         >
           <BlurView
             intensity={26}
@@ -868,8 +881,8 @@ function ModeToggle({
   useEffect(() => {
     Animated.timing(slide, {
       toValue: value === "signup" ? 1 : 0,
-      duration: 450,
-      easing: ease,
+      duration: 520,
+      easing: Easing.bezier(0.22, 1, 0.36, 1),
       useNativeDriver: true,
     }).start();
   }, [slide, value]);
@@ -902,21 +915,42 @@ function ModeToggle({
         />
       ) : null}
       {(["login", "signup"] as const).map((option) => {
-        const selected = value === option;
+        const onRight = option === "signup";
+        const accentOpacity = onRight
+          ? slide
+          : slide.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
+        const restOpacity = onRight
+          ? slide.interpolate({ inputRange: [0, 1], outputRange: [1, 0] })
+          : slide;
         return (
           <Pressable
             key={option}
             accessibilityRole="tab"
-            accessibilityState={{ selected }}
+            accessibilityState={{ selected: value === option }}
             disabled={disabled}
             onPress={() => onChange(option)}
             style={styles.toggleSeg}
           >
-            <Text
-              style={[styles.toggleText, selected && styles.toggleTextActive]}
-            >
-              {option === "login" ? "Log in" : "Sign up"}
-            </Text>
+            <View style={styles.toggleLabelWrap}>
+              <Animated.Text
+                style={[
+                  styles.toggleText,
+                  styles.toggleTextRest,
+                  { opacity: restOpacity },
+                ]}
+              >
+                {option === "login" ? "Log in" : "Sign up"}
+              </Animated.Text>
+              <Animated.Text
+                style={[
+                  styles.toggleText,
+                  styles.toggleTextActive,
+                  { opacity: accentOpacity },
+                ]}
+              >
+                {option === "login" ? "Log in" : "Sign up"}
+              </Animated.Text>
+            </View>
           </Pressable>
         );
       })}
@@ -1010,9 +1044,20 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 999,
   },
+  toggleLabelWrap: {
+    height: 20,
+    alignSelf: "stretch",
+    justifyContent: "center",
+  },
   toggleText: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    textAlign: "center",
     fontSize: 14,
     fontFamily: fonts.medium,
+  },
+  toggleTextRest: {
     color: colors.w45,
   },
   toggleTextActive: {
@@ -1054,9 +1099,6 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     paddingHorizontal: 14,
   },
-  fieldBoxFocused: {
-    borderColor: colors.lilac45,
-  },
   fieldTint: {
     position: "absolute",
     top: 0,
@@ -1070,24 +1112,24 @@ const styles = StyleSheet.create({
   },
   fieldGlow: {
     position: "absolute",
-    top: -2,
-    left: -2,
-    right: -2,
-    bottom: -2,
-    borderRadius: 16,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: "rgba(207,158,255,0.55)",
+    borderColor: "rgba(207,158,255,0.75)",
     ...(Platform.OS === "ios"
       ? {
-          shadowColor: "#9db4ff",
-          shadowOpacity: 0.45,
-          shadowRadius: 12,
-          shadowOffset: { width: 0, height: 0 },
+          shadowColor: "#cf9eff",
+          shadowOpacity: 0.35,
+          shadowRadius: 16,
+          shadowOffset: { width: 0, height: 4 },
         }
-      : { elevation: 4, shadowColor: "#9db4ff" }),
+      : { elevation: 6, shadowColor: "#cf9eff" }),
   },
   fieldGlowError: {
-    borderColor: "rgba(248,113,113,0.6)",
+    borderColor: "rgba(248,113,113,0.7)",
   },
   fieldBody: {
     flex: 1,
