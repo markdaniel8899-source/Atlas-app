@@ -35,7 +35,7 @@
 | Friends / Squad | ✅ Done | Invite/accept/decline, scoped |
 | Settings & Profile | ✅ Done | Validated inputs, avatar allowlist |
 | Info Pages | ✅ Done | About / Help / Privacy / Terms / Contact |
-| Onboarding | ⚠️ Built, bypassed | `SKIP_ONBOARDING_FOR_NOW = true` |
+| Onboarding | ✅ Done | One-time first-launch gate (fresh install → onboarding → login) |
 | Offline & Sync | ✅ Done | Guards + banner + queues |
 | Security Hardening | ✅ Done | 1 SQL fix pending (anon revoke) |
 | Web SEO / Static Export | ✅ Done | 19/19 routes prerender (`output: "static"`) |
@@ -115,7 +115,8 @@
 
 ### 3.14 Onboarding (`src/app/onboarding.tsx`)
 - 4 swipeable slides, pure-View visuals, native-driver float loops
-- **Filhal skipped**: `SKIP_ONBOARDING_FOR_NOW = true` (`src/lib/onboarding.ts`) — gate seedha `/login` bhejta hai; screen intact hai
+- One-time first-launch gate **active** (`f4ebe1d`): fresh install → onboarding → login; Skip/Get Started → `await markOnboardingSeen()` → `/login`
+- Storage key `atlas.onboarding.seen.v2` (v2 bump: pre-release test devices see it once more; fresh installs start empty)
 
 ### 3.15 Offline & Sync Infrastructure (`src/lib/net.ts`, `src/components/offline-banner.tsx`)
 - `isOnline()` / `ensureOnline(msg)` (instant "No internet" Alert) / `subscribeNetwork`
@@ -185,11 +186,10 @@
 
 1. **AI tunnel** — production SLA nahi, kabhi bhi change ho sakta hai
 2. **No monitoring** — production crash/error blindness
-3. **Onboarding root cause** — kyun nahi dikh raha tha, root cause abhi tak nahi mila (deliberately parked)
-4. **Device QA** — real phone pe user-led testing abhi baqi (jank/feel/notch issues sirf phone pe pakre jate hain)
-5. **Web not deployed** — SEO shell tayyar hai magar kahin host nahi hui
-6. **Multi-device races** — focus counters read-modify-write hain; atomic RPCs file mein ready hain, jab zaroorat ho switch karna
-7. **npm vulns** — tooling chain, blocking nahi
+3. **Device QA** — real phone pe user-led testing abhi baqi (jank/feel/notch issues sirf phone pe pakre jate hain)
+4. **Web not deployed** — SEO shell tayyar hai magar kahin host nahi hui
+5. **Multi-device races** — focus counters read-modify-write hain; atomic RPCs file mein ready hain, jab zaroorat ho switch karna
+6. **npm vulns** — tooling chain, blocking nahi
 
 ---
 
@@ -205,8 +205,7 @@
 2. AI backend stable hosting (Vercel/Railway/Fly.io) + EAS env update
 3. APK build (`eas build --platform android --profile production`) + closed testing
 4. Web deploy (EAS Hosting / any static host)
-5. Onboarding root-cause + enable
-6. Focus counters → atomic RPCs (multi-device)
+5. Focus counters → atomic RPCs (multi-device)
 
 ---
 
@@ -235,6 +234,7 @@
 
 | Commit | What |
 |--------|------|
+| `f4ebe1d` | Re-enable onboarding one-time gate for fresh installs |
 | `45f97c9` | Revoke anon execute on focus RPCs, note SQL run |
 | `1317a2a` | Make hardening SQL idempotent and signup-safe |
 | `adf2beb` | Add web SEO shell, static export and DB hardening SQL |
