@@ -299,6 +299,13 @@ export default function LoginScreen() {
         });
         return;
       }
+      if (mode === "signup" && result.error.includes("already exists")) {
+        switchMode("login", {
+          tone: "info",
+          text: "That email already has an account — log in below.",
+        });
+        return;
+      }
       setNotice({ tone: "error", text: result.error });
       return;
     }
@@ -435,11 +442,12 @@ export default function LoginScreen() {
                 },
               ]}
             >
-              <View style={styles.header}>
-                <View style={styles.brandRow}>
-                  <Image source={BRAND_ICON} style={styles.brandIcon} />
-                  <Text style={styles.brandName}>ATLAS</Text>
-                </View>
+              <View style={styles.brandRow}>
+                <Image source={BRAND_ICON} style={styles.brandIcon} />
+                <Text style={styles.brandName}>ATLAS</Text>
+              </View>
+
+              <View style={styles.centerArea}>
                 <Animated.View
                   style={[
                     styles.headerBody,
@@ -464,7 +472,6 @@ export default function LoginScreen() {
                   <Text style={styles.title}>{header.title}</Text>
                   <Text style={styles.subtitle}>{header.subtitle}</Text>
                 </Animated.View>
-              </View>
 
                   <Animated.View
                     style={{
@@ -745,6 +752,7 @@ export default function LoginScreen() {
                     </Pressable>
                   </View>
                   </Animated.View>
+              </View>
             </Animated.View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -945,24 +953,27 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 400,
     alignSelf: "center",
-    marginTop: 16,
+    flexGrow: 1,
+    marginTop: 26,
   },
-  header: {
-    alignItems: "center",
+  centerArea: {
+    flexGrow: 1,
+    justifyContent: "center",
   },
   brandRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 16,
+    alignSelf: "center",
+    gap: 18,
   },
   brandIcon: {
-    width: 72,
-    height: 72,
+    width: 84,
+    height: 84,
   },
   brandName: {
-    fontSize: 34,
+    fontSize: 40,
     fontFamily: fonts.brand,
-    letterSpacing: 2,
+    letterSpacing: 3,
     color: colors.white,
   },
   headerBody: {
