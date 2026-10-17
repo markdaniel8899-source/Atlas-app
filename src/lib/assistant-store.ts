@@ -47,12 +47,13 @@ function emit() {
 }
 
 function persist() {
+  persistedOwner = claimedOwner ?? persistedOwner;
   void AsyncStorage.setItem(
     STORAGE_KEY,
     JSON.stringify({
       turns: state.turns,
       savedAt: Date.now(),
-      ownerId: claimedOwner ?? persistedOwner,
+      ownerId: persistedOwner,
     }),
   ).catch(() => undefined);
 }
@@ -200,6 +201,7 @@ export function dismissAssistantError() {
 export function clearAssistantChat() {
   state = INITIAL;
   historyBase = [];
+  persistedOwner = null;
   emit();
   void AsyncStorage.removeItem(STORAGE_KEY).catch(() => undefined);
 }

@@ -388,8 +388,13 @@ export default function CoursesScreen() {
     setError(null);
     const created = await createCourse(title, description);
     if (!created) {
+      setBusy(false);
       setError("Could not create the course. Check your connection.");
+      return;
     }
+    setCourses((prev) =>
+      prev.some((row) => row.id === created.id) ? prev : [...prev, created],
+    );
     setTitle("");
     setDescription("");
     setShowForm(false);

@@ -5,6 +5,7 @@ import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChevronDown, ArrowLeft, Menu } from "lucide-react-native";
 import { AccountSheet } from "./account-sheet";
+import { pngAvatarUrl } from "../lib/dicebear";
 import { colors, fonts } from "../theme/theme";
 
 const APP_ICON = require("../../assets/icon.png");
@@ -31,6 +32,7 @@ export function AppHeader({
   const insets = useSafeAreaInsets();
   const [accountOpen, setAccountOpen] = useState(false);
   const handleAccountPress = onAccountPress ?? (() => setAccountOpen(true));
+  const resolvedAvatar = pngAvatarUrl(avatarUrl ?? null);
 
   const inner = (
     <View style={styles.inner}>
@@ -60,9 +62,9 @@ export function AppHeader({
         hitSlop={6}
         style={({ pressed }) => [styles.account, pressed && styles.pressed]}
       >
-        {avatarUrl ? (
+        {resolvedAvatar ? (
           <Image
-            source={{ uri: avatarUrl }}
+            source={{ uri: resolvedAvatar }}
             style={styles.avatar}
             contentFit="cover"
           />

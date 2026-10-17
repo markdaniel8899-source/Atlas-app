@@ -29,6 +29,7 @@ import {
 } from "lucide-react-native";
 import { resolveSession, signOut } from "../lib/auth";
 import { fetchProfile } from "../lib/db/profile";
+import { pngAvatarUrl } from "../lib/dicebear";
 import { PROFILE_CHANGED_EVENT, listen } from "../lib/events";
 import type { Profile } from "../lib/db/types";
 import { colors, ease, fonts } from "../theme/theme";
@@ -135,7 +136,10 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
   const displayName =
     profile?.display_name?.trim() || name.trim() || "Explorer";
   const username = profile?.username?.trim() ?? "";
-  const avatarSource = avatarUrl || profile?.avatar_url || APP_ICON;
+  const avatarSource =
+    pngAvatarUrl(avatarUrl ?? null) ??
+    pngAvatarUrl(profile?.avatar_url ?? null) ??
+    APP_ICON;
   const level = profile?.level ?? 1;
   const xp = profile?.xp ?? 0;
   const streak = profile?.streak ?? 0;

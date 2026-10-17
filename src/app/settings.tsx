@@ -185,7 +185,6 @@ export default function SettingsScreen() {
     const { profile: updated, error: saveError } = await updateProfile(user.id, {
       display_name: name,
       username: handle,
-      avatar_url: avatarUrl,
     });
 
     setSaving(false);
@@ -196,7 +195,6 @@ export default function SettingsScreen() {
     }
 
     setProfile(updated);
-    setAvatarUrl(avatarUrl);
     setDisplayName(updated?.display_name ?? name);
     setUsername(updated?.username ?? handle);
     notifyProfileChanged();
@@ -280,6 +278,11 @@ export default function SettingsScreen() {
               Unique generated avatars via DiceBear - pick a style that fits
               your rank.
             </Text>
+            {avatarUrl && !pngAvatarUrl(avatarUrl) ? (
+              <Text style={styles.avatarWarn}>
+                The saved avatar link isn’t supported - pick a new one.
+              </Text>
+            ) : null}
             <View style={styles.avatarButtons}>
               <Pressable
                 accessibilityRole="button"
@@ -660,6 +663,13 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontFamily: fonts.regular,
     color: "rgba(255,255,255,0.55)",
+  },
+  avatarWarn: {
+    marginTop: 6,
+    fontSize: 12.5,
+    lineHeight: 18,
+    fontFamily: fonts.regular,
+    color: "rgba(253,186,116,0.85)",
   },
   avatarButtons: {
     marginTop: 8,

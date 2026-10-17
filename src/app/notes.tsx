@@ -552,13 +552,6 @@ export default function NotesScreen() {
                 <Animated.Text style={[styles.savedText, { opacity: savedAnim }]}>
                   Saved
                 </Animated.Text>
-                {queue.pending > 0 ? (
-                  <Text style={styles.queuedText}>
-                    {queue.syncing
-                      ? "Syncing…"
-                      : `Offline · ${queue.pending} to sync`}
-                  </Text>
-                ) : null}
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Delete note"
@@ -838,11 +831,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: fonts.regular,
     color: colors.lilac70,
-  },
-  queuedText: {
-    fontSize: 11,
-    fontFamily: fonts.regular,
-    color: colors.w45,
   },
   titleRow: {
     borderBottomWidth: 1,

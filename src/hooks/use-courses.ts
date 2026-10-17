@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { fetchCourses } from "../lib/db/courses";
 import { COURSES_CHANGED_EVENT, FOCUS_CHANGED_EVENT, listen } from "../lib/events";
@@ -18,15 +18,17 @@ export interface CoursesState {
 export function useCourses(): CoursesState {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
+  const requestRef = useRef(0);
 
   const reload = useCallback(async () => {
+    const seq = ++requestRef.current;
     try {
       const rows = await fetchCourses();
-      setCourses(rows);
+      if (seq === requestRef.current) setCourses(rows);
     } catch {
-      setCourses([]);
+      // Keep whatever list is already on screen on a transient failure.
     } finally {
-      setLoading(false);
+      if (seq === requestRef.current) setLoading(false);
     }
   }, []);
 
