@@ -954,7 +954,7 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     alignSelf: "center",
     flexGrow: 1,
-    marginTop: 26,
+    marginTop: 40,
   },
   centerArea: {
     flexGrow: 1,
@@ -964,6 +964,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "center",
+    marginRight: 28,
     gap: 18,
   },
   brandIcon: {
@@ -971,7 +972,7 @@ const styles = StyleSheet.create({
     height: 84,
   },
   brandName: {
-    fontSize: 40,
+    fontSize: 44,
     fontFamily: fonts.brand,
     letterSpacing: 3,
     color: colors.white,

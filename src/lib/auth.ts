@@ -52,6 +52,16 @@ export function toAuthUser(user: User): AuthUser {
 
 function readableError(message: string): string {
   const m = message.toLowerCase();
+  if (
+    m.includes("unknownhost") ||
+    m.includes("fetch failed") ||
+    m.includes("network request failed") ||
+    m.includes("enotfound") ||
+    m.includes("timed out") ||
+    m.includes("timeout")
+  ) {
+    return "No internet connection — check your network and try again.";
+  }
   if (m.includes("invalid login")) {
     return "That email and password combination didn't work.";
   }
