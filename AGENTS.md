@@ -96,7 +96,12 @@
   - `AuthGlow` retuned from blue/indigo to **violet/lilac** (`#7c5cf0` halo, `#e3ccff` core) to match the theme accents.
   - Active/focus accents switched from star periwinkle to **lilac purple**: field focus ring `rgba(207,158,255,0.85)`, OTP active box lilac, brand icon ring lilac-tinted.
   - **Metro gotcha:** after replacing `assets/icon.png` (delete + re-create on Windows), Metro's resolver cache goes stale and throws `Unable to resolve "../../assets/icon.png"` even though the file exists — fix is `npx expo start -c` (clear cache).
-- Next sensible steps: side-by-side visual diff vs mobile web (`argent-screenshot-diff`), device QA in Expo Go (kill/reopen to avoid stale bundles), then optional `eas build` for native changes.
+- **Batch 8 (2026-10-17):**
+  - Onboarding finalized: `FORCE_ONBOARDING_FOR_TESTING` flipped back to `false` — onboarding is the one-time first-launch flow again (`874bed1`).
+  - `design-references/onboarding/` holds app screenshots of all 4 slides (`01-focus.png` / `02-roadmap.png` / `03-study.png` / `04-squad.png`) (`a780788`).
+  - Android `versionCode` bumped to `2` in `app.json`; `eas.json` production profile now sets `"environment": "production"` — eas-cli 24.14.0 has **no `--environment` flag on `eas build`** (env must come from eas.json; `eas update` does have the flag). EAS "production" env holds `EXPO_PUBLIC_*` vars (AI URL is a temporary trycloudflare tunnel — update EAS env if it changes) (`5886d99`).
+  - Production APK build queued for launcher/splash icon (versionCode 2, same keystore so it installs over the old build): https://expo.dev/accounts/markdaniel8899/projects/atlas-mobile/builds/1db6653a-fa8a-4e42-a6b2-e79aa5f1f004
+- Next sensible steps: install the new APK (launcher icon + splash check), user-led device tests, then `eas update --branch production` OTA once tests pass.
 
 ## Workflow Preferences (user)
 - User communicates in **Roman Urdu** — reply concisely in Roman Urdu.
