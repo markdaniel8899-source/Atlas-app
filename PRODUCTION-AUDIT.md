@@ -1,6 +1,6 @@
 # ATLAS — Production Audit & Feature Report
 
-> **Date:** 2026-10-17 · **Commit:** `3c87b04` · **Branch:** main · **App:** ATLAS (Expo SDK 57 / RN 0.86)
+> **Date:** 2026-10-18 · **Commit:** `3e7aac6` · **Branch:** main · **App:** ATLAS (Expo SDK 57 / RN 0.86)
 > Ye file app ki current **production readiness**, tamam **shipped features** aur overall **state** ka single source of truth hai. Koi bhi naya session isay pehle parh le.
 
 ---
@@ -12,7 +12,7 @@
 | # | Blocker | Severity | Owner | Status |
 |---|---------|----------|-------|--------|
 | 1 | Focus RPCs se `anon` execute revoke (2 SQL lines) | High (2 min ka kaam) | User | ⏳ Pending |
-| 2 | **Naya APK build (versionCode 3)** — notifications + widget native modules ke liye | High | User (build) | ⏳ Code ready (`3c87b04`) |
+| 2 | **Naya APK build (versionCode 3)** — notifications + widget native modules ke liye | High | User (build) | ✅ Built `7830c669` (2026-10-18) |
 | 3 | AI backend stable hosting (abhi temporary trycloudflare tunnel) | High | User (decide) | ⚠️ Temp |
 | 4 | Crash / error monitoring (Sentry type) | Medium | Next dev batch | ❌ |
 | 5 | Play Store logistics (listing, screenshots, signing track) | Medium | User | ❌ |
@@ -37,12 +37,12 @@
 | Info Pages | ✅ Done | About / Help / Privacy / Terms / Contact |
 | Onboarding | ✅ Done | One-time first-launch gate (fresh install → onboarding → login) |
 | Offline & Sync | ✅ Done | Guards + banner + queues |
-| Notifications | 🟡 Code ready | Session-end alert (expo-notifications) — **next build** mein active |
-| Android Widget | 🟡 Code ready | Streak/rank card (react-native-android-widget) — **next build** mein active |
+| Notifications | ✅ Built (vc3) | Session-end alert (expo-notifications) — vc3 APK mein active |
+| Android Widget | ✅ Built (vc3) | Streak/rank card (react-native-android-widget) — vc3 APK mein active |
 | Security Hardening | ✅ Done | 1 SQL fix pending (anon revoke) |
 | Web SEO / Static Export | ✅ Done | 19/19 routes prerender (`output: "static"`) |
 | Web hosting (deploy) | ❌ Not deployed | Static export ready |
-| Native build / APK | ✅ Built (vc2) | Production APK installed; vc3 build notifications + widget ke sath aayega |
+| Native build / APK | ✅ Built (vc3) | vc3 APK ready (notifications + widget + naya icon) — download link §7 |
 | Device QA (user-led) | 🔄 In progress | 7 bug-fix batches device pe test ho chuke; OTA after each fix |
 | Monitoring | ❌ None | No crash visibility in production |
 | CI/CD | ❌ None | Manual workflow (tsc → lint → commit → push) |
@@ -175,16 +175,16 @@
 - **AI backend:** external service via `EXPO_PUBLIC_AI_API_URL` — **temporary trycloudflare tunnel**; tunnel badla → quiz/assistant/roadmap AI dead (EAS env + `.env` update zaroori)
 - **Auth config:** Confirm email DISABLED (signup returns session instantly); OTP screens fallback ke tor pe maujood
 - **Env:** `.env` local + EAS "production" environment set (eas.json); `eas build` pe `--environment` flag nahi hota (eas.json se aata hai)
-- **Versioning:** `versionCode 2`, `runtimeVersion: { policy: "appVersion" }` — OTA ka scope app version se bandha hua
+- **Versioning:** `versionCode 3`, `runtimeVersion: { policy: "appVersion" }` — OTA ka scope app version se bandha hua
 
 ---
 
 ## 7. Build & Release State
 
-- **Production APK built + installed:** `453427c7-9ce8-452e-b893-4c1ad28b460c` (commit `4097b09`, versionCode 2, channel `production`, runtime 1.0.0)
+- **Production APK vc3 built (2026-10-18):** `7830c669-1619-4f53-81c1-79e6d51c40dd` (commit `3e7aac6`, versionCode **3**, channel `production`, runtime 1.0.0) — **notifications + widget + naya launcher icon**. Download: `https://expo.dev/artifacts/eas/400VNpJfrUrdMgmWae6oByO5IEBRxXzDaZLU5ym7JFE.apk` (verified HTTP 206). Install + device-test pending (user).
 - **OTA live:** 3 update groups device pe test ho chuke — `b563d481…` (6-bug batch), `0f7d6a99…` (assistant keyboard flush), `ffe8892b…` (friends/drawer/offline). Publish cmd: `$env:CI=1; eas update --branch production --platform android --environment production --message "…"`
-- **Next build (user, morning):** `eas build --platform android --profile production` — versionCode **3**, notifications + widget native modules include honge. Ye batch OTA se NAHI aa sakta (native modules).
-- 2 old finished EAS builds (Oct 14) delete nahi ho sakte; artifacts ~Nov 13 expire
+- **vc3 scope:** session-end notification (permission pehli session pe) + home-screen widget ("ATLAS — Streak & Rank") + naya launcher icon — sab is build mein active. Ye batch OTA se NAHI aa saka tha (native modules).
+- **Old builds:** vc1/vc2 ke chaar builds EAS se delete (2026-10-18, `eas build:delete <id> --non-interactive`)
 - Keystore: remote EAS-managed (`lFBi1Xtp8Y`)
 - OTA policy: sirf device-safe JS changes publish karo; native changes (icons/splash/plugins/modules) ke liye `eas build` zaroori
 
@@ -204,7 +204,7 @@
 ## 9. Action Items
 
 ### User ke liye (immediate)
-1. **Naya APK build (morning):** `eas build --platform android --profile production` (versionCode 3) → install → notifications + widget live ho jayenge. Widget: long-press home screen → Widgets → "ATLAS — Streak & Rank" pin karo.
+1. **vc3 APK install karo** (download link §7) → test: notifications (pehli session pe permission prompt + session-end alert), widget (long-press home screen → Widgets → "ATLAS — Streak & Rank"), naya launcher icon. Build ho chuki hai (`7830c669`).
 2. Supabase SQL Editor: `revoke all on function increment_global_focus(integer) from anon;` aur `revoke all on function increment_course_focus(bigint, integer) from anon;`
 3. Dashboard se: 2 test users + "Message from RLS Probe" row delete
 
@@ -243,6 +243,7 @@
 
 | Commit | What |
 |--------|------|
+| `3e7aac6` | Naya app icon + production APK vc3 build (`7830c669`) |
 | `3c87b04` | Session-end notifications + Android streak/rank widget (vc3, next build) |
 | `730204e` | Friends reload fix, drawer brand row, 3s offline pill |
 | `29001c8` | Assistant composer docks flush onto keyboard |
