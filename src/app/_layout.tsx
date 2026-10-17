@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Stack } from "expo-router";
+import Head from "expo-router/head";
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
@@ -39,6 +40,13 @@ export default function RootLayout() {
 
   return (
     <TimerProvider>
+      <Head>
+        <title>ATLAS — Turn studying into a game you want to win</title>
+        <meta
+          name="description"
+          content="ATLAS is a gamified study companion: focus sessions, courses, roadmaps, quizzes, a weekly leaderboard and an AI tutor that keeps your streak alive."
+        />
+      </Head>
       <Stack
         screenOptions={{
           headerShown: false,
