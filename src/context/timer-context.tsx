@@ -27,7 +27,19 @@ import {
 } from "../lib/timer";
 import type { TimerState } from "../lib/timer";
 import { notifyFocusChanged } from "../lib/events";
+import {
+  cancelSessionEndNotification,
+  scheduleSessionEndNotification,
+} from "../lib/notifications";
 import type { Course } from "../lib/db/types";
+
+/** Wall-clock moment the running session reaches its target (null if idle). */
+function sessionEndsAt(state: TimerState): number | null {
+  if (state.mode !== "running" || state.startedAt === null) return null;
+  const remaining = state.targetMin * 60_000 - elapsedMs(state);
+  if (remaining <= 0) return null;
+  return Date.now() + remaining;
+}
 
 export interface TimerContextValue {
   state: TimerState;
@@ -108,6 +120,11 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       baseRef.current = base;
       setState(stored);
       setGlobalBase(base);
+
+      // Keep the end-of-session alert in sync with a persisted run.
+      const endsAt = sessionEndsAt(stored);
+      if (endsAt) void scheduleSessionEndNotification(endsAt);
+      else void cancelSessionEndNotification();
 
       const serverSeconds = await getGlobalFocusSeconds();
       if (cancelled || serverSeconds <= baseRef.current) return;
@@ -201,6 +218,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       const delta = Math.floor((elapsed - current.flushedMs) / 1000);
       bumpBase(delta);
       applyState({ ...pauseTimer(current), flushedMs: elapsed });
+      void cancelSessionEndNotification();
       void flushFocus(current)
         .then(() => {
           void reloadCourseBase(current.courseId);
@@ -215,7 +233,10 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       return;
     }
     if (current.mode === "idle") void reloadCourseBase(current.courseId);
-    applyState(startTimer(current));
+    const next = startTimer(current);
+    applyState(next);
+    const endsAt = sessionEndsAt(next);
+    if (endsAt) void scheduleSessionEndNotification(endsAt);
   }, [applyState, bumpBase, reloadCourseBase]);
 
   const stop = useCallback(
@@ -227,6 +248,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       const delta = Math.floor((elapsed - current.flushedMs) / 1000);
       bumpBase(delta);
       applyState(resetTimer(current));
+      void cancelSessionEndNotification();
 
       void commitFocus(current)
         .then((result) => {
@@ -276,8 +298,11 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     (minutes: number) => {
       const current = stateRef.current;
       if (current.mode !== "idle") return;
-      applyState(startTimer(setTargetMinutes(current, minutes)));
+      const next = startTimer(setTargetMinutes(current, minutes));
+      applyState(next);
       void reloadCourseBase(current.courseId);
+      const endsAt = sessionEndsAt(next);
+      if (endsAt) void scheduleSessionEndNotification(endsAt);
     },
     [applyState, reloadCourseBase],
   );

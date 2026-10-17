@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { Platform } from "react-native";
 import { Stack } from "expo-router";
 import Head from "expo-router/head";
 import { StatusBar } from "expo-status-bar";
@@ -15,9 +16,25 @@ import {
 } from "@expo-google-fonts/geist-mono";
 import { Outfit_600SemiBold } from "@expo-google-fonts/outfit";
 import { TimerProvider } from "../context/timer-context";
+import { initNotifications } from "../lib/notifications";
 import { colors } from "../theme/theme";
 
 void SplashScreen.preventAutoHideAsync().catch(() => {});
+
+// Foreground presentation settings for the session-end alert.
+initNotifications();
+
+// Android home-screen widget: registered at module scope so headless
+// background launches can redraw the widget too.
+if (Platform.OS === "android") {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy: older APKs ship without the widget native module
+    const handler = require("../lib/widgets/widget-task-handler") as typeof import("../lib/widgets/widget-task-handler");
+    handler.registerAtlasWidgetTaskHandler();
+  } catch {
+    // Binary without the widget module (older APK) - skipped.
+  }
+}
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({

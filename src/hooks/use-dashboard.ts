@@ -10,6 +10,7 @@ import {
   listen,
 } from "../lib/events";
 import { fetchProfile } from "../lib/db/profile";
+import { syncAtlasWidget } from "../lib/widgets/widget-sync";
 import type { FocusCourse, HeatmapDay, Profile } from "../lib/db/types";
 
 export interface DashboardData {
@@ -40,6 +41,7 @@ export function useDashboard(): DashboardState {
       const user = await resolveSession();
       if (!user) {
         setData(EMPTY);
+        syncAtlasWidget(null);
         setLoading(false);
         return;
       }
@@ -51,6 +53,7 @@ export function useDashboard(): DashboardState {
           fetchFocusCourse(),
         ]);
         setData({ user, profile, heatmap, focus });
+        syncAtlasWidget(profile);
       } catch {
         setData({ ...EMPTY, user });
       } finally {

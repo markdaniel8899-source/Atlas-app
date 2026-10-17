@@ -13,11 +13,12 @@
     },
     "android": {
       "package": "com.atlas.mobile",
-      "versionCode": 2,
+      "versionCode": 3,
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#030305"
       },
+      "permissions": ["android.permission.POST_NOTIFICATIONS"],
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "resize"
     },
@@ -37,7 +38,25 @@
         }
       ],
       "expo-updates",
-      "expo-secure-store"
+      "expo-secure-store",
+      ["expo-notifications", { "color": "#cf9eff" }],
+      [
+        "react-native-android-widget",
+        {
+          "fonts": ["./assets/fonts/CreateFuture.otf"],
+          "widgets": [
+            {
+              "name": "AtlasWidget",
+              "label": "ATLAS — Streak & Rank",
+              "minWidth": "180dp",
+              "minHeight": "110dp",
+              "description": "Your study streak, level and rank at a glance.",
+              "updatePeriodMillis": 0,
+              "resizeMode": "horizontal|vertical"
+            }
+          ]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
