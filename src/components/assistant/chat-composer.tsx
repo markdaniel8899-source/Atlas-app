@@ -19,6 +19,10 @@ interface ChatComposerProps {
   onDraftChange: (value: string) => void;
   /** "hero" is the centred first-run input; "dock" sits under the thread. */
   variant?: "dock" | "hero";
+  /** Fires when the input gains/loses focus (hero hides extras on focus). */
+  onFocusChange?: (focused: boolean) => void;
+  /** True while the soft keyboard is open - docks the row flush onto the IME. */
+  keyboardOpen?: boolean;
 }
 
 const MAX_LENGTH = 8000;
@@ -31,6 +35,8 @@ export function ChatComposer({
   draft,
   onDraftChange,
   variant = "dock",
+  onFocusChange,
+  keyboardOpen = false,
 }: ChatComposerProps) {
   const [focused, setFocused] = useState(false);
   const hero = variant === "hero";
@@ -41,7 +47,13 @@ export function ChatComposer({
   };
 
   return (
-    <View style={[styles.wrap, hero && styles.wrapHero]}>
+    <View
+      style={[
+        styles.wrap,
+        hero && styles.wrapHero,
+        !hero && keyboardOpen ? styles.wrapTight : null,
+      ]}
+    >
       <View
         style={[
           styles.row,
@@ -56,8 +68,14 @@ export function ChatComposer({
           placeholder={hero ? "Ask ATLAS anything…" : "Message ATLAS…"}
           placeholderTextColor={colors.w30}
           accessibilityLabel="Message ATLAS"
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+          onFocus={() => {
+            setFocused(true);
+            onFocusChange?.(true);
+          }}
+          onBlur={() => {
+            setFocused(false);
+            onFocusChange?.(false);
+          }}
           onChangeText={onDraftChange}
           style={[styles.input, hero && styles.inputHero]}
         />
@@ -101,7 +119,7 @@ export function ChatComposer({
         </Pressable>
       </View>
 
-      {!hero ? (
+      {!hero && !keyboardOpen ? (
         <View style={styles.footer}>
           <Text style={styles.footerHint}>
             ATLAS AI can make mistakes.
@@ -124,6 +142,9 @@ const styles = StyleSheet.create({
   wrapHero: {
     borderTopWidth: 0,
     padding: 0,
+  },
+  wrapTight: {
+    paddingBottom: 0,
   },
   row: {
     flexDirection: "row",

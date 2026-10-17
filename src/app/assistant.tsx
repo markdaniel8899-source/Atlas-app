@@ -1,5 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import {
+  Keyboard,
   KeyboardAvoidingView,
   Pressable,
   StyleSheet,
@@ -50,6 +51,21 @@ export default function AssistantScreen() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [checked, setChecked] = useState(false);
+  const [composerFocused, setComposerFocused] = useState(false);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    const show = Keyboard.addListener("keyboardDidShow", () =>
+      setKeyboardOpen(true),
+    );
+    const hide = Keyboard.addListener("keyboardDidHide", () =>
+      setKeyboardOpen(false),
+    );
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -136,7 +152,7 @@ export default function AssistantScreen() {
             styles.container,
             {
               paddingTop: insets.top + HEADER_HEIGHT + 8,
-              paddingBottom: insets.bottom + 12,
+              paddingBottom: keyboardOpen ? 0 : insets.bottom + 12,
             },
           ]}
         >
@@ -163,9 +179,11 @@ export default function AssistantScreen() {
                   onRetry={retry}
                   disabled={chat.pending}
                   canRetry={canRetry}
+                  onFocusChange={setComposerFocused}
                 />
 
-                <View style={styles.suggestions}>
+                {!composerFocused && !keyboardOpen ? (
+                  <View style={styles.suggestions}>
                   {SUGGESTIONS.map((suggestion) => (
                     <Pressable
                       key={suggestion.label}
@@ -187,7 +205,8 @@ export default function AssistantScreen() {
                       </Text>
                     </Pressable>
                   ))}
-                </View>
+                  </View>
+                ) : null}
               </View>
             </View>
           ) : (
@@ -221,6 +240,7 @@ export default function AssistantScreen() {
                 onRetry={retry}
                 disabled={chat.pending}
                 canRetry={canRetry}
+                keyboardOpen={keyboardOpen}
               />
             </View>
           )}
