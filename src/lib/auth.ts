@@ -49,6 +49,20 @@ export function toAuthUser(user: User): AuthUser {
     name: given || fallback || "Explorer",
   };
 }
+const NETWORK_ERROR_RE =
+  /unknownhost|fetch failed|network request failed|enotfound|timed out|timeout/i;
+
+/** Retries once when a request fails at the network/DNS layer. */
+async function withRetry<T extends { error: { message: string } | null }>(
+  call: () => Promise<T>,
+): Promise<T> {
+  let result = await call();
+  if (result.error && NETWORK_ERROR_RE.test(result.error.message)) {
+    await new Promise((resolve) => setTimeout(resolve, 900));
+    result = await call();
+  }
+  return result;
+}
 
 function readableError(message: string): string {
   const m = message.toLowerCase();
@@ -98,11 +112,13 @@ export async function signUp(
 ): Promise<AuthResult> {
   if (!isSupabaseConfigured) return { error: CONFIG_ERROR };
 
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: { data: { name } },
-  });
+  const { data, error } = await withRetry(() =>
+    supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { name } },
+    }),
+  );
 
   if (error) return { error: readableError(error.message) };
 
@@ -120,10 +136,12 @@ export async function signIn(
 ): Promise<AuthResult> {
   if (!isSupabaseConfigured) return { error: CONFIG_ERROR };
 
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  const { data, error } = await withRetry(() =>
+    supabase.auth.signInWithPassword({
+      email,
+      password,
+    }),
+  );
 
   if (error) {
     return {
@@ -147,7 +165,9 @@ export async function verifyEmailOtp(
 ): Promise<AuthResult> {
   if (!isSupabaseConfigured) return { error: CONFIG_ERROR };
 
-  const { data, error } = await supabase.auth.verifyOtp({ email, token, type });
+  const { data, error } = await withRetry(() =>
+    supabase.auth.verifyOtp({ email, token, type }),
+  );
 
   if (error) return { error: readableError(error.message) };
 
@@ -159,7 +179,9 @@ export async function verifyEmailOtp(
 export async function resendConfirmationOtp(email: string): Promise<AuthResult> {
   if (!isSupabaseConfigured) return { error: CONFIG_ERROR };
 
-  const { error } = await supabase.auth.resend({ type: "signup", email });
+  const { error } = await withRetry(() =>
+    supabase.auth.resend({ type: "signup", email }),
+  );
 
   if (error) return { error: readableError(error.message) };
   return {};
@@ -169,7 +191,9 @@ export async function resendConfirmationOtp(email: string): Promise<AuthResult> 
 export async function requestPasswordReset(email: string): Promise<AuthResult> {
   if (!isSupabaseConfigured) return { error: CONFIG_ERROR };
 
-  const { error } = await supabase.auth.resetPasswordForEmail(email);
+  const { error } = await withRetry(() =>
+    supabase.auth.resetPasswordForEmail(email),
+  );
 
   if (error) return { error: readableError(error.message) };
   return {};
@@ -179,7 +203,9 @@ export async function requestPasswordReset(email: string): Promise<AuthResult> {
 export async function updatePassword(password: string): Promise<AuthResult> {
   if (!isSupabaseConfigured) return { error: CONFIG_ERROR };
 
-  const { data, error } = await supabase.auth.updateUser({ password });
+  const { data, error } = await withRetry(() =>
+    supabase.auth.updateUser({ password }),
+  );
 
   if (error) return { error: readableError(error.message) };
 
