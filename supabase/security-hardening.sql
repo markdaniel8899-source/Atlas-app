@@ -96,6 +96,12 @@ $$;
 
 revoke all on function increment_global_focus(integer) from public;
 revoke all on function increment_course_focus(bigint, integer) from public;
+-- Supabase default privileges ALSO grant EXECUTE directly to `anon`, so the
+-- PUBLIC revoke above is not enough (found via live probe 2026-10-17: anon
+-- calls returned HTTP 204). The explicit anon revokes close that hole;
+-- authenticated (and service_role) keep their access.
+revoke all on function increment_global_focus(integer) from anon;
+revoke all on function increment_course_focus(bigint, integer) from anon;
 grant execute on function increment_global_focus(integer) to authenticated;
 grant execute on function increment_course_focus(bigint, integer) to authenticated;
 
