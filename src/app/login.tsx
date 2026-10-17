@@ -43,7 +43,7 @@ import {
 import { isSupabaseConfigured } from "../lib/supabase";
 import { colors, ease, fonts } from "../theme/theme";
 
-const APP_ICON = require("../../assets/icon.png");
+const BRAND_ICON = require("../../assets/formicon.png");
 
 type Mode = "login" | "signup" | "verify" | "forgot" | "reset";
 type ResetPhase = "code" | "password";
@@ -437,7 +437,7 @@ export default function LoginScreen() {
             >
               <View style={styles.header}>
                 <View style={styles.brandRow}>
-                  <Image source={APP_ICON} style={styles.brandIcon} />
+                  <Image source={BRAND_ICON} style={styles.brandIcon} />
                   <Text style={styles.brandName}>ATLAS</Text>
                 </View>
                 <Animated.View
@@ -956,11 +956,8 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   brandIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(207,158,255,0.2)",
+    width: 72,
+    height: 72,
   },
   brandName: {
     fontSize: 34,
