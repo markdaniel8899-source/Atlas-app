@@ -15,12 +15,12 @@ const FAQ = [
   {
     question: "How do roadmaps work?",
     answer:
-      "A roadmap is a trail of levels that unlock one after another. Complete a level to earn XP and open the next one. Boss levels appear along the way and require a passed quiz — 80% or higher — before you can continue.",
+      "A roadmap is a trail of levels that unlock one after another. Complete a level to earn XP and open the next one. Boss levels appear along the way — take the boss quiz in the Quiz tab, then mark the battle won when you pass.",
   },
   {
     question: "How do quizzes work?",
     answer:
-      "Pick a topic or upload a syllabus PDF, choose 5, 10 or 15 questions and a difficulty, and ATLAS writes the quiz for you. You get instant grading with explanations. Boss battles are quizzes too — pass them to unlock the next phase.",
+      "Pick a topic or upload a syllabus PDF, choose 5, 10 or 15 questions and a difficulty, and ATLAS writes the quiz for you. You get instant grading with explanations. Boss battles are quizzes too — take one and prove the phase before moving on.",
   },
   {
     question: "How does the focus timer earn XP?",

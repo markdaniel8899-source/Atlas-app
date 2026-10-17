@@ -206,7 +206,12 @@ export function TimerProvider({ children }: { children: ReactNode }) {
           void reloadCourseBase(current.courseId);
           notifyFocusChanged();
         })
-        .catch((err) => console.error("Focus save failed", err));
+        .catch((err) =>
+          console.error(
+            "Focus save failed:",
+            err instanceof Error ? err.message : String(err),
+          ),
+        );
       return;
     }
     if (current.mode === "idle") void reloadCourseBase(current.courseId);
@@ -224,20 +229,27 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       applyState(resetTimer(current));
 
       void commitFocus(current)
-        .then((session) => {
+        .then((result) => {
           setHistoryVersion((version) => version + 1);
-          void reloadCourseBase(current.courseId);
+          if (result.countersSynced) void reloadCourseBase(current.courseId);
           notifyFocusChanged();
+          const synced = result.logged && result.countersSynced;
           showFlash(
-            message ??
-              (session
-                ? `Session logged: ${session.minutes} minutes.`
-                : "Stopped - focus still counts toward your total."),
+            result.session
+              ? synced
+                ? message ??
+                  `Session logged: ${result.session.minutes} minutes.`
+                : "No internet - session kept locally, cloud sync failed."
+              : "Stopped - focus still counts toward your total.",
           );
         })
         .catch((err) => {
-          console.error("Focus save failed", err);
+          console.error(
+            "Focus save failed:",
+            err instanceof Error ? err.message : String(err),
+          );
           notifyFocusChanged();
+          showFlash("No internet - session kept locally, cloud sync failed.");
         });
     },
     [applyState, bumpBase, showFlash, reloadCourseBase],

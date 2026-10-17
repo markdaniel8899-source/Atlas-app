@@ -218,7 +218,7 @@ function RequestRow({
 }: {
   member: SquadMember;
   busy: boolean;
-  onAccept: () => void;
+  onAccept?: () => void;
   onDecline: () => void;
 }) {
   const incoming = member.relationship === "incoming";
@@ -525,7 +525,6 @@ export default function FriendsScreen() {
                     key={member.friendshipId}
                     member={member}
                     busy={busyId === member.friendshipId}
-                    onAccept={() => undefined}
                     onDecline={() => void respond(member, false)}
                   />
                 ))}

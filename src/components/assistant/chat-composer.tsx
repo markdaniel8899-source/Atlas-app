@@ -104,7 +104,7 @@ export function ChatComposer({
       {!hero ? (
         <View style={styles.footer}>
           <Text style={styles.footerHint}>
-            Enter to send · Shift + Enter for a new line
+            ATLAS AI can make mistakes.
           </Text>
           <Text style={styles.footerCount}>
             {draft.length}/{MAX_LENGTH}

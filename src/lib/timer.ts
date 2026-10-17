@@ -145,8 +145,8 @@ export function saveFocusBase(seconds: number): void {
 }
 
 /* ---------------------------------------------------------------
-   SESSION HISTORY (local log; mirrors the web behaviour until the
-   learning_sessions table is wired up for the app).
+   SESSION HISTORY (local log; synced sessions are written to
+   learning_sessions from lib/db/sessions.ts).
 --------------------------------------------------------------- */
 
 export async function loadSessions(): Promise<StudySession[]> {

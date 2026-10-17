@@ -1,10 +1,7 @@
 import { Easing } from "react-native";
 
 export const colors = {
-  void: "#030305",
   appBg: "#04040a",
-  ink: "#0a0a1a",
-  midnight: "#0b1026",
   star: "#9db4ff",
   star70: "rgba(157,180,255,0.7)",
   star50: "rgba(157,180,255,0.5)",
@@ -21,8 +18,6 @@ export const colors = {
   lilac10: "rgba(207,158,255,0.10)",
   cardBg: "#0c0c16",
   cardBorder: "#24242f",
-  drawerBg: "rgba(6,6,14,0.94)",
-  menuBg: "#0a0a12",
   primaryText: "#05050a",
   white: "#ffffff",
   w02: "rgba(255,255,255,0.02)",
@@ -68,7 +63,6 @@ export const ease = Easing.bezier(0.22, 1, 0.36, 1);
 export const RADIUS = {
   card: 16,
   inner: 12,
-  chip: 999,
 } as const;
 
 export const shadow = {

@@ -40,28 +40,50 @@ export function flushFocus(state: TimerState): Promise<void> {
   }).then(() => undefined);
 }
 
+export interface CommitFocusResult {
+  /** The committed session (null when it was under one minute). */
+  session: StudySession | null;
+  /** False when the global/course counters could not reach the server. */
+  countersSynced: boolean;
+  /** False when learning_sessions/XP could not be written (offline etc.). */
+  logged: boolean;
+}
+
 /**
  * Commit a finished session:
  * 1. flush the pending counter delta (global + course), and
  * 2. log the full session into learning_sessions (heatmap + history + XP).
  *
- * Returns the committed session (null when it was under one minute).
+ * Never throws: sync failures are reported through the returned flags so the
+ * UI can show an honest "kept locally" notice instead of a false success.
  */
 export async function commitFocus(
   state: TimerState,
-): Promise<StudySession | null> {
-  await flushFocus(state);
+): Promise<CommitFocusResult> {
+  let countersSynced = true;
+  try {
+    await flushFocus(state);
+  } catch {
+    countersSynced = false;
+  }
 
   const session = await commitSession(state);
+  let logged = false;
   if (session) {
-    await enqueue(() =>
-      logSession({
-        startedAt: new Date(session.startedAt),
-        endedAt: new Date(session.endedAt),
-        label: "Focus timer",
-        courseId: state.courseId,
-      }),
-    ).then(() => undefined);
+    try {
+      logged = Boolean(
+        await enqueue(() =>
+          logSession({
+            startedAt: new Date(session.startedAt),
+            endedAt: new Date(session.endedAt),
+            label: "Focus timer",
+            courseId: state.courseId,
+          }),
+        ),
+      );
+    } catch {
+      logged = false;
+    }
   }
-  return session;
+  return { session, countersSynced, logged };
 }

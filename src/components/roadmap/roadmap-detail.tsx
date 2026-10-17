@@ -239,8 +239,9 @@ export function RoadmapDetail({
                   <Text style={styles.bossTitle}>Boss Level</Text>
                 </View>
                 <Text style={styles.bossBody}>
-                  Complete this quiz to unlock the next phase. You need at least
-                  80% to pass. Everything before this level is fair game.
+                  This is a boss level. Take its quiz in the Quiz tab, then mark
+                  the battle won once you pass. Everything before this level is
+                  fair game.
                 </Text>
               </View>
             ) : null}

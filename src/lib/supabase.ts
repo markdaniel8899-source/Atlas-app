@@ -6,7 +6,7 @@ const supabaseUrl = (process.env.EXPO_PUBLIC_SUPABASE_URL ?? "").trim();
 const supabaseAnonKey = (process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "").trim();
 
 export const isSupabaseConfigured =
-  supabaseUrl.length > 0 && supabaseAnonKey.length > 0;
+  /^https?:\/\//i.test(supabaseUrl) && supabaseAnonKey.length > 0;
 
 // AsyncStorage touches window/localStorage, which do not exist when this
 // module is evaluated in Node (web SSR / prerender). Fall back to memory.

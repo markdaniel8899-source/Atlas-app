@@ -13,15 +13,8 @@ import { NavigationDrawer } from "../components/navigation-drawer";
 import { SessionCompleteCard } from "../components/session-complete-card";
 import { RevealText } from "../components/ui/reveal-text";
 import { useDashboard } from "../hooks/use-dashboard";
-import {
-  FORCE_ONBOARDING_FOR_TESTING,
-  hasSeenOnboarding,
-} from "../lib/onboarding";
+import { hasSeenOnboarding } from "../lib/onboarding";
 import { colors, fonts } from "../theme/theme";
-
-// TEMP (design review): while the force flag is on, show onboarding once per
-// app launch even for signed-in users so the slides can be reviewed.
-let forcedThisLaunch = false;
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -42,11 +35,6 @@ export default function DashboardScreen() {
     let cancelled = false;
     void hasSeenOnboarding().then((seen) => {
       if (cancelled) return;
-      if (FORCE_ONBOARDING_FOR_TESTING && !forcedThisLaunch) {
-        forcedThisLaunch = true;
-        router.replace("/onboarding" as Href);
-        return;
-      }
       if (!user) router.replace((seen ? "/login" : "/onboarding") as Href);
     });
     return () => {
