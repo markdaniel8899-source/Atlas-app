@@ -17,13 +17,13 @@ export async function isOnline(): Promise<boolean> {
 
 /**
  * Guard for internet-only actions: returns true when online, otherwise shows
- * an immediate "no internet" warning and returns false.
+ * an immediate "You are offline" warning and returns false.
  */
 export async function ensureOnline(
-  message = "You're offline. Connect to the internet and try again.",
+  message = "Connect to the internet and try again.",
 ): Promise<boolean> {
   if (await isOnline()) return true;
-  Alert.alert("No internet connection", message);
+  Alert.alert("You are offline", message);
   return false;
 }
 

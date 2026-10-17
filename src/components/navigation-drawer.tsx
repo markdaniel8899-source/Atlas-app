@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ComponentType } from "react";
 import {
   Animated,
+  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -13,6 +14,7 @@ import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
+  ArrowLeft,
   FileText,
   GraduationCap,
   LayoutDashboard,
@@ -23,11 +25,12 @@ import {
   Timer,
   Trophy,
   Users,
-  X,
 } from "lucide-react-native";
 import { colors, ease, fonts } from "../theme/theme";
 
 const DRAWER_WIDTH = 240;
+
+const BRAND_ICON = require("../../assets/formicon.png");
 
 const HALO_INSETS = [2, 4, 6, 8, 10, 12, 14, 16];
 
@@ -104,21 +107,23 @@ export function NavigationDrawer({
   const panelBody = (
     <>
       <View style={styles.headerRow}>
-        <View style={styles.logo}>
-          <View style={styles.logoDiamond} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Close navigation"
+          onPress={onClose}
+          hitSlop={8}
+          style={styles.closeButton}
+        >
+          <ArrowLeft size={20} color={colors.w60} />
+        </Pressable>
+
+        <View style={styles.logo} pointerEvents="none">
+          <Image source={BRAND_ICON} style={styles.logoIcon} />
           <Text style={styles.logoText}>ATLAS</Text>
         </View>
-      </View>
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Close navigation"
-        onPress={onClose}
-        hitSlop={8}
-        style={[styles.closeButton, { top: insets.top + 16 }]}
-      >
-        <X size={20} color={colors.w50} />
-      </Pressable>
+        <View style={styles.headerSpacer} />
+      </View>
 
       <ScrollView
         style={styles.navScroll}
@@ -248,36 +253,35 @@ const styles = StyleSheet.create({
   },
   headerRow: {
     height: 64,
-    paddingHorizontal: 20,
+    paddingHorizontal: 8,
     flexDirection: "row",
     alignItems: "center",
     borderBottomWidth: 1,
     borderBottomColor: colors.w05,
   },
   logo: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    justifyContent: "center",
+    gap: 8,
   },
-  logoDiamond: {
-    width: 14,
-    height: 14,
-    borderRadius: 2,
-    borderWidth: 1,
-    borderColor: "rgba(157,180,255,0.8)",
-    backgroundColor: "rgba(157,180,255,0.2)",
-    transform: [{ rotate: "45deg" }],
+  logoIcon: {
+    width: 26,
+    height: 26,
   },
   logoText: {
-    fontSize: 18,
-    fontFamily: fonts.semibold,
-    letterSpacing: -0.54,
+    fontSize: 22,
+    fontFamily: fonts.brand,
+    letterSpacing: 2,
     color: colors.white,
   },
+  headerSpacer: {
+    width: 40,
+  },
   closeButton: {
-    position: "absolute",
-    right: 14,
-    zIndex: 2,
+    width: 40,
+    alignItems: "center",
     padding: 10,
     borderRadius: 8,
   },

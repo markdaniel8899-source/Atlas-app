@@ -301,8 +301,12 @@ export default function FriendsScreen() {
   const [invite, setInvite] = useState("");
   const [inviting, setInviting] = useState(false);
 
+  const requestRef = useRef(0);
+
   const load = useCallback(async () => {
+    const seq = ++requestRef.current;
     const result = await fetchSquad();
+    if (seq !== requestRef.current) return;
     setMembers(result.members);
     setLoading(false);
     setError((current) => {
@@ -366,6 +370,7 @@ export default function FriendsScreen() {
     setError(null);
     setFlash(result.message);
     setInvite("");
+    await load();
   };
 
   const subtitle = loading
