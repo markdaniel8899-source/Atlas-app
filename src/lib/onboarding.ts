@@ -3,11 +3,11 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const KEY = "atlas.onboarding.seen.v1";
 
 /**
- * TEMP (design review): when true, onboarding is shown once per app launch
- * regardless of auth state or the seen flag. Flip to false to finalize the
- * one-time first-launch flow.
+ * Design-review override: when true, onboarding is shown once per app launch
+ * regardless of auth state or the seen flag. Keep false in production — the
+ * one-time first-launch gate lives in hasSeenOnboarding().
  */
-export const FORCE_ONBOARDING_FOR_TESTING = true;
+export const FORCE_ONBOARDING_FOR_TESTING = false;
 
 export async function hasSeenOnboarding(): Promise<boolean> {
   try {
