@@ -21,6 +21,11 @@ interface ScreenShellProps {
   children: ReactNode;
   /** Hide the Privacy/Terms footer for full-bleed screens. */
   hideFooter?: boolean;
+  /**
+   * Public info pages (about/help/privacy/terms/contact) render for signed-out
+   * visitors too, and get a back arrow instead of the drawer button.
+   */
+  publicPage?: boolean;
 }
 
 /**
@@ -32,6 +37,7 @@ export function ScreenShell({
   activeLabel,
   children,
   hideFooter = false,
+  publicPage = false,
 }: ScreenShellProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -47,6 +53,10 @@ export function ScreenShell({
         const user = await resolveSession();
         if (!active) return;
         if (!user) {
+          if (publicPage) {
+            setChecked(true);
+            return;
+          }
           router.replace("/login");
           return;
         }
@@ -61,7 +71,7 @@ export function ScreenShell({
       active = false;
       unsubscribe();
     };
-  }, [router]);
+  }, [router, publicPage]);
 
   return (
     <BlurTargetRefContext.Provider value={blurTargetRef}>
@@ -123,6 +133,14 @@ export function ScreenShell({
             <AppHeader
               title={title}
               onMenuPress={() => setMenuOpen(true)}
+              onBackPress={
+                publicPage
+                  ? () => {
+                      if (router.canGoBack()) router.back();
+                      else router.replace("/");
+                    }
+                  : undefined
+              }
               avatarUrl={avatarUrl}
             />
 

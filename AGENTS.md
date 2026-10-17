@@ -81,6 +81,11 @@
   - **Perf:** login now has **zero BlurViews and zero JS-driven animations** — removed the 3 per-field blurs, the animated mesh, and the glass Card (blur re-capture over moving content was the tap-time lag on Android).
   - OTP boxes retinted to theme colors (`rgba(157,180,255,…)` active).
   - `assets/icon.png` replaced with the new icon (`~/Downloads/icon.png`) — used in-app immediately (header, account sheet, login brand row); the OS launcher/splash icon updates on the next `eas build`.
+- **Batch 7 follow-up (2026-10-17):**
+  - Login brand row enlarged: icon 64px (faint star ring border) + "ATLAS" 27px Outfit `letterSpacing 4`; `assets/icon.png` swapped again to the user's newest icon (near-black circle `#070709` + white petals + periwinkle dot, transparent corners — blends with the dark theme).
+  - **Field focus fix (final):** on focus the box border goes transparent (`fieldBoxFocused`) so only the 1.5px star ring renders — kills the double-edge artifact; glow shadows/elevation removed (the "ajeeb" halo).
+  - **Form switch transition** is now two-phase in `applyMode`: fade+slide out 150ms → swap mode → fade+slide in 340ms; header title/subtitle/badge live in `headerBody` Animated.View driven by the same `formAnim` so the header crossfades too.
+  - **Info-page links fixed:** `/about /help /privacy /terms /contact` are now `publicPage` screens — `ScreenShell` no longer force-redirects signed-out visitors (the login footer links were bouncing straight back to `/login`); public pages show a back arrow instead of the drawer button (`AppHeader onBackPress`, `router.canGoBack()` → `back()` else `replace("/")`).
 - Next sensible steps: side-by-side visual diff vs mobile web (`argent-screenshot-diff`), device QA in Expo Go (kill/reopen to avoid stale bundles), then optional `eas build` for native changes.
 
 ## Workflow Preferences (user)

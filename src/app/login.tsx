@@ -129,18 +129,25 @@ export default function LoginScreen() {
 
   const applyMode = useCallback(
     (next: Mode, nextNotice?: Notice | null) => {
-      setMode(next);
-      setErrors({});
-      setNotice(nextNotice ?? null);
-      setCode("");
-      setShowPw(false);
-      formAnim.setValue(0);
+      formAnim.stopAnimation();
       Animated.timing(formAnim, {
-        toValue: 1,
-        duration: 300,
+        toValue: 0,
+        duration: 150,
         easing: ease,
         useNativeDriver: true,
-      }).start();
+      }).start(() => {
+        setMode(next);
+        setErrors({});
+        setNotice(nextNotice ?? null);
+        setCode("");
+        setShowPw(false);
+        Animated.timing(formAnim, {
+          toValue: 1,
+          duration: 340,
+          easing: ease,
+          useNativeDriver: true,
+        }).start();
+      });
     },
     [formAnim],
   );
@@ -429,18 +436,35 @@ export default function LoginScreen() {
               ]}
             >
               <View style={styles.header}>
-                    <View style={styles.brandRow}>
-                      <Image source={APP_ICON} style={styles.brandIcon} />
-                      <Text style={styles.brandName}>ATLAS</Text>
+                <View style={styles.brandRow}>
+                  <Image source={APP_ICON} style={styles.brandIcon} />
+                  <Text style={styles.brandName}>ATLAS</Text>
+                </View>
+                <Animated.View
+                  style={[
+                    styles.headerBody,
+                    {
+                      opacity: formAnim,
+                      transform: [
+                        {
+                          translateY: formAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [8, 0],
+                          }),
+                        },
+                      ],
+                    },
+                  ]}
+                >
+                  {BadgeIcon ? (
+                    <View style={styles.badge}>
+                      <BadgeIcon size={26} color={colors.lilac} />
                     </View>
-                    {BadgeIcon ? (
-                      <View style={styles.badge}>
-                        <BadgeIcon size={26} color={colors.lilac} />
-                      </View>
-                    ) : null}
-                    <Text style={styles.title}>{header.title}</Text>
-                    <Text style={styles.subtitle}>{header.subtitle}</Text>
-                  </View>
+                  ) : null}
+                  <Text style={styles.title}>{header.title}</Text>
+                  <Text style={styles.subtitle}>{header.subtitle}</Text>
+                </Animated.View>
+              </View>
 
                   <Animated.View
                     style={{
@@ -850,7 +874,13 @@ function Field({
   return (
     <View>
       <View>
-        <View style={[styles.fieldBox, error && styles.fieldBoxError]}>
+        <View
+          style={[
+            styles.fieldBox,
+            error && styles.fieldBoxError,
+            focused && styles.fieldBoxFocused,
+          ]}
+        >
           {icon}
           <View style={styles.fieldBody}>
             <Animated.Text
@@ -922,18 +952,24 @@ const styles = StyleSheet.create({
   brandRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 16,
   },
   brandIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 64,
+    height: 64,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(157,180,255,0.18)",
   },
   brandName: {
-    fontSize: 15,
+    fontSize: 27,
     fontFamily: fonts.display,
-    letterSpacing: 3,
-    color: colors.w75,
+    letterSpacing: 4,
+    color: colors.white,
+  },
+  headerBody: {
+    alignSelf: "stretch",
+    alignItems: "center",
   },
   badge: {
     marginTop: 20,
@@ -1000,6 +1036,9 @@ const styles = StyleSheet.create({
   fieldBoxError: {
     borderColor: "rgba(248,113,113,0.55)",
   },
+  fieldBoxFocused: {
+    borderColor: "transparent",
+  },
   fieldGlow: {
     position: "absolute",
     top: 0,
@@ -1009,14 +1048,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1.5,
     borderColor: "rgba(157,180,255,0.8)",
-    ...(Platform.OS === "ios"
-      ? {
-          shadowColor: "#9db4ff",
-          shadowOpacity: 0.4,
-          shadowRadius: 16,
-          shadowOffset: { width: 0, height: 4 },
-        }
-      : { elevation: 6, shadowColor: "#9db4ff" }),
   },
   fieldGlowError: {
     borderColor: "rgba(248,113,113,0.7)",

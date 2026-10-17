@@ -3,7 +3,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ChevronDown, Menu } from "lucide-react-native";
+import { ChevronDown, ArrowLeft, Menu } from "lucide-react-native";
 import { AccountSheet } from "./account-sheet";
 import { colors, fonts } from "../theme/theme";
 
@@ -15,6 +15,8 @@ export const HEADER_HEIGHT = 76;
 interface AppHeaderProps {
   title: string;
   onMenuPress: () => void;
+  /** When provided, the leading button becomes a back arrow. */
+  onBackPress?: () => void;
   avatarUrl?: string | null;
   onAccountPress?: () => void;
 }
@@ -22,6 +24,7 @@ interface AppHeaderProps {
 export function AppHeader({
   title,
   onMenuPress,
+  onBackPress,
   avatarUrl,
   onAccountPress,
 }: AppHeaderProps) {
@@ -34,12 +37,16 @@ export function AppHeader({
       <View style={styles.left}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Open navigation"
-          onPress={onMenuPress}
+          accessibilityLabel={onBackPress ? "Go back" : "Open navigation"}
+          onPress={onBackPress ?? onMenuPress}
           hitSlop={6}
           style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
         >
-          <Menu size={22} color={colors.w60} />
+          {onBackPress ? (
+            <ArrowLeft size={22} color={colors.w60} />
+          ) : (
+            <Menu size={22} color={colors.w60} />
+          )}
         </Pressable>
         <Text style={styles.title} numberOfLines={1}>
           {title}

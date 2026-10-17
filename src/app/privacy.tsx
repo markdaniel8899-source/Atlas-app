@@ -8,7 +8,7 @@ import {
 
 export default function PrivacyScreen() {
   return (
-    <ScreenShell title="Privacy Policy" activeLabel="Privacy Policy">
+    <ScreenShell title="Privacy Policy" activeLabel="Privacy Policy" publicPage>
       <ScreenHeading
         eyebrow="Legal"
         title="Privacy Policy"

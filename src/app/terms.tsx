@@ -3,7 +3,7 @@ import { InfoParagraph, InfoSection } from "../components/info-blocks";
 
 export default function TermsScreen() {
   return (
-    <ScreenShell title="Terms & Conditions" activeLabel="Terms & Conditions">
+    <ScreenShell title="Terms & Conditions" activeLabel="Terms & Conditions" publicPage>
       <ScreenHeading
         eyebrow="Legal"
         title="Terms & Conditions"

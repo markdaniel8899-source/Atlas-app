@@ -92,7 +92,7 @@ export default function ContactScreen() {
   };
 
   return (
-    <ScreenShell title="Contact" activeLabel="Contact">
+    <ScreenShell title="Contact" activeLabel="Contact" publicPage>
       <ScreenHeading
         eyebrow="Say hello"
         title="Get in touch"
