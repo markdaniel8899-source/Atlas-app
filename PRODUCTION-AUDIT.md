@@ -1,6 +1,6 @@
 # ATLAS — Production Audit & Feature Report
 
-> **Date:** 2026-10-18 · **Commit:** `3e7aac6` · **Branch:** main · **App:** ATLAS (Expo SDK 57 / RN 0.86)
+> **Date:** 2026-10-18 · **Commit:** `4a6b8f9` · **Branch:** main · **App:** ATLAS (Expo SDK 57 / RN 0.86)
 > Ye file app ki current **production readiness**, tamam **shipped features** aur overall **state** ka single source of truth hai. Koi bhi naya session isay pehle parh le.
 
 ---
@@ -43,7 +43,7 @@
 | Web SEO / Static Export | ✅ Done | 19/19 routes prerender (`output: "static"`) |
 | Web hosting (deploy) | ❌ Not deployed | Static export ready |
 | Native build / APK | ✅ Built (vc3) | vc3 APK ready (notifications + widget + naya icon) — download link §7 |
-| Device QA (user-led) | 🔄 In progress | 7 bug-fix batches device pe test ho chuke; OTA after each fix |
+| Device QA (user-led) | 🔄 In progress | 8 batches; instant-tabs OTA (`81bcb73a…`) device test pending; widget picker preview next build ka intezar |
 | Monitoring | ❌ None | No crash visibility in production |
 | CI/CD | ❌ None | Manual workflow (tsc → lint → commit → push) |
 
@@ -182,8 +182,9 @@
 ## 7. Build & Release State
 
 - **Production APK vc3 built (2026-10-18):** `7830c669-1619-4f53-81c1-79e6d51c40dd` (commit `3e7aac6`, versionCode **3**, channel `production`, runtime 1.0.0) — **notifications + widget + naya launcher icon**. Download: `https://expo.dev/artifacts/eas/400VNpJfrUrdMgmWae6oByO5IEBRxXzDaZLU5ym7JFE.apk` (verified HTTP 206). Install + device-test pending (user).
-- **OTA live:** 3 update groups device pe test ho chuke — `b563d481…` (6-bug batch), `0f7d6a99…` (assistant keyboard flush), `ffe8892b…` (friends/drawer/offline). Publish cmd: `$env:CI=1; eas update --branch production --platform android --environment production --message "…"`
+- **OTA live:** 4 update groups — `b563d481…` (6-bug batch), `0f7d6a99…` (assistant keyboard flush), `ffe8892b…` (friends/drawer/offline), `81bcb73a…` (instant tabs: profile/data caches + drawer `navigate()` + widget preview asset). Publish cmd: `$env:CI=1; eas update --branch production --platform android --environment production --message "…"` (cold bundler cache ≈ 8 min chal sakta hai — shell timeout bara rakho).
 - **vc3 scope:** session-end notification (permission pehli session pe) + home-screen widget ("ATLAS — Streak & Rank") + naya launcher icon — sab is build mein active. Ye batch OTA se NAHI aa saka tha (native modules).
+- **Widget picker preview:** `assets/widget-preview.png` + `app.json` `previewImage` add ho chuke — config plugin isay `res/drawable/atlaswidget_preview.png` + `android:previewImage` mein compile karta hai. **Native → agle `eas build` ke baad hi picker mein dikhega** (OTA se nahi).
 - **Old builds:** vc1/vc2 ke chaar builds EAS se delete (2026-10-18, `eas build:delete <id> --non-interactive`)
 - Keystore: remote EAS-managed (`lFBi1Xtp8Y`)
 - OTA policy: sirf device-safe JS changes publish karo; native changes (icons/splash/plugins/modules) ke liye `eas build` zaroori
@@ -204,9 +205,10 @@
 ## 9. Action Items
 
 ### User ke liye (immediate)
-1. **vc3 APK install karo** (download link §7) → test: notifications (pehli session pe permission prompt + session-end alert), widget (long-press home screen → Widgets → "ATLAS — Streak & Rank"), naya launcher icon. Build ho chuki hai (`7830c669`).
+1. **Instant-tabs OTA test karo** (vc3 app kholo → update khud aa jayegi, ya app 2 dafa band-khol kar): tab switching instant honi chahiye, profile image har switch pe flash nahi karni chahiye. Roadmap/Notes/Courses/Leaderboard/Friends pe wapis aa kar dekho — content turant dikhna chahiye.
 2. Supabase SQL Editor: `revoke all on function increment_global_focus(integer) from anon;` aur `revoke all on function increment_course_focus(bigint, integer) from anon;`
 3. Dashboard se: 2 test users + "Message from RLS Probe" row delete
+4. Widget picker preview ke liye **agla native build** chahiye hoga (abhi sirf JS OTA hui hai) — jab tak, widget add karke dekho ke app se aane wala card render hota hai ya nahi.
 
 ### Next dev batches (recommended order)
 1. Sentry integration (`sentry-react-native-sdk`)
@@ -243,6 +245,7 @@
 
 | Commit | What |
 |--------|------|
+| `4a6b8f9` | Instant tabs: profile/data caches, drawer `navigate()`, widget picker preview (OTA `81bcb73a`) |
 | `3e7aac6` | Naya app icon + production APK vc3 build (`7830c669`) |
 | `3c87b04` | Session-end notifications + Android streak/rank widget (vc3, next build) |
 | `730204e` | Friends reload fix, drawer brand row, 3s offline pill |
