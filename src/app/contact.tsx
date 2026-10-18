@@ -105,7 +105,12 @@ export default function ContactScreen() {
   };
 
   return (
-    <ScreenShell title="Contact" activeLabel="Contact" publicPage>
+    <ScreenShell
+      title="Contact"
+      activeLabel="Contact"
+      publicPage
+      scrollOnKeyboard
+    >
       <ScreenHeading
         eyebrow="Say hello"
         title="Get in touch"

@@ -3,6 +3,7 @@ import type { ComponentType } from "react";
 import {
   Animated,
   Image,
+  Keyboard,
   Platform,
   Pressable,
   ScrollView,
@@ -84,6 +85,8 @@ export function NavigationDrawer({
   useEffect(() => {
     if (open) {
       setRendered(true);
+      // Never leave a keyboard hanging under the drawer / next screen.
+      Keyboard.dismiss();
       Animated.timing(anim, {
         toValue: 1,
         duration: 350,
@@ -160,6 +163,7 @@ export function NavigationDrawer({
                 onPress={() => {
                   onClose();
                   if (!item.route || item.label === activeLabel) return;
+                  Keyboard.dismiss();
                   // navigate() reuses the screen if it is already in the
                   // stack and pops back to it — no duplicate instances, no
                   // remount-refetch churn on every tab switch.

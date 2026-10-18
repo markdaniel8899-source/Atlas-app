@@ -1,5 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import {
+  BackHandler,
   Keyboard,
   KeyboardAvoidingView,
   Pressable,
@@ -63,6 +64,27 @@ export default function AssistantScreen() {
       hide.remove();
     };
   }, []);
+
+  // Android hardware back: close the drawer if open, otherwise jump straight
+  // home instead of popping every visited tab one by one.
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        if (menuOpen) {
+          setMenuOpen(false);
+          return true;
+        }
+        if (router.canDismiss()) {
+          Keyboard.dismiss();
+          router.dismissAll();
+          return true;
+        }
+        return false;
+      },
+    );
+    return () => subscription.remove();
+  }, [menuOpen, router]);
 
   useEffect(() => {
     let active = true;

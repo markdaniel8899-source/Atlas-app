@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  BackHandler,
+  Keyboard,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import type { Href } from "expo-router";
@@ -26,6 +34,8 @@ interface ScreenShellProps {
    * visitors too, and get a back arrow instead of the drawer button.
    */
   publicPage?: boolean;
+  /** Scroll to the bottom whenever the keyboard opens (form pages). */
+  scrollOnKeyboard?: boolean;
 }
 
 /**
@@ -38,13 +48,57 @@ export function ScreenShell({
   children,
   hideFooter = false,
   publicPage = false,
+  scrollOnKeyboard = false,
 }: ScreenShellProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const profile = useProfile();
   const [checked, setChecked] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const blurTargetRef = useRef<View | null>(null);
+  const scrollRef = useRef<ScrollView | null>(null);
+
+  // Android hardware back: close the drawer if open, otherwise jump straight
+  // home — never walk back through every tab the user visited.
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        if (menuOpen) {
+          setMenuOpen(false);
+          return true;
+        }
+        if (router.canDismiss()) {
+          Keyboard.dismiss();
+          router.dismissAll();
+          return true;
+        }
+        return false;
+      },
+    );
+    return () => subscription.remove();
+  }, [menuOpen, router]);
+
+  // Keep form fields reachable while typing: pad the scroll content by the
+  // live keyboard height (edge-to-edge Android does not resize the window).
+  useEffect(() => {
+    const show = Keyboard.addListener("keyboardDidShow", (event) => {
+      setKeyboardHeight(event.endCoordinates.height);
+      if (scrollOnKeyboard) {
+        setTimeout(() => {
+          scrollRef.current?.scrollToEnd({ animated: true });
+        }, 250);
+      }
+    });
+    const hide = Keyboard.addListener("keyboardDidHide", () =>
+      setKeyboardHeight(0),
+    );
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, [scrollOnKeyboard]);
 
   useEffect(() => {
     let active = true;
@@ -74,12 +128,13 @@ export function ScreenShell({
         </BlurTargetView>
 
         <ScrollView
+          ref={scrollRef}
           style={styles.scroll}
           contentContainerStyle={[
             styles.content,
             {
               paddingTop: insets.top + HEADER_HEIGHT + 32,
-              paddingBottom: insets.bottom + 32,
+              paddingBottom: insets.bottom + 32 + keyboardHeight,
             },
           ]}
           showsVerticalScrollIndicator={false}

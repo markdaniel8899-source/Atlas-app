@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ComponentType } from "react";
 import {
   Animated,
+  Keyboard,
   Modal,
   Platform,
   Pressable,
@@ -73,6 +74,7 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
   useEffect(() => {
     if (open) {
       setRendered(true);
+      Keyboard.dismiss();
       Animated.timing(anim, {
         toValue: 1,
         duration: 320,
