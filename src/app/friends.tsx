@@ -23,6 +23,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { useBlurTargetRef } from "../components/blur-target";
 import { ScreenHeading, ScreenShell } from "../components/screen-shell";
+import { readCache, writeCache } from "../lib/data-cache";
 import {
   acceptInvite,
   declineInvite,
@@ -290,9 +291,15 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "requests", label: "Requests" },
 ];
 
+const CACHE_KEY = "squad";
+
 export default function FriendsScreen() {
-  const [members, setMembers] = useState<SquadMember[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [members, setMembers] = useState<SquadMember[]>(
+    () => readCache<SquadMember[]>(CACHE_KEY) ?? [],
+  );
+  const [loading, setLoading] = useState(
+    () => readCache<SquadMember[]>(CACHE_KEY) === null,
+  );
   const [tab, setTab] = useState<Tab>("friends");
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -307,7 +314,10 @@ export default function FriendsScreen() {
     const seq = ++requestRef.current;
     const result = await fetchSquad();
     if (seq !== requestRef.current) return;
-    setMembers(result.members);
+    if (result.ok) {
+      setMembers(result.members);
+      writeCache(CACHE_KEY, result.members);
+    }
     setLoading(false);
     setError((current) => {
       if (!result.ok) return SQUAD_ERROR;

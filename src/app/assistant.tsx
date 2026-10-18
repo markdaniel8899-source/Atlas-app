@@ -32,8 +32,6 @@ import {
   subscribeAssistantChat,
 } from "../lib/assistant-store";
 import { resolveSession } from "../lib/auth";
-import { fetchProfile } from "../lib/db/profile";
-import { PROFILE_CHANGED_EVENT, listen } from "../lib/events";
 import { ensureOnline } from "../lib/net";
 import { colors, fonts } from "../theme/theme";
 
@@ -49,7 +47,6 @@ export default function AssistantScreen() {
 
   const [draft, setDraft] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [checked, setChecked] = useState(false);
   const [composerFocused, setComposerFocused] = useState(false);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
@@ -69,25 +66,18 @@ export default function AssistantScreen() {
 
   useEffect(() => {
     let active = true;
-    const load = () => {
-      void (async () => {
-        const user = await resolveSession();
-        if (!active) return;
-        if (!user) {
-          router.replace("/login");
-          return;
-        }
-        claimAssistantChat(user.id);
-        setChecked(true);
-        const profileRow = await fetchProfile(user.id);
-        if (active) setAvatarUrl(profileRow?.avatar_url ?? null);
-      })();
-    };
-    load();
-    const unsubscribe = listen(PROFILE_CHANGED_EVENT, load);
+    void (async () => {
+      const user = await resolveSession();
+      if (!active) return;
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
+      claimAssistantChat(user.id);
+      setChecked(true);
+    })();
     return () => {
       active = false;
-      unsubscribe();
     };
   }, [router]);
 
@@ -252,7 +242,7 @@ export default function AssistantScreen() {
           <AppHeader
             title="Assistant"
             onMenuPress={() => setMenuOpen(true)}
-            avatarUrl={avatarUrl}
+            avatarUrl={profile?.avatar_url ?? null}
           />
 
           <OfflineBanner />

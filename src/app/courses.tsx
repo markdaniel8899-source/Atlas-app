@@ -28,6 +28,7 @@ import { Card } from "../components/ui/card";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { CourseEditorModal } from "../components/courses/course-editor-modal";
 import { useCourses } from "../hooks/use-courses";
+import { readCache, writeCache } from "../lib/data-cache";
 import {
   createCourse,
   createTopic,
@@ -335,6 +336,8 @@ function CourseCard({
   );
 }
 
+const ROADMAPS_CACHE_KEY = "courseRoadmaps";
+
 export default function CoursesScreen() {
   const { courses, setCourses, loading, reload } = useCourses();
 
@@ -349,13 +352,15 @@ export default function CoursesScreen() {
   const [confirmTarget, setConfirmTarget] = useState<Course | null>(null);
   const [roadmaps, setRoadmaps] = useState<
     Map<number, RoadmapCourseProgress>
-  >(() => new Map());
+  >(() => readCache<Map<number, RoadmapCourseProgress>>(ROADMAPS_CACHE_KEY) ?? new Map());
 
   const loadRoadmaps = useCallback(async () => {
     try {
-      setRoadmaps(await fetchRoadmapProgressByCourse());
+      const map = await fetchRoadmapProgressByCourse();
+      setRoadmaps(map);
+      writeCache(ROADMAPS_CACHE_KEY, map);
     } catch {
-      setRoadmaps(new Map());
+      // Keep the last known roadmap progress on a transient failure.
     }
   }, []);
 

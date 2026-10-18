@@ -37,6 +37,7 @@ import { Card } from "../components/ui/card";
 import { RichNoteEditor } from "../components/notes/rich-note-editor";
 import type { RichNoteEditorHandle } from "../components/notes/rich-note-editor";
 import { useCourses } from "../hooks/use-courses";
+import { readCache, writeCache } from "../lib/data-cache";
 import { createNote, fetchNotes } from "../lib/db/notes";
 import type { Note } from "../lib/notes";
 import {
@@ -230,9 +231,35 @@ export default function NotesScreen() {
   }, [coursesLoading, selectedCourseId, selectedCourse, router]);
 
   /**
-   * Fetch the active scope and merge in any queued offline-created notes so
-   * they never disappear while waiting to sync.
+   * Merge rows with any queued offline-created notes so they never
+   * disappear while waiting to sync.
    */
+  const applyRows = useCallback(
+    (rows: Note[]) => {
+      const pendingTemp = new Set(getNotesQueueSnapshot().tempIds);
+      setNotes((prev) => {
+        const keep = prev.filter(
+          (note) =>
+            pendingTemp.has(note.id) &&
+            (activeCourseId == null || note.courseId === activeCourseId),
+        );
+        const seen = new Set(keep.map((note) => note.id));
+        return [...keep, ...rows.filter((row) => !seen.has(row.id))];
+      });
+      setActiveId((current) => {
+        if (
+          current &&
+          (rows.some((row) => row.id === current) || pendingTemp.has(current))
+        ) {
+          return current;
+        }
+        return rows[0]?.id ?? current ?? null;
+      });
+    },
+    [activeCourseId],
+  );
+
+  /** Fetch the active scope and merge in queued offline notes. */
   const load = useCallback(async () => {
     const scope =
       activeCourseId != null ? { courseId: activeCourseId } : undefined;
@@ -243,27 +270,9 @@ export default function NotesScreen() {
       rows = null;
     }
     if (!rows) return;
-
-    const pendingTemp = new Set(getNotesQueueSnapshot().tempIds);
-    setNotes((prev) => {
-      const keep = prev.filter(
-        (note) =>
-          pendingTemp.has(note.id) &&
-          (activeCourseId == null || note.courseId === activeCourseId),
-      );
-      const seen = new Set(keep.map((note) => note.id));
-      return [...keep, ...rows.filter((row) => !seen.has(row.id))];
-    });
-    setActiveId((current) => {
-      if (
-        current &&
-        (rows.some((row) => row.id === current) || pendingTemp.has(current))
-      ) {
-        return current;
-      }
-      return rows[0]?.id ?? current ?? null;
-    });
-  }, [activeCourseId]);
+    writeCache(`notes:${activeCourseId ?? "all"}`, rows);
+    applyRows(rows);
+  }, [activeCourseId, applyRows]);
 
   // Fetch only the notes of the active context: the selected course's
   // notes when a course is picked, otherwise every note (the list is then
@@ -272,14 +281,16 @@ export default function NotesScreen() {
     if (coursesLoading) return;
     if (selectedCourseId != null && activeCourseId == null) return; // stale param
     let alive = true;
-    setLoading(true);
+    const cached = readCache<Note[]>(`notes:${activeCourseId ?? "all"}`);
+    if (cached) applyRows(cached);
+    setLoading(cached === null);
     void load().finally(() => {
       if (alive) setLoading(false);
     });
     return () => {
       alive = false;
     };
-  }, [coursesLoading, selectedCourseId, activeCourseId, load]);
+  }, [coursesLoading, selectedCourseId, activeCourseId, load, applyRows]);
 
   // Queue drained: pull the source of truth back in (temp ids now real).
   useEffect(() => {

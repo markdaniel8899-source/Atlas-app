@@ -29,6 +29,7 @@ import {
 } from "lucide-react-native";
 import { resolveSession, signOut } from "../lib/auth";
 import { fetchProfile } from "../lib/db/profile";
+import { getCachedProfile } from "../lib/profile-cache";
 import { pngAvatarUrl } from "../lib/dicebear";
 import { PROFILE_CHANGED_EVENT, listen } from "../lib/events";
 import type { Profile } from "../lib/db/types";
@@ -64,7 +65,9 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
   const router = useRouter();
   const anim = useRef(new Animated.Value(0)).current;
   const [rendered, setRendered] = useState(open);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(() =>
+    getCachedProfile(),
+  );
   const [name, setName] = useState("");
 
   useEffect(() => {
@@ -96,8 +99,10 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
         const user = await resolveSession();
         if (!active || !user) return;
         setName(user.name);
+        const cached = getCachedProfile(user.id);
+        if (cached) setProfile(cached);
         const next = await fetchProfile(user.id);
-        if (active) setProfile(next);
+        if (active) setProfile(next ?? cached);
       })();
     };
     load();

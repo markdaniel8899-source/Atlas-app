@@ -160,8 +160,10 @@ export function NavigationDrawer({
                 onPress={() => {
                   onClose();
                   if (!item.route || item.label === activeLabel) return;
-                  if (item.route === "/") router.replace("/");
-                  else router.push(item.route);
+                  // navigate() reuses the screen if it is already in the
+                  // stack and pops back to it — no duplicate instances, no
+                  // remount-refetch churn on every tab switch.
+                  router.navigate(item.route);
                 }}
                 style={({ pressed }) => [
                   styles.item,

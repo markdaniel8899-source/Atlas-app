@@ -67,6 +67,10 @@ export function AppHeader({
             source={{ uri: resolvedAvatar }}
             style={styles.avatar}
             contentFit="cover"
+            cachePolicy="memory-disk"
+            recyclingKey={resolvedAvatar}
+            transition={0}
+            accessibilityLabel="Your profile picture"
           />
         ) : (
           <Image

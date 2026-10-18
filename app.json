@@ -51,6 +51,7 @@
               "minWidth": "180dp",
               "minHeight": "110dp",
               "description": "Your study streak, level and rank at a glance.",
+              "previewImage": "./assets/widget-preview.png",
               "updatePeriodMillis": 0,
               "resizeMode": "horizontal|vertical"
             }

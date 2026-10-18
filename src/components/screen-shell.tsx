@@ -11,9 +11,8 @@ import { MeshBackground } from "./mesh-background";
 import { NavigationDrawer } from "./navigation-drawer";
 import { OfflineBanner } from "./offline-banner";
 import { SessionCompleteCard } from "./session-complete-card";
+import { useProfile } from "../hooks/use-profile";
 import { resolveSession } from "../lib/auth";
-import { fetchProfile } from "../lib/db/profile";
-import { PROFILE_CHANGED_EVENT, listen } from "../lib/events";
 import { colors, fonts } from "../theme/theme";
 
 interface ScreenShellProps {
@@ -43,34 +42,23 @@ export function ScreenShell({
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const profile = useProfile();
   const [checked, setChecked] = useState(false);
   const blurTargetRef = useRef<View | null>(null);
 
   useEffect(() => {
     let active = true;
-    const load = () => {
-      void (async () => {
-        const user = await resolveSession();
-        if (!active) return;
-        if (!user) {
-          if (publicPage) {
-            setChecked(true);
-            return;
-          }
-          router.replace("/login");
-          return;
-        }
-        setChecked(true);
-        const profile = await fetchProfile(user.id);
-        if (active) setAvatarUrl(profile?.avatar_url ?? null);
-      })();
-    };
-    load();
-    const unsubscribe = listen(PROFILE_CHANGED_EVENT, load);
+    void (async () => {
+      const user = await resolveSession();
+      if (!active) return;
+      if (!user && !publicPage) {
+        router.replace("/login");
+        return;
+      }
+      setChecked(true);
+    })();
     return () => {
       active = false;
-      unsubscribe();
     };
   }, [router, publicPage]);
 
@@ -142,7 +130,7 @@ export function ScreenShell({
                     }
                   : undefined
               }
-              avatarUrl={avatarUrl}
+              avatarUrl={profile?.avatar_url ?? null}
             />
 
             <OfflineBanner />

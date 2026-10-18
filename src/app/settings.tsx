@@ -35,6 +35,7 @@ import { getRankFromXP } from "../lib/gamification";
 import { pngAvatarUrl } from "../lib/dicebear";
 import { notifyProfileChanged } from "../lib/events";
 import { ensureOnline } from "../lib/net";
+import { getCachedProfile } from "../lib/profile-cache";
 import { useCourses } from "../hooks/use-courses";
 import type { Course, Profile } from "../lib/db/types";
 import { colors, fonts } from "../theme/theme";
@@ -44,11 +45,21 @@ const USERNAME_RE = /^[a-z0-9_]{3,24}$/;
 export default function SettingsScreen() {
   const [user, setUser] = useState<AuthUser | null>(null);
 
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [displayName, setDisplayName] = useState("");
-  const [username, setUsername] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  // Seed from the cached profile so returning to Settings paints instantly;
+  // the effect below silently revalidates.
+  const [profile, setProfile] = useState<Profile | null>(() =>
+    getCachedProfile(),
+  );
+  const [loading, setLoading] = useState(() => getCachedProfile() === null);
+  const [displayName, setDisplayName] = useState(
+    () => getCachedProfile()?.display_name ?? "",
+  );
+  const [username, setUsername] = useState(
+    () => getCachedProfile()?.username ?? "",
+  );
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(
+    () => getCachedProfile()?.avatar_url ?? null,
+  );
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
 
   const [saving, setSaving] = useState(false);

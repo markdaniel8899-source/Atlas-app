@@ -1,5 +1,6 @@
 import { resolveSession } from "../auth";
 import { isAllowedAvatarUrl } from "../dicebear";
+import { setCachedProfile } from "../profile-cache";
 import { supabase } from "../supabase";
 import type { Profile } from "./types";
 
@@ -14,7 +15,9 @@ export async function fetchProfile(userId: string): Promise<Profile | null> {
     .maybeSingle();
 
   if (error || !data) return null;
-  return data as Profile;
+  const profile = data as Profile;
+  setCachedProfile(userId, profile);
+  return profile;
 }
 
 export interface ProfileUpdateResult {
@@ -55,7 +58,9 @@ export async function updateProfile(
       error: "Couldn't save your changes. Check your connection and try again.",
     };
   }
-  return { profile: data as Profile, error: null };
+  const profile = data as Profile;
+  setCachedProfile(userId, profile);
+  return { profile, error: null };
 }
 
 /**

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { resolveSession } from "../lib/auth";
 import type { AuthUser } from "../lib/auth";
+import { readCache, writeCache } from "../lib/data-cache";
 import { fetchHeatmap } from "../lib/db/activity";
 import { fetchFocusCourse } from "../lib/db/courses";
 import {
@@ -10,6 +11,7 @@ import {
   listen,
 } from "../lib/events";
 import { fetchProfile } from "../lib/db/profile";
+import { getCachedProfile } from "../lib/profile-cache";
 import { syncAtlasWidget } from "../lib/widgets/widget-sync";
 import type { FocusCourse, HeatmapDay, Profile } from "../lib/db/types";
 
@@ -25,6 +27,13 @@ export interface DashboardState extends DashboardData {
   reload: () => void;
 }
 
+interface DashboardSnapshot {
+  heatmap: HeatmapDay[];
+  focus: FocusCourse | null;
+}
+
+const CACHE_KEY = "dashboard.home";
+
 const EMPTY: DashboardData = {
   user: null,
   profile: null,
@@ -32,9 +41,22 @@ const EMPTY: DashboardData = {
   focus: null,
 };
 
+/** Last rendered dashboard payload - paints instantly on remount. */
+function seed(): DashboardData {
+  const snapshot = readCache<DashboardSnapshot>(CACHE_KEY);
+  return {
+    user: null,
+    profile: getCachedProfile(),
+    heatmap: snapshot?.heatmap ?? [],
+    focus: snapshot?.focus ?? null,
+  };
+}
+
 export function useDashboard(): DashboardState {
-  const [data, setData] = useState<DashboardData>(EMPTY);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<DashboardData>(seed);
+  const [loading, setLoading] = useState(
+    () => readCache<DashboardSnapshot>(CACHE_KEY) === null,
+  );
 
   const reload = useCallback(() => {
     void (async () => {
@@ -46,16 +68,28 @@ export function useDashboard(): DashboardState {
         return;
       }
 
+      const cachedProfile = getCachedProfile(user.id);
+      if (cachedProfile) {
+        setData((prev) => ({ ...prev, user, profile: cachedProfile }));
+      }
+
       try {
         const [profile, heatmap, focus] = await Promise.all([
           fetchProfile(user.id),
           fetchHeatmap(365),
           fetchFocusCourse(),
         ]);
-        setData({ user, profile, heatmap, focus });
-        syncAtlasWidget(profile);
+        writeCache<DashboardSnapshot>(CACHE_KEY, { heatmap, focus });
+        const next: DashboardData = {
+          user,
+          profile: profile ?? cachedProfile,
+          heatmap,
+          focus,
+        };
+        setData(next);
+        syncAtlasWidget(next.profile);
       } catch {
-        setData({ ...EMPTY, user });
+        if (!cachedProfile) setData((prev) => ({ ...prev, user }));
       } finally {
         setLoading(false);
       }

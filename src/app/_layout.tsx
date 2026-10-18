@@ -17,12 +17,17 @@ import {
 import { Outfit_600SemiBold } from "@expo-google-fonts/outfit";
 import { TimerProvider } from "../context/timer-context";
 import { initNotifications } from "../lib/notifications";
+import { hydrateProfileCache } from "../lib/profile-cache";
 import { colors } from "../theme/theme";
 
 void SplashScreen.preventAutoHideAsync().catch(() => {});
 
 // Foreground presentation settings for the session-end alert.
 initNotifications();
+
+// Warm the persisted profile snapshot before the first screen mounts so the
+// header avatar never falls back while booting.
+void hydrateProfileCache();
 
 // Android home-screen widget: registered at module scope so headless
 // background launches can redraw the widget too.

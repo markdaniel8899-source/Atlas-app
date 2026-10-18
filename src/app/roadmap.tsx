@@ -35,6 +35,7 @@ import { RoadmapDetail } from "../components/roadmap/roadmap-detail";
 import { RoadmapMap } from "../components/roadmap/roadmap-map";
 import { AiError, generateRoadmapOutline, generateRoadmapPhase } from "../lib/ai";
 import { useCourses } from "../hooks/use-courses";
+import { readCache, writeCache } from "../lib/data-cache";
 import { fetchCourses } from "../lib/db/courses";
 import { ROADMAPS_CHANGED_EVENT, listen } from "../lib/events";
 import { ensureOnline } from "../lib/net";
@@ -233,10 +234,15 @@ export default function RoadmapScreen() {
 
   useEffect(() => {
     let alive = true;
-    setLoading(true);
+    const key = `roadmap:${roadmapCourseId ?? "latest"}`;
+    const cached = readCache<RoadmapGraph>(key);
+    if (cached) setGraph(cached);
+    setLoading(cached === null);
     void fetchLatestRoadmap(roadmapCourseId)
       .then((result) => {
-        if (alive) setGraph(result);
+        if (!alive) return;
+        setGraph(result);
+        writeCache(key, result);
       })
       .catch(() => undefined)
       .finally(() => {
@@ -269,6 +275,7 @@ export default function RoadmapScreen() {
           }
           const next = await fetchLatestRoadmap(roadmapCourseId);
           setGraph(next);
+          writeCache(`roadmap:${roadmapCourseId ?? "latest"}`, next);
         } catch {
           // Transient network error - keep the current view.
         }

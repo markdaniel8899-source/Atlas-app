@@ -1,7 +1,9 @@
 import type { User } from "@supabase/supabase-js";
+import { clearDataCaches } from "./data-cache";
 import { isSupabaseConfigured, supabase } from "./supabase";
 import { clearLocalTimerCache } from "./timer";
 import { cancelSessionEndNotification } from "./notifications";
+import { clearProfileCache } from "./profile-cache";
 import { syncAtlasWidget } from "./widgets/widget-sync";
 
 export interface AuthUser {
@@ -222,6 +224,8 @@ export async function signOut(): Promise<void> {
   await clearLocalTimerCache();
   void cancelSessionEndNotification();
   syncAtlasWidget(null);
+  clearProfileCache();
+  clearDataCaches();
 }
 
 /** Restores the persisted session on load and refreshes the cached user. */

@@ -13,6 +13,7 @@ import { Flame, Medal, Trophy, WifiOff, Zap } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { ScreenHeading, ScreenShell } from "../components/screen-shell";
 import { RankBadge } from "../components/gamification/rank-badge";
+import { readCache, writeCache } from "../lib/data-cache";
 import { getRankFromXP } from "../lib/gamification";
 import { fetchWeeklyLeaderboard } from "../lib/db/leaderboard";
 import type { LeaderboardEntry } from "../lib/db/leaderboard";
@@ -291,20 +292,29 @@ function LeaderRow({ entry, place }: { entry: LeaderboardEntry; place: number })
   );
 }
 
+const CACHE_KEY = "leaderboard.weekly";
+
 export default function LeaderboardScreen() {
-  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [entries, setEntries] = useState<LeaderboardEntry[]>(
+    () => readCache<LeaderboardEntry[]>(CACHE_KEY) ?? [],
+  );
+  const [loading, setLoading] = useState(
+    () => readCache<LeaderboardEntry[]>(CACHE_KEY) === null,
+  );
   const [failed, setFailed] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    if (readCache<LeaderboardEntry[]>(CACHE_KEY) === null) setLoading(true);
     setFailed(false);
     fetchWeeklyLeaderboard(50)
       .then((result) => {
         if (cancelled) return;
-        setEntries(result.entries);
+        if (result.ok) {
+          setEntries(result.entries);
+          writeCache(CACHE_KEY, result.entries);
+        }
         setFailed(!result.ok);
       })
       .finally(() => {
