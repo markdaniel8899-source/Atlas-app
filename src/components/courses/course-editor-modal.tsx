@@ -8,12 +8,12 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { BookOpen, Plus, Save, X } from "lucide-react-native";
 import { addTopic, removeTopic, updateCourse } from "../../lib/db/courses";
 import type { Course, CourseTopic } from "../../lib/db/types";
+import { ThemedInput } from "../ui/themed-input";
 import { colors, fonts } from "../../theme/theme";
 
 interface CourseEditorModalProps {
@@ -159,7 +159,7 @@ export function CourseEditorModal({
               <View style={styles.form}>
                 <View>
                   <Text style={styles.label}>Title</Text>
-                  <TextInput
+                  <ThemedInput
                     value={title}
                     onChangeText={setTitle}
                     maxLength={160}
@@ -170,7 +170,7 @@ export function CourseEditorModal({
                 </View>
                 <View>
                   <Text style={styles.label}>Source</Text>
-                  <TextInput
+                  <ThemedInput
                     value={description}
                     onChangeText={setDescription}
                     maxLength={160}
@@ -210,7 +210,7 @@ export function CourseEditorModal({
                   </View>
 
                   <View style={styles.addRow}>
-                    <TextInput
+                    <ThemedInput
                       value={topicTitle}
                       onChangeText={setTopicTitle}
                       placeholder="Add a topic"

@@ -4,7 +4,6 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import {
@@ -32,6 +31,7 @@ import { SelectMenu } from "../ui/select-menu";
 import type { SelectOption } from "../ui/select-menu";
 import { useCourses } from "../../hooks/use-courses";
 import { colors, fonts } from "../../theme/theme";
+import { ThemedInput } from "../ui/themed-input";
 
 export interface RoadmapRequestInput {
   goal: string;
@@ -222,7 +222,7 @@ export function RoadmapBuilder({
             <Target size={12} color={colors.w40} />
             <Text style={styles.label}>Goal</Text>
           </View>
-          <TextInput
+          <ThemedInput
             value={goal}
             onChangeText={setGoal}
             multiline

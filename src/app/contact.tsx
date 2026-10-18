@@ -1,13 +1,6 @@
 import { useState } from "react";
 import type { ComponentType } from "react";
-import {
-  Linking,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import {
   ArrowUpRight,
   Mail,
@@ -15,6 +8,7 @@ import {
   Phone,
 } from "lucide-react-native";
 import { ScreenHeading, ScreenShell } from "../components/screen-shell";
+import { ThemedInput } from "../components/ui/themed-input";
 import { ensureOnline } from "../lib/net";
 import { supabase } from "../lib/supabase";
 import { colors, fonts } from "../theme/theme";
@@ -148,7 +142,7 @@ export default function ContactScreen() {
 
       <View style={styles.formCard}>
         <Text style={styles.formTitle}>Send us a message</Text>
-        <TextInput
+        <ThemedInput
           value={name}
           onChangeText={onEdit(setName)}
           maxLength={80}
@@ -156,7 +150,7 @@ export default function ContactScreen() {
           placeholderTextColor={colors.w35}
           style={styles.field}
         />
-        <TextInput
+        <ThemedInput
           value={email}
           onChangeText={onEdit(setEmail)}
           maxLength={120}
@@ -166,7 +160,7 @@ export default function ContactScreen() {
           placeholderTextColor={colors.w35}
           style={styles.field}
         />
-        <TextInput
+        <ThemedInput
           value={message}
           onChangeText={onEdit(setMessage)}
           maxLength={4000}

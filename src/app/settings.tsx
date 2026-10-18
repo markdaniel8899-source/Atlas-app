@@ -26,6 +26,7 @@ import { CourseEditorModal } from "../components/courses/course-editor-modal";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
+import { ThemedInput } from "../components/ui/themed-input";
 import { resolveSession } from "../lib/auth";
 import type { AuthUser } from "../lib/auth";
 import { fetchProfile, updateProfile } from "../lib/db/profile";
@@ -336,7 +337,7 @@ export default function SettingsScreen() {
         <View style={styles.fieldsWrap}>
           <View>
             <Text style={styles.fieldLabel}>DISPLAY NAME</Text>
-            <TextInput
+            <ThemedInput
               value={displayName}
               maxLength={60}
               editable={!loading}
@@ -355,6 +356,7 @@ export default function SettingsScreen() {
             <View style={styles.usernameField}>
               <Text style={styles.usernamePrefix}>@</Text>
               <TextInput
+                keyboardAppearance="dark"
                 value={username}
                 maxLength={24}
                 editable={!loading}

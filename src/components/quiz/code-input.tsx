@@ -28,6 +28,7 @@ export function CodeInput({
   return (
     <View style={styles.frame}>
       <TextInput
+        keyboardAppearance="dark"
         value={value}
         onChangeText={onChange}
         editable={!disabled}

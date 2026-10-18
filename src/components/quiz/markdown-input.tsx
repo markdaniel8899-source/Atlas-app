@@ -95,6 +95,7 @@ export function MarkdownInput({
       </View>
 
       <TextInput
+        keyboardAppearance="dark"
         ref={inputRef}
         value={value}
         onChangeText={onChange}

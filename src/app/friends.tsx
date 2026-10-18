@@ -399,6 +399,7 @@ export default function FriendsScreen() {
         <View style={styles.inviteField}>
           <Mail size={16} color={colors.w30} />
           <TextInput
+            keyboardAppearance="dark"
             value={invite}
             onChangeText={setInvite}
             placeholder="friend@email.com"

@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { CodeBlock } from "./code-block";
 import { CodeInput } from "./code-input";
 import { MarkdownInput } from "./markdown-input";
@@ -6,6 +6,7 @@ import { RichText } from "./rich-text";
 import type { QuizQuestion } from "../../lib/ai";
 import type { QuizAnswer } from "../../lib/quiz";
 import { colors, fonts } from "../../theme/theme";
+import { ThemedInput } from "../ui/themed-input";
 
 interface QuestionInputProps {
   question: QuizQuestion;
@@ -98,7 +99,7 @@ export function QuestionInput({
         <View style={styles.debugRow}>
           <View style={styles.debugLineCol}>
             <Legend>Line number</Legend>
-            <TextInput
+            <ThemedInput
               value={lineText}
               onChangeText={(next) => onChange(`${next}\n${fixText}`)}
               editable={!disabled}

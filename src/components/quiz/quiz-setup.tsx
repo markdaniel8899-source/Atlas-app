@@ -4,7 +4,6 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
@@ -37,6 +36,7 @@ import {
 } from "./icons";
 import type { QuizIcon } from "./icons";
 import { colors, fonts } from "../../theme/theme";
+import { ThemedInput } from "../ui/themed-input";
 
 const CUSTOM = "__custom";
 
@@ -447,7 +447,7 @@ export function QuizSetup({
             <Text style={styles.label}>
               {course ? "Focus (optional)" : "Topic to quiz"}
             </Text>
-            <TextInput
+            <ThemedInput
               value={customTopic}
               onChangeText={setCustomTopic}
               maxLength={300}

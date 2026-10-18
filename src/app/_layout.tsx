@@ -16,11 +16,13 @@ import {
 } from "@expo-google-fonts/geist-mono";
 import { Outfit_600SemiBold } from "@expo-google-fonts/outfit";
 import { TimerProvider } from "../context/timer-context";
+import { SplashOverlay } from "../components/splash-overlay";
 import { initNotifications } from "../lib/notifications";
 import { hydrateProfileCache } from "../lib/profile-cache";
 import { colors } from "../theme/theme";
 
 void SplashScreen.preventAutoHideAsync().catch(() => {});
+SplashScreen.setOptions({ duration: 400, fade: true });
 
 // Foreground presentation settings for the session-end alert.
 initNotifications();
@@ -86,6 +88,7 @@ export default function RootLayout() {
           options={{ animation: "fade", animationDuration: 300 }}
         />
       </Stack>
+      <SplashOverlay />
       <StatusBar style="light" />
     </TimerProvider>
   );

@@ -514,6 +514,7 @@ export default function LoginScreen() {
                         value={name}
                       >
                         <TextInput
+                          keyboardAppearance="dark"
                           value={name}
                           onChangeText={setName}
                           onFocus={() => setFocused("name")}
@@ -542,6 +543,7 @@ export default function LoginScreen() {
                         value={email}
                       >
                         <TextInput
+                          keyboardAppearance="dark"
                           ref={emailRef}
                           value={email}
                           onChangeText={setEmail}
@@ -590,6 +592,7 @@ export default function LoginScreen() {
                         }
                       >
                         <TextInput
+                          keyboardAppearance="dark"
                           ref={passwordRef}
                           value={password}
                           onChangeText={setPassword}

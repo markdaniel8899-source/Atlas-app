@@ -61,6 +61,7 @@ export function OtpInput({
       })}
 
       <TextInput
+        keyboardAppearance="dark"
         ref={inputRef}
         value={value}
         onChangeText={handleChange}

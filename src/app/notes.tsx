@@ -579,6 +579,7 @@ export default function NotesScreen() {
 
             <View style={styles.titleRow}>
               <TextInput
+                keyboardAppearance="dark"
                 value={title}
                 onChangeText={(next) => {
                   setTitle(next);

@@ -4,7 +4,6 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
@@ -26,6 +25,7 @@ import {
 import { ScreenHeading, ScreenShell } from "../components/screen-shell";
 import { Card } from "../components/ui/card";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
+import { ThemedInput } from "../components/ui/themed-input";
 import { CourseEditorModal } from "../components/courses/course-editor-modal";
 import { useCourses } from "../hooks/use-courses";
 import { readCache, writeCache } from "../lib/data-cache";
@@ -287,7 +287,7 @@ function CourseCard({
       <View style={styles.addTopicWrap}>
         {formOpen ? (
           <View style={styles.addTopicRow}>
-            <TextInput
+            <ThemedInput
               autoFocus
               value={topicTitle}
               onChangeText={onTopicTitleChange}
@@ -504,7 +504,7 @@ export default function CoursesScreen() {
         <View style={styles.formCard}>
           <View>
             <Text style={styles.formLabel}>Title</Text>
-            <TextInput
+            <ThemedInput
               value={title}
               onChangeText={setTitle}
               placeholder="Systems Design Primer"
@@ -515,7 +515,7 @@ export default function CoursesScreen() {
           </View>
           <View>
             <Text style={styles.formLabel}>Source</Text>
-            <TextInput
+            <ThemedInput
               value={description}
               onChangeText={setDescription}
               placeholder="ByteGrad"

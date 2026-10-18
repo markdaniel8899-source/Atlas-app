@@ -62,6 +62,7 @@ export function ChatComposer({
         ]}
       >
         <TextInput
+          keyboardAppearance="dark"
           value={draft}
           maxLength={MAX_LENGTH}
           multiline
