@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import {
   AlertCircle,
+  Bell,
   BookOpen,
   Check,
   GraduationCap,
@@ -36,6 +37,7 @@ import { getRankFromXP } from "../lib/gamification";
 import { pngAvatarUrl } from "../lib/dicebear";
 import { notifyProfileChanged } from "../lib/events";
 import { ensureOnline } from "../lib/net";
+import { sendTestNotification } from "../lib/notifications";
 import { getCachedProfile } from "../lib/profile-cache";
 import { useCourses } from "../hooks/use-courses";
 import type { Course, Profile } from "../lib/db/types";
@@ -66,6 +68,10 @@ export default function SettingsScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+
+  const [testState, setTestState] = useState<
+    "idle" | "sending" | "sent" | "failed"
+  >("idle");
 
   const {
     courses: managedCourses,
@@ -239,6 +245,12 @@ export default function SettingsScreen() {
       .join("")
       .slice(0, 2)
       .toUpperCase() || "A";
+
+  const handleSendTest = async () => {
+    setTestState("sending");
+    const ok = await sendTestNotification();
+    setTestState(ok ? "sent" : "failed");
+  };
 
   return (
     <ScreenShell title="Settings" activeLabel="Settings">
@@ -566,6 +578,45 @@ export default function SettingsScreen() {
         </Text>
       </Card>
 
+      {/* NOTIFICATIONS */}
+      <Card style={styles.smallCard}>
+        <Text style={styles.cardTitle}>NOTIFICATIONS</Text>
+        <Text style={styles.notifHint}>
+          Session-complete alerts and streak reminders arrive as phone
+          notifications. Send a test to confirm they’re allowed on this
+          device.
+        </Text>
+        {testState === "sent" ? (
+          <View style={styles.savedBanner}>
+            <Check size={16} color={colors.lilac} />
+            <Text style={styles.savedBannerText}>
+              Test alert scheduled - it arrives in ~10 seconds.
+            </Text>
+          </View>
+        ) : testState === "failed" ? (
+          <View style={styles.errorBanner}>
+            <AlertCircle size={16} color="rgba(253,164,175,0.9)" />
+            <Text style={styles.errorBannerText}>
+              Notifications are blocked. Allow them for ATLAS in Android
+              Settings, then try again.
+            </Text>
+          </View>
+        ) : null}
+        <View style={styles.saveRow}>
+          <Button
+            label={testState === "sending" ? "Scheduling…" : "Send test alert"}
+            icon={
+              testState === "sending" ? undefined : (
+                <Bell size={16} color={colors.primaryText} />
+              )
+            }
+            disabled={testState === "sending"}
+            onPress={() => void handleSendTest()}
+            contentStyle={styles.saveButton}
+          />
+        </View>
+      </Card>
+
       <CourseEditorModal
         course={editingCourse}
         onClose={() => setEditingCourse(null)}
@@ -604,6 +655,13 @@ const styles = StyleSheet.create({
   },
   smallCard: {
     padding: 20,
+  },
+  notifHint: {
+    marginTop: 14,
+    fontSize: 13,
+    lineHeight: 20,
+    fontFamily: fonts.regular,
+    color: "rgba(255,255,255,0.55)",
   },
   cardHeaderRow: {
     flexDirection: "row",

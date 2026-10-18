@@ -2,9 +2,15 @@ import type { User } from "@supabase/supabase-js";
 import { clearDataCaches } from "./data-cache";
 import { isSupabaseConfigured, supabase } from "./supabase";
 import { clearLocalTimerCache } from "./timer";
-import { cancelSessionEndNotification } from "./notifications";
+import {
+  cancelSessionEndNotification,
+  cancelStreakReminder,
+} from "./notifications";
 import { clearProfileCache } from "./profile-cache";
-import { syncAtlasWidget } from "./widgets/widget-sync";
+import {
+  syncAtlasNotesWidget,
+  syncAtlasStatsWidget,
+} from "./widgets/widget-sync";
 
 export interface AuthUser {
   id: string;
@@ -223,7 +229,9 @@ export async function signOut(): Promise<void> {
   if (isSupabaseConfigured) await supabase.auth.signOut();
   await clearLocalTimerCache();
   void cancelSessionEndNotification();
-  syncAtlasWidget(null);
+  void cancelStreakReminder();
+  syncAtlasStatsWidget(null, []);
+  syncAtlasNotesWidget(null);
   clearProfileCache();
   clearDataCaches();
 }

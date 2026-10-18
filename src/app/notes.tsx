@@ -49,6 +49,7 @@ import {
   subscribeNotesQueue,
 } from "../lib/notes-queue";
 import { inferSubject } from "../lib/subjects";
+import { syncAtlasNotesWidget } from "../lib/widgets/widget-sync";
 import { colors, fonts } from "../theme/theme";
 
 const TOOLS: {
@@ -183,7 +184,10 @@ function CourseSwitcher({
 export default function NotesScreen() {
   const { courses, loading: coursesLoading } = useCourses();
   const router = useRouter();
-  const params = useLocalSearchParams<{ courseId?: string | string[] }>();
+  const params = useLocalSearchParams<{
+    courseId?: string | string[];
+    compose?: string | string[];
+  }>();
 
   const [notes, setNotes] = useState<Note[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -202,10 +206,14 @@ export default function NotesScreen() {
   const notesRef = useRef<Note[]>([]);
   const activeRef = useRef<string | null>(activeId);
   const prevPendingRef = useRef(0);
+  const composeHandledRef = useRef(false);
 
   const rawCourseId = Array.isArray(params.courseId)
     ? params.courseId[0]
     : params.courseId;
+  const rawCompose = Array.isArray(params.compose)
+    ? params.compose[0]
+    : params.compose;
   const parsedCourseId = Number(rawCourseId ?? "");
   const selectedCourseId =
     Number.isSafeInteger(parsedCourseId) && parsedCourseId > 0
@@ -320,6 +328,13 @@ export default function NotesScreen() {
     notesRef.current = notes;
   }, [notes]);
 
+  // Keep the home-screen sticky + quick-notes widgets mirrored (debounced
+  // so a typing burst only pushes one update).
+  useEffect(() => {
+    const timer = setTimeout(() => syncAtlasNotesWidget(notes), 800);
+    return () => clearTimeout(timer);
+  }, [notes]);
+
   // Subject groups for the "All notes" view; null in a course view (flat).
   const groupedNotes = useMemo(() => {
     if (selectedCourseId != null) return null;
@@ -399,7 +414,7 @@ export default function NotesScreen() {
     timerRef.current = setTimeout(() => persist(id, { html }), 600);
   };
 
-  const addNote = async () => {
+  const addNote = useCallback(async () => {
     // In a course view the note is owned by the course (and linked to its
     // first topic for subject grouping), so it stays in that course's scope.
     const courseId = selectedCourse?.id ?? null;
@@ -437,7 +452,17 @@ export default function NotesScreen() {
       courseId,
       topicId,
     });
-  };
+  }, [selectedCourse]);
+
+  // Widget "+" shortcut (atlas://notes?compose=1): create a fresh note once
+  // the initial list has loaded so the new note stays selected.
+  useEffect(() => {
+    if (rawCompose !== "1" || composeHandledRef.current) return;
+    if (loading || coursesLoading) return;
+    composeHandledRef.current = true;
+    router.setParams({ compose: "" });
+    void addNote();
+  }, [rawCompose, loading, coursesLoading, addNote, router]);
 
   const removeNote = (id: string) => {
     const next = notes.filter((note) => note.id !== id);

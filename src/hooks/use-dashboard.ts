@@ -12,7 +12,8 @@ import {
 } from "../lib/events";
 import { fetchProfile } from "../lib/db/profile";
 import { getCachedProfile } from "../lib/profile-cache";
-import { syncAtlasWidget } from "../lib/widgets/widget-sync";
+import { syncStreakReminder } from "../lib/notifications";
+import { syncAtlasStatsWidget } from "../lib/widgets/widget-sync";
 import type { FocusCourse, HeatmapDay, Profile } from "../lib/db/types";
 
 export interface DashboardData {
@@ -63,7 +64,8 @@ export function useDashboard(): DashboardState {
       const user = await resolveSession();
       if (!user) {
         setData(EMPTY);
-        syncAtlasWidget(null);
+        syncAtlasStatsWidget(null, []);
+        void syncStreakReminder(null);
         setLoading(false);
         return;
       }
@@ -87,7 +89,15 @@ export function useDashboard(): DashboardState {
           focus,
         };
         setData(next);
-        syncAtlasWidget(next.profile);
+        syncAtlasStatsWidget(next.profile, heatmap);
+        void syncStreakReminder(
+          next.profile
+            ? {
+                streak: next.profile.streak ?? 0,
+                lastActiveDate: next.profile.last_active_date ?? null,
+              }
+            : null,
+        );
       } catch {
         if (!cachedProfile) setData((prev) => ({ ...prev, user }));
       } finally {
