@@ -26,10 +26,6 @@ interface RichNoteEditorProps {
   html: string;
   /** Fired with the editor's innerHTML on every user input. */
   onChange: (html: string) => void;
-  /** Renders the body as a non-editable document (shared-note preview). */
-  readOnly?: boolean;
-  /** Visible height in px. Defaults to 340. */
-  height?: number;
 }
 
 /**
@@ -38,8 +34,7 @@ interface RichNoteEditorProps {
  * selection so toolbar taps (which blur the WebView) still format the right
  * range - the same approach native rich editors use.
  */
-function buildEditorHtml(readOnly: boolean): string {
-  const editable = readOnly ? "false" : "true";
+function buildEditorHtml(): string {
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -58,7 +53,6 @@ function buildEditorHtml(readOnly: boolean): string {
     -webkit-user-select: text;
     user-select: text;
   }
-  #editor[contenteditable="false"] { cursor: default; }
   #editor h2 { margin: 16px 0 8px; font-size: 20px; line-height: 1.3; font-weight: 600; color: #fff; }
   #editor blockquote {
     margin: 8px 0;
@@ -73,11 +67,10 @@ function buildEditorHtml(readOnly: boolean): string {
 </style>
 </head>
 <body>
-<div id="editor" contenteditable="${editable}" spellcheck="${editable}" aria-label="Note content"></div>
+<div id="editor" contenteditable="true" spellcheck="true" aria-label="Note content"></div>
 <script>
   (function () {
     var editor = document.getElementById("editor");
-    var readOnly = ${readOnly ? "true" : "false"};
     var savedRange = null;
 
     function post(kind, html) {
@@ -97,7 +90,6 @@ function buildEditorHtml(readOnly: boolean): string {
     }
 
     function notifyChange() {
-      if (readOnly) return;
       post("change", editor.innerHTML);
     }
 
@@ -110,7 +102,6 @@ function buildEditorHtml(readOnly: boolean): string {
     };
 
     window.__cmd = function (name, value) {
-      if (readOnly) return;
       editor.focus();
       var selection = window.getSelection();
       if (savedRange) {
@@ -138,24 +129,17 @@ function buildEditorHtml(readOnly: boolean): string {
 </html>`;
 }
 
-const EDITABLE_EDITOR_HTML = buildEditorHtml(false);
-const READ_ONLY_EDITOR_HTML = buildEditorHtml(true);
+const EDITOR_HTML = buildEditorHtml();
 
 export const RichNoteEditor = forwardRef<
   RichNoteEditorHandle,
   RichNoteEditorProps
->(function RichNoteEditor(
-  { noteId, html, onChange, readOnly = false, height = 340 },
-  ref,
-) {
+>(function RichNoteEditor({ noteId, html, onChange }, ref) {
   const webRef = useRef<WebView>(null);
   const [ready, setReady] = useState(false);
   const pushedRef = useRef<string | null>(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
-  const editorHtml = readOnly
-    ? READ_ONLY_EDITOR_HTML
-    : EDITABLE_EDITOR_HTML;
 
   useImperativeHandle(
     ref,
@@ -218,11 +202,11 @@ export const RichNoteEditor = forwardRef<
   );
 
   return (
-    <View style={[styles.wrap, { height }]}>
+    <View style={styles.wrap}>
       <WebView
         ref={webRef}
         originWhitelist={["*"]}
-        source={{ html: editorHtml }}
+        source={{ html: EDITOR_HTML }}
         onMessage={onMessage}
         onShouldStartLoadWithRequest={onShouldStartLoadWithRequest}
         style={styles.web}

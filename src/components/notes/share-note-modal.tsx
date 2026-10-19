@@ -124,7 +124,7 @@ export function ShareNoteModal({
                   {noteTitle.trim() || "Untitled note"}
                 </Text>
                 <Text style={styles.subtitle}>
-                  Pick a friend - they get their own copy in Shared with me.
+                  Pick a friend - the note is copied into their Notes.
                 </Text>
               </View>
               <Pressable
