@@ -83,8 +83,9 @@
 ### 3.6 Notes (`src/app/notes.tsx`, `src/lib/notes.ts`, `src/lib/notes-queue.ts`)
 - Rich editor (WebView) + **allowlist sanitizer** (runtime-verified: script/style/iframe/svg blocks drop, entity-encoded `javascript:` reject, unclosed tags escape)
 - WebView navigation gate: sirf inline document load hota hai; bahar wale safe http(s) links system browser mein
-- **Offline queue**: latest-wins per note, temp `local-…` ids + id-swap, retry on edit / 15s interval / foreground; per-account alag (owner-scoped)
-- Title cap 200, "Offline · N to sync" indicator, delete confirm
+- **Offline queue**: latest-wins per note, temp `local-…` ids + id-swap, retry on edit / 15s interval / foreground; per-account alag (owner-scoped); permanently failing ops (constraint/RLS) drop hoti hain, network/session errors retry
+- Title cap 160 + server-side clamp ("Untitled note" fallback), "Offline · N to sync" indicator, delete confirm
+- **Notes sharing** (`src/lib/db/shares.ts`, `supabase/note-sharing.sql`): `My notes` / `Shared with me` tabs, accepted-friends picker, snapshot RPC (ownership + friendship + 60/hour), inbox preview, mark-read, import-to-my-notes, remove. **SQL run karna baqi hai** — tab tak feature inert hai. Read-only WebView preview sanitized HTML render karta hai.
 
 ### 3.7 Quiz (`src/app/quiz.tsx`, `src/lib/quiz-store.ts`)
 - AI generation + auto-grading (backend: qwen3.8-27b)

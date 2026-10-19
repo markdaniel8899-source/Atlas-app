@@ -34,6 +34,18 @@ function toId(id: string): number | null {
 }
 
 /**
+ * `notes.title` is CHECK (1..160). The UI lets an empty title mean
+ * "Untitled note", so every write is clamped here - otherwise a cleared
+ * title would fail forever and block the offline queue.
+ */
+const TITLE_MAX = 160;
+
+function clampTitle(value: string): string {
+  const sliced = value.slice(0, TITLE_MAX);
+  return sliced.trim().length > 0 ? sliced : "Untitled note";
+}
+
+/**
  * Map each note id to its owning course's title - directly via
  * notes.course_id, or through notes.topic_id -> course_topics.course_id.
  * Two extra queries only when the fetched notes are actually linked.
@@ -148,18 +160,36 @@ export async function fetchNotes(scope?: NotesScope): Promise<Note[]> {
  * Insert a note with full content. Used both by "New note" and by the
  * offline queue when flushing locally-created notes.
  */
+export interface NoteWriteResult {
+  ok: boolean;
+  /** A constraint/permission error - retrying forever cannot fix it. */
+  permanent: boolean;
+}
+
+export interface NoteInsertResult {
+  note: Note | null;
+  permanent: boolean;
+}
+
+const PERMANENT_WRITE_ERROR_RE =
+  /violates .*constraint|check constraint|not-null constraint|invalid input syntax|permission denied|row-level security|value too long|out of range/i;
+
+function isPermanentWriteError(message: string | undefined): boolean {
+  return typeof message === "string" && PERMANENT_WRITE_ERROR_RE.test(message);
+}
+
 export async function insertNote(input: {
   title: string;
   html: string;
   courseId: number | null;
   topicId: number | null;
-}): Promise<Note | null> {
+}): Promise<NoteInsertResult> {
   const user = await resolveSession();
-  if (!user) return null;
+  if (!user) return { note: null, permanent: false };
 
   const payload: Record<string, unknown> = {
     user_id: user.id,
-    title: input.title,
+    title: clampTitle(input.title),
     content: sanitizeHtml(input.html),
   };
   if (typeof input.courseId === "number") {
@@ -175,61 +205,70 @@ export async function insertNote(input: {
     .select(NOTE_COLUMNS)
     .maybeSingle();
 
-  if (error || !data) return null;
+  if (error || !data) {
+    return { note: null, permanent: isPermanentWriteError(error?.message) };
+  }
   const note = toNote(data as unknown as NoteRow);
   note.courseId = typeof input.courseId === "number" ? input.courseId : null;
   note.topicId = typeof input.topicId === "number" ? input.topicId : null;
-  return note;
+  return { note, permanent: false };
 }
 
 export async function createNote(options?: {
   courseId?: number | null;
   topicId?: number | null;
 }): Promise<Note | null> {
-  return insertNote({
+  const { note } = await insertNote({
     title: "Untitled note",
     html: "",
     courseId: options?.courseId ?? null,
     topicId: options?.topicId ?? null,
   });
+  return note;
 }
 
-/** Returns false when the write failed (offline / server error). */
+/** `ok: false` means retry later unless `permanent`. */
 export async function updateNote(
   id: string,
   patch: Partial<Omit<Note, "id">>,
-): Promise<boolean> {
+): Promise<NoteWriteResult> {
   const parsed = toId(id);
-  if (parsed === null) return false;
+  if (parsed === null) return { ok: false, permanent: true };
 
   const values: Record<string, unknown> = {};
-  if (patch.title !== undefined) values.title = patch.title;
+  if (patch.title !== undefined) values.title = clampTitle(patch.title);
   if (patch.html !== undefined) values.content = sanitizeHtml(patch.html);
-  if (Object.keys(values).length === 0) return true;
+  if (Object.keys(values).length === 0) return { ok: true, permanent: false };
 
   const user = await resolveSession();
-  if (!user) return false;
+  if (!user) return { ok: false, permanent: false };
 
   const { error } = await supabase
     .from("notes")
     .update(values)
     .eq("id", parsed)
     .eq("user_id", user.id);
-  return !error;
+  return {
+    ok: !error,
+    permanent: Boolean(error) && isPermanentWriteError(error?.message),
+  };
 }
 
-/** Returns false when the delete failed (offline / server error). */
-export async function deleteNote(id: string): Promise<boolean> {
+/** `ok: false` means retry later unless `permanent`. */
+export async function deleteNote(id: string): Promise<NoteWriteResult> {
   const parsed = toId(id);
-  if (parsed === null) return false;
+  if (parsed === null) return { ok: false, permanent: true };
 
   const user = await resolveSession();
-  if (!user) return false;
+  if (!user) return { ok: false, permanent: false };
 
   const { error } = await supabase
     .from("notes")
     .delete()
     .eq("id", parsed)
     .eq("user_id", user.id);
-  return !error;
+  return {
+    ok: !error,
+    permanent: Boolean(error) && isPermanentWriteError(error?.message),
+  };
 }

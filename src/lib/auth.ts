@@ -249,3 +249,12 @@ export async function resolveSession(): Promise<AuthUser | null> {
   cached = sessionUser ? toAuthUser(sessionUser) : null;
   return cached;
 }
+
+/**
+ * Last known session user (null before the first resolve). Lets screen
+ * chrome render immediately on navigation instead of popping in after an
+ * async session read.
+ */
+export function getCachedAuthUser(): AuthUser | null {
+  return cached;
+}

@@ -197,6 +197,12 @@ export function getNotesQueueSnapshot(): NotesQueueSnapshot {
   return snapshot;
 }
 
+/** True while this note still has an unsynced insert/update/delete queued. */
+export function isNoteQueued(id: string): boolean {
+  const op = ops.get(id);
+  return Boolean(op && op.ownerId === currentOwnerId);
+}
+
 export function registerNoteIdSwap(
   handler: (tempId: string, realId: string) => void,
 ): () => void {
@@ -288,20 +294,34 @@ export async function flushNotesQueue(): Promise<void> {
           dropIfSame(key, op);
           continue;
         }
-        const ok = await deleteNote(op.noteId);
-        if (!ok) break;
+        const result = await deleteNote(op.noteId);
+        if (!result.ok) {
+          if (!result.permanent) break;
+          ops.delete(key);
+          persistOps();
+          emit();
+          continue;
+        }
         dropIfSame(key, op);
         continue;
       }
 
       if (isTempNoteId(op.noteId)) {
-        const created = await insertNote({
+        const { note: created, permanent } = await insertNote({
           title: op.title,
           html: op.html,
           courseId: op.courseId,
           topicId: op.topicId,
         });
-        if (!created) break;
+        if (!created) {
+          // Constraint failures can never succeed: drop instead of blocking
+          // every later note in the queue forever.
+          if (!permanent) break;
+          ops.delete(key);
+          persistOps();
+          emit();
+          continue;
+        }
         const latest = ops.get(key);
         if (latest && latest !== op) {
           // The user kept typing while the insert was in flight: re-key the
@@ -317,11 +337,17 @@ export async function flushNotesQueue(): Promise<void> {
         continue;
       }
 
-      const ok = await updateNote(op.noteId, {
+      const result = await updateNote(op.noteId, {
         title: op.title,
         html: op.html,
       });
-      if (!ok) break;
+      if (!result.ok) {
+        if (!result.permanent) break;
+        ops.delete(key);
+        persistOps();
+        emit();
+        continue;
+      }
       dropIfSame(key, op);
     }
   } finally {

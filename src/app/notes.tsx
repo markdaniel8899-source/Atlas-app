@@ -7,6 +7,8 @@ import {
   useSyncExternalStore,
 } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   Animated,
   Modal,
   Pressable,
@@ -23,11 +25,13 @@ import {
   Check,
   ChevronDown,
   Heading2,
+  Inbox,
   Italic,
   List,
   ListOrdered,
   Plus,
   Quote,
+  Share2,
   StickyNote,
   Trash2,
   Underline,
@@ -36,12 +40,26 @@ import { ScreenHeading, ScreenShell } from "../components/screen-shell";
 import { Card } from "../components/ui/card";
 import { RichNoteEditor } from "../components/notes/rich-note-editor";
 import type { RichNoteEditorHandle } from "../components/notes/rich-note-editor";
+import { ShareAvatar } from "../components/notes/share-avatar";
+import { ShareNoteModal } from "../components/notes/share-note-modal";
+import { SharedNoteModal } from "../components/notes/shared-note-modal";
 import { useCourses } from "../hooks/use-courses";
 import { readCache, writeCache } from "../lib/data-cache";
 import { createNote, fetchNotes } from "../lib/db/notes";
+import {
+  deleteShare,
+  fetchSharedWithMe,
+  importShare,
+  markShareRead,
+} from "../lib/db/shares";
+import type { NoteShare } from "../lib/db/shares";
+import { ensureOnline } from "../lib/net";
 import type { Note } from "../lib/notes";
 import {
+  flushNotesQueue,
   getNotesQueueSnapshot,
+  isNoteQueued,
+  isTempNoteId,
   makeTempNoteId,
   queueNoteDelete,
   queueNoteUpsert,
@@ -51,6 +69,27 @@ import {
 import { inferSubject } from "../lib/subjects";
 import { syncAtlasNotesWidget } from "../lib/widgets/widget-sync";
 import { colors, fonts } from "../theme/theme";
+
+const SHARES_CACHE_KEY = "note-shares";
+
+type NotesTab = "mine" | "shared";
+
+function nowMs(): number {
+  return Date.now();
+}
+
+function formatShareTime(ms: number): string {
+  if (!ms) return "";
+  const diff = Date.now() - ms;
+  if (diff < 60_000) return "just now";
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+  if (diff < 604_800_000) return `${Math.floor(diff / 86_400_000)}d ago`;
+  return new Date(ms).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+}
 
 const TOOLS: {
   label: string;
@@ -193,6 +232,30 @@ export default function NotesScreen() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<NotesTab>("mine");
+  const [editorReady, setEditorReady] = useState(false);
+  const [flash, setFlash] = useState<string | null>(null);
+
+  const cachedShares = useRef<NoteShare[] | null>(
+    readCache<NoteShare[]>(SHARES_CACHE_KEY),
+  );
+  const [shares, setShares] = useState<NoteShare[]>(
+    () => cachedShares.current ?? [],
+  );
+  const [sharesLoading, setSharesLoading] = useState(
+    () => cachedShares.current === null,
+  );
+  const [sharesError, setSharesError] = useState<string | null>(null);
+  const sharesLoadedRef = useRef(false);
+  const sharesRequestRef = useRef(0);
+  const [previewShare, setPreviewShare] = useState<NoteShare | null>(null);
+  const [shareTarget, setShareTarget] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
+  const [shareError, setShareError] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const queue = useSyncExternalStore(
     subscribeNotesQueue,
@@ -207,6 +270,7 @@ export default function NotesScreen() {
   const activeRef = useRef<string | null>(activeId);
   const prevPendingRef = useRef(0);
   const composeHandledRef = useRef(false);
+  const pendingHtmlRef = useRef<string | null>(null);
 
   const rawCourseId = Array.isArray(params.courseId)
     ? params.courseId[0]
@@ -299,6 +363,52 @@ export default function NotesScreen() {
       alive = false;
     };
   }, [coursesLoading, selectedCourseId, activeCourseId, load, applyRows]);
+
+  /** Pull the shared-notes inbox (latest response wins). */
+  const loadShares = useCallback(async () => {
+    const request = sharesRequestRef.current + 1;
+    sharesRequestRef.current = request;
+    const result = await fetchSharedWithMe();
+    if (sharesRequestRef.current !== request) return;
+    if (result.ok) {
+      sharesLoadedRef.current = true;
+      setShares(result.shares);
+      setSharesError(null);
+    } else {
+      setSharesError("Couldn't load shared notes. Check your connection.");
+    }
+    setSharesLoading(false);
+  }, []);
+
+  // Seed from cache immediately (unread badge included), then revalidate.
+  useEffect(() => {
+    if (cachedShares.current) sharesLoadedRef.current = true;
+    void loadShares();
+  }, [loadShares]);
+
+  // Refresh each time the inbox tab is opened.
+  useEffect(() => {
+    if (tab === "shared") void loadShares();
+  }, [tab, loadShares]);
+
+  // Mirror inbox mutations (read / import / remove) into the cache.
+  useEffect(() => {
+    if (!sharesLoadedRef.current) return;
+    writeCache(SHARES_CACHE_KEY, shares);
+  }, [shares]);
+
+  useEffect(() => {
+    if (!flash) return;
+    const timer = setTimeout(() => setFlash(null), 3200);
+    return () => clearTimeout(timer);
+  }, [flash]);
+
+  // Mounting the WebView mid-slide is one of the heaviest frames on Android:
+  // let the screen transition finish first.
+  useEffect(() => {
+    const timer = setTimeout(() => setEditorReady(true), 240);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Queue drained: pull the source of truth back in (temp ids now real).
   useEffect(() => {
@@ -410,8 +520,25 @@ export default function NotesScreen() {
   const handleEditorChange = (html: string) => {
     const id = activeRef.current;
     if (!id) return;
+    pendingHtmlRef.current = html;
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => persist(id, { html }), 600);
+    timerRef.current = setTimeout(() => {
+      timerRef.current = null;
+      pendingHtmlRef.current = null;
+      persist(id, { html });
+    }, 600);
+  };
+
+  /** Force the debounced body edit into the offline queue. */
+  const flushPendingEdit = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    const html = pendingHtmlRef.current;
+    const id = activeRef.current;
+    pendingHtmlRef.current = null;
+    if (html != null && id) persist(id, { html });
   };
 
   const addNote = useCallback(async () => {
@@ -460,6 +587,7 @@ export default function NotesScreen() {
     if (rawCompose !== "1" || composeHandledRef.current) return;
     if (loading || coursesLoading) return;
     composeHandledRef.current = true;
+    setTab("mine");
     router.setParams({ compose: "" });
     void addNote();
   }, [rawCompose, loading, coursesLoading, addNote, router]);
@@ -470,6 +598,150 @@ export default function NotesScreen() {
     if (activeId === id) setActiveId(next[0]?.id ?? null);
     queueNoteDelete(id);
   };
+
+  /** Open the friend picker - only for a note that already synced. */
+  const openSharePicker = async () => {
+    const note = notesRef.current.find((item) => item.id === activeRef.current);
+    if (!note) return;
+    if (isTempNoteId(note.id)) {
+      Alert.alert(
+        "Not synced yet",
+        "This note is still being saved. Give it a moment, then share it.",
+      );
+      return;
+    }
+    if (!(await ensureOnline("Sharing a note needs an internet connection."))) {
+      return;
+    }
+    flushPendingEdit();
+    if (isNoteQueued(note.id)) {
+      await flushNotesQueue();
+      if (isNoteQueued(note.id)) {
+        Alert.alert(
+          "Not synced yet",
+          "Your latest changes are still syncing. Try again in a moment.",
+        );
+        return;
+      }
+    }
+    setShareError(null);
+    setShareTarget({ id: note.id, title: title.trim() || note.title });
+  };
+
+  const openSharePreview = async (share: NoteShare) => {
+    setShareError(null);
+    setPreviewShare(share);
+    if (!share.readAt) {
+      const readAt = nowMs();
+      setShares((prev) =>
+        prev.map((item) => (item.id === share.id ? { ...item, readAt } : item)),
+      );
+      setPreviewShare((prev) =>
+        prev && prev.id === share.id ? { ...prev, readAt } : prev,
+      );
+      void markShareRead(share.id);
+    }
+  };
+
+  const importShared = async (share: NoteShare) => {
+    if (importing) return;
+    if (
+      !(await ensureOnline("Importing a note needs an internet connection."))
+    ) {
+      return;
+    }
+    setImporting(true);
+    setShareError(null);
+    const result = await importShare(share.id);
+    setImporting(false);
+    if (!result.ok) {
+      setShareError(result.message);
+      return;
+    }
+    const now = Date.now();
+    setShares((prev) =>
+      prev.map((item) =>
+        item.id === share.id
+          ? { ...item, importedAt: now, readAt: item.readAt ?? now }
+          : item,
+      ),
+    );
+    setPreviewShare(null);
+    setTab("mine");
+    setFlash("Note imported to My notes.");
+    if (result.noteId) setActiveId(result.noteId);
+    // The imported note has no course, so leave a course filter to make it
+    // visible (the fetch effect reloads once the param clears).
+    if (selectedCourseId != null) router.setParams({ courseId: "" });
+    else void load();
+  };
+
+  const removeShared = (share: NoteShare) => {
+    Alert.alert(
+      "Remove shared note?",
+      "It will leave your inbox. The sender's copy is not affected.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: () => {
+            void (async () => {
+              if (deleting) return;
+              setDeleting(true);
+              setShareError(null);
+              const ok = await deleteShare(share.id);
+              setDeleting(false);
+              if (!ok) {
+                setShareError("Couldn't remove this note. Try again.");
+                return;
+              }
+              setShares((prev) => prev.filter((item) => item.id !== share.id));
+              setPreviewShare((prev) =>
+                prev && prev.id === share.id ? null : prev,
+              );
+            })();
+          },
+        },
+      ],
+    );
+  };
+
+  const renderShareItem = (share: NoteShare) => (
+    <Pressable
+      key={share.id}
+      accessibilityRole="button"
+      accessibilityLabel={`Open shared note ${share.title || "Untitled note"}`}
+      onPress={() => void openSharePreview(share)}
+      style={({ pressed }) => [
+        styles.shareItem,
+        !share.readAt && styles.shareItemUnread,
+        pressed && styles.shareItemPressed,
+      ]}
+    >
+      <ShareAvatar
+        name={share.senderName}
+        avatarUrl={share.senderAvatarUrl}
+        size={38}
+      />
+      <View style={styles.shareItemText}>
+        <View style={styles.shareTitleRow}>
+          {!share.readAt ? <View style={styles.unreadDot} /> : null}
+          <Text numberOfLines={1} style={styles.shareTitle}>
+            {share.title || "Untitled note"}
+          </Text>
+        </View>
+        <Text numberOfLines={1} style={styles.shareMeta}>
+          From {share.senderName}
+          {share.courseTitle ? ` · ${share.courseTitle}` : ""}
+          {share.createdAt ? ` · ${formatShareTime(share.createdAt)}` : ""}
+        </Text>
+      </View>
+      {share.importedAt ? (
+        <Check size={14} color={colors.lilac} />
+      ) : null}
+    </Pressable>
+  );
 
   const renderNoteItem = (note: Note) => {
     const isActive = note.id === activeId;
@@ -494,11 +766,64 @@ export default function NotesScreen() {
     );
   };
 
+  const unreadShares = shares.filter((share) => !share.readAt).length;
+
   return (
     <ScreenShell title="Notes" activeLabel="Notes">
       <ScreenHeading eyebrow="Memory" title="Notes that survive the session." />
 
-      <View style={styles.controlsRow}>
+      <View style={styles.tabs}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ selected: tab === "mine" }}
+          onPress={() => setTab("mine")}
+          style={[styles.tab, tab === "mine" && styles.tabActive]}
+        >
+          <StickyNote
+            size={14}
+            color={tab === "mine" ? colors.white : colors.w40}
+          />
+          <Text
+            style={[styles.tabText, tab === "mine" && styles.tabTextActive]}
+          >
+            My notes
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ selected: tab === "shared" }}
+          onPress={() => setTab("shared")}
+          style={[styles.tab, tab === "shared" && styles.tabActive]}
+        >
+          <Inbox
+            size={14}
+            color={tab === "shared" ? colors.white : colors.w40}
+          />
+          <Text
+            style={[styles.tabText, tab === "shared" && styles.tabTextActive]}
+          >
+            Shared with me
+          </Text>
+          {unreadShares > 0 ? (
+            <View style={styles.tabBadge}>
+              <Text style={styles.tabBadgeText}>
+                {unreadShares > 9 ? "9+" : unreadShares}
+              </Text>
+            </View>
+          ) : null}
+        </Pressable>
+      </View>
+
+      {flash ? (
+        <View style={styles.flashRow}>
+          <Check size={13} color={colors.lilac} />
+          <Text style={styles.flashText}>{flash}</Text>
+        </View>
+      ) : null}
+
+      {tab === "mine" ? (
+        <>
+          <View style={styles.controlsRow}>
         <CourseSwitcher
           courses={courses}
           value={selectedCourseId}
@@ -590,6 +915,17 @@ export default function NotesScreen() {
                 </Animated.Text>
                 <Pressable
                   accessibilityRole="button"
+                  accessibilityLabel="Share note with a friend"
+                  onPress={() => void openSharePicker()}
+                  style={({ pressed }) => [
+                    styles.toolButton,
+                    pressed && styles.toolButtonPressed,
+                  ]}
+                >
+                  <Share2 size={16} color={colors.w40} />
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
                   accessibilityLabel="Delete note"
                   onPress={() => removeNote(active.id)}
                   style={({ pressed }) => [
@@ -612,17 +948,23 @@ export default function NotesScreen() {
                 }}
                 placeholder="Untitled note"
                 placeholderTextColor="rgba(255,255,255,0.2)"
-                maxLength={200}
+                maxLength={160}
                 style={styles.titleInput}
               />
             </View>
 
-            <RichNoteEditor
-              ref={editorRef}
-              noteId={active.id}
-              html={active.html}
-              onChange={handleEditorChange}
-            />
+            {editorReady ? (
+              <RichNoteEditor
+                ref={editorRef}
+                noteId={active.id}
+                html={active.html}
+                onChange={handleEditorChange}
+              />
+            ) : (
+              <View style={styles.editorPlaceholder}>
+                <ActivityIndicator size="small" color={colors.lilac} />
+              </View>
+            )}
           </>
         ) : (
           <View style={styles.editorEmpty}>
@@ -638,9 +980,83 @@ export default function NotesScreen() {
         )}
       </Card>
 
-      <Text style={styles.footnote}>
-        Content is sanitized with DOMPurify and saved as you type.
-      </Text>
+          <Text style={styles.footnote}>
+            Content is sanitized with DOMPurify and saved as you type.
+          </Text>
+        </>
+      ) : (
+        <>
+          <Card padded={false} style={styles.sharedCard}>
+            {sharesLoading ? (
+              <View style={styles.sharedState}>
+                <ActivityIndicator size="small" color={colors.lilac} />
+                <Text style={styles.listMessage}>Loading shared notes…</Text>
+              </View>
+            ) : sharesError && shares.length === 0 ? (
+              <View style={styles.sharedState}>
+                <Text style={styles.listMessage}>{sharesError}</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => void loadShares()}
+                >
+                  <Text style={styles.listEmptyLink}>Try again</Text>
+                </Pressable>
+              </View>
+            ) : shares.length === 0 ? (
+              <View style={styles.sharedState}>
+                <View style={styles.sharedEmptyIcon}>
+                  <Inbox size={20} color={colors.lilac} />
+                </View>
+                <Text style={styles.sharedEmptyTitle}>
+                  Nothing shared with you yet
+                </Text>
+                <Text style={styles.listMessage}>
+                  When a friend shares a note it lands here, ready to import.
+                </Text>
+              </View>
+            ) : (
+              <ScrollView
+                style={styles.listScroll}
+                contentContainerStyle={styles.listContent}
+                showsVerticalScrollIndicator={false}
+                nestedScrollEnabled
+              >
+                <View style={styles.shareList}>
+                  {shares.map(renderShareItem)}
+                </View>
+              </ScrollView>
+            )}
+          </Card>
+
+          <Text style={styles.footnote}>
+            Only you can see this inbox. Importing saves your own copy.
+          </Text>
+        </>
+      )}
+
+      <ShareNoteModal
+        open={shareTarget !== null}
+        noteId={shareTarget?.id ?? null}
+        noteTitle={shareTarget?.title ?? ""}
+        onClose={() => setShareTarget(null)}
+        onShared={(message) => {
+          setShareTarget(null);
+          setFlash(message);
+        }}
+      />
+
+      <SharedNoteModal
+        share={previewShare}
+        onClose={() => {
+          setPreviewShare(null);
+          setShareError(null);
+        }}
+        onImport={(share) => void importShared(share)}
+        onDelete={removeShared}
+        importing={importing}
+        deleting={deleting}
+        error={shareError}
+      />
     </ScreenShell>
   );
 }
@@ -648,6 +1064,144 @@ export default function NotesScreen() {
 const styles = StyleSheet.create({
   pressed: {
     opacity: 0.85,
+  },
+  tabs: {
+    flexDirection: "row",
+    gap: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.w08,
+    backgroundColor: colors.w03,
+    padding: 4,
+    alignSelf: "flex-start",
+  },
+  tab: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  tabActive: {
+    backgroundColor: colors.w10,
+    borderWidth: 1,
+    borderColor: colors.w10,
+  },
+  tabText: {
+    fontSize: 13,
+    fontFamily: fonts.medium,
+    color: colors.w40,
+  },
+  tabTextActive: {
+    color: colors.white,
+  },
+  tabBadge: {
+    minWidth: 17,
+    height: 17,
+    borderRadius: 999,
+    backgroundColor: colors.lilac,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+  },
+  tabBadgeText: {
+    fontSize: 9.5,
+    fontFamily: fonts.semibold,
+    color: colors.primaryText,
+  },
+  flashRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.lilac25,
+    backgroundColor: colors.lilac10,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  flashText: {
+    fontSize: 12,
+    fontFamily: fonts.medium,
+    color: colors.lilac,
+  },
+  sharedCard: {
+    overflow: "hidden",
+  },
+  sharedState: {
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 28,
+    paddingVertical: 42,
+  },
+  sharedEmptyIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 1,
+    borderColor: colors.lilac25,
+    backgroundColor: colors.lilac10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sharedEmptyTitle: {
+    fontSize: 14.5,
+    fontFamily: fonts.semibold,
+    color: colors.white,
+  },
+  shareList: {
+    gap: 6,
+  },
+  shareItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "transparent",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  shareItemUnread: {
+    borderColor: colors.lilac25,
+    backgroundColor: colors.lilac10,
+  },
+  shareItemPressed: {
+    backgroundColor: colors.w07,
+  },
+  shareItemText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  shareTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+  },
+  unreadDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: colors.lilac,
+  },
+  shareTitle: {
+    flexShrink: 1,
+    fontSize: 14,
+    fontFamily: fonts.medium,
+    color: colors.white,
+  },
+  shareMeta: {
+    marginTop: 3,
+    fontSize: 11.5,
+    fontFamily: fonts.regular,
+    color: colors.w35,
+  },
+  editorPlaceholder: {
+    height: 340,
+    alignItems: "center",
+    justifyContent: "center",
   },
   switcherTrigger: {
     flexDirection: "row",

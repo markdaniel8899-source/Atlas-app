@@ -19,6 +19,7 @@ import { TimerProvider } from "../context/timer-context";
 import { SplashOverlay } from "../components/splash-overlay";
 import { initNotifications } from "../lib/notifications";
 import { hydrateProfileCache } from "../lib/profile-cache";
+import { resolveSession } from "../lib/auth";
 import { colors } from "../theme/theme";
 
 void SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -30,6 +31,10 @@ initNotifications();
 // Warm the persisted profile snapshot before the first screen mounts so the
 // header avatar never falls back while booting.
 void hydrateProfileCache();
+
+// Resolve the local Supabase session early so ScreenShell can render its
+// chrome on the first frame instead of waiting for an async read.
+void resolveSession();
 
 // Android home-screen widget: registered at module scope so headless
 // background launches can redraw the widget too.
@@ -77,6 +82,7 @@ export default function RootLayout() {
           contentStyle: { backgroundColor: colors.appBg },
           animation: "slide_from_right",
           animationDuration: 240,
+          freezeOnBlur: true,
         }}
       >
         <Stack.Screen

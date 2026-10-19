@@ -1,5 +1,6 @@
 import { FlexWidget, TextWidget } from "react-native-android-widget";
 import type { AtlasWidgetData, WidgetWeekDay } from "./atlas-widget-data";
+import { barHeight, formatFocus } from "./widget-model";
 
 const LILAC = "#cf9eff";
 const LILAC_SOFT = "#d9c2ff";
@@ -12,19 +13,6 @@ const CHIP_BG = "rgba(207, 158, 255, 0.10)";
 const CHIP_BORDER = "rgba(207, 158, 255, 0.30)";
 
 const WEEK_LENGTH = 7;
-
-function formatFocus(seconds: number): string {
-  const total = Math.max(0, Math.floor(seconds));
-  const hours = Math.floor(total / 3600);
-  const minutes = Math.floor((total % 3600) / 60);
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  return `${minutes}m`;
-}
-
-function barHeight(seconds: number, max: number): number {
-  if (seconds <= 0) return 5;
-  return 7 + Math.round((seconds / max) * 23);
-}
 
 /**
  * ATLAS stats card: streak, today's focus time, a 7-day chart and the

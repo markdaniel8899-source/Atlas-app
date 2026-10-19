@@ -20,7 +20,7 @@ import { NavigationDrawer } from "./navigation-drawer";
 import { OfflineBanner } from "./offline-banner";
 import { SessionCompleteCard } from "./session-complete-card";
 import { useProfile } from "../hooks/use-profile";
-import { resolveSession } from "../lib/auth";
+import { getCachedAuthUser, resolveSession } from "../lib/auth";
 import { colors, fonts } from "../theme/theme";
 
 interface ScreenShellProps {
@@ -54,7 +54,12 @@ export function ScreenShell({
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const profile = useProfile();
-  const [checked, setChecked] = useState(false);
+  // Public pages can render at once; protected pages skip the "nothing"
+  // frame when the session was already resolved (the common case after
+  // the first navigation). The effect below still verifies and redirects.
+  const [checked, setChecked] = useState(
+    publicPage || getCachedAuthUser() !== null,
+  );
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const blurTargetRef = useRef<View | null>(null);
   const scrollRef = useRef<ScrollView | null>(null);
