@@ -30,12 +30,33 @@ create table if not exists public.note_shares (
   constraint note_shares_content_len check (char_length(content) <= 200000)
 );
 
+-- Re-assert the CHECKs so re-running this file after a bound change
+-- (title was 1..200 in an earlier draft) actually updates them.
+update public.note_shares
+   set title = coalesce(nullif(btrim(left(title, 160)), ''), 'Untitled note'),
+       content = left(content, 200000)
+ where char_length(title) not between 1 and 160
+    or char_length(content) > 200000;
+
+alter table public.note_shares
+  drop constraint if exists note_shares_no_self,
+  drop constraint if exists note_shares_title_len,
+  drop constraint if exists note_shares_content_len;
+
+alter table public.note_shares
+  add constraint note_shares_no_self check (sender_id <> recipient_id),
+  add constraint note_shares_title_len check (char_length(title) between 1 and 160),
+  add constraint note_shares_content_len check (char_length(content) <= 200000);
+
 create index if not exists note_shares_recipient_idx
   on public.note_shares (recipient_id, created_at desc);
 create index if not exists note_shares_recipient_unread_idx
   on public.note_shares (recipient_id) where read_at is null;
 create index if not exists note_shares_sender_idx
   on public.note_shares (sender_id, created_at desc);
+-- FK lookup index: deleting a note must not scan the shares table.
+create index if not exists note_shares_note_idx
+  on public.note_shares (note_id);
 
 alter table public.note_shares enable row level security;
 
