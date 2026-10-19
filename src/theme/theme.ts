@@ -57,7 +57,7 @@ export const fonts = {
   brand: "CreateFuture",
 } as const;
 
-/** Cubic bezier [0.22, 1, 0.36, 1] — the app's shared ease-out curve. */
+/** Cubic bezier [0.22, 1, 0.36, 1] - the app's shared ease-out curve. */
 export const ease = Easing.bezier(0.22, 1, 0.36, 1);
 
 export const RADIUS = {

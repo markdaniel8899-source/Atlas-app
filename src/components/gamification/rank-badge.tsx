@@ -77,7 +77,7 @@ function wingXform(s: number): string {
 }
 
 /**
- * Military-style rank badge — every rank shares one hexagon (thick 3D
+ * Military-style rank badge - every rank shares one hexagon (thick 3D
  * metallic border + dark navy #0f172a face); ranks/tiers are told apart
  * by white-silver chevrons, stars and wings whose tint follows the rank.
  */

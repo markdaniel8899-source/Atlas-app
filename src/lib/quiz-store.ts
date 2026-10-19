@@ -68,7 +68,7 @@ const INITIAL: QuizSessionState = {
 /**
  * Module-level quiz store: generation and grading keep running while the
  * user switches tabs, and the session survives remounts of the screen.
- * In-memory only — a fresh app launch starts from setup.
+ * In-memory only - a fresh app launch starts from setup.
  */
 let state: QuizSessionState = INITIAL;
 let snapshot: QuizSessionState = state;

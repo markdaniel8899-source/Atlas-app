@@ -517,13 +517,13 @@ export default function SettingsScreen() {
           <View style={styles.metaRow}>
             <Text style={styles.metaKey}>Email</Text>
             <Text numberOfLines={1} style={styles.metaValue}>
-              {user?.email ?? "—"}
+              {user?.email ?? "-"}
             </Text>
           </View>
           <View style={styles.metaRow}>
             <Text style={styles.metaKey}>User ID</Text>
             <Text numberOfLines={1} style={styles.metaMono}>
-              {user?.id ?? "—"}
+              {user?.id ?? "-"}
             </Text>
           </View>
         </View>

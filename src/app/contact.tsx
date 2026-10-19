@@ -198,7 +198,7 @@ export default function ContactScreen() {
             </Text>
           ) : status === "sent" ? (
             <Text style={styles.statusSent}>
-              Message sent — we’ll reply to your inbox.
+              Message sent - we’ll reply to your inbox.
             </Text>
           ) : (
             "Your message goes straight to our team."

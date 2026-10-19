@@ -15,12 +15,12 @@ const FAQ = [
   {
     question: "How do roadmaps work?",
     answer:
-      "A roadmap is a trail of levels that unlock one after another. Complete a level to earn XP and open the next one. Boss levels appear along the way — take the boss quiz in the Quiz tab, then mark the battle won when you pass.",
+      "A roadmap is a trail of levels that unlock one after another. Complete a level to earn XP and open the next one. Boss levels appear along the way - take the boss quiz in the Quiz tab, then mark the battle won when you pass.",
   },
   {
     question: "How do quizzes work?",
     answer:
-      "Pick a topic or upload a syllabus PDF, choose 5, 10 or 15 questions and a difficulty, and ATLAS writes the quiz for you. You get instant grading with explanations. Boss battles are quizzes too — take one and prove the phase before moving on.",
+      "Pick a topic or upload a syllabus PDF, choose 5, 10 or 15 questions and a difficulty, and ATLAS writes the quiz for you. You get instant grading with explanations. Boss battles are quizzes too - take one and prove the phase before moving on.",
   },
   {
     question: "How does the focus timer earn XP?",
@@ -67,7 +67,7 @@ export default function HelpScreen() {
         </View>
         <Text style={styles.contactTitle}>Still stuck?</Text>
         <Text style={styles.contactBody}>
-          Send us a message and we will reply to your inbox — bugs, feedback or
+          Send us a message and we will reply to your inbox - bugs, feedback or
           anything that feels confusing.
         </Text>
         <Pressable

@@ -85,7 +85,7 @@ function readableError(message: string): string {
     m.includes("timed out") ||
     m.includes("timeout")
   ) {
-    return "No internet connection — check your network and try again.";
+    return "No internet connection - check your network and try again.";
   }
   if (m.includes("invalid login")) {
     return "That email and password combination didn't work.";
@@ -166,7 +166,7 @@ export async function signIn(
 }
 
 /**
- * Verifies the 6-digit email code from Supabase — either the signup
+ * Verifies the 6-digit email code from Supabase - either the signup
  * confirmation code or the password-recovery code.
  */
 export async function verifyEmailOtp(

@@ -70,7 +70,7 @@ export default function RootLayout() {
   return (
     <TimerProvider>
       <Head>
-        <title>ATLAS — Turn studying into a game you want to win</title>
+        <title>ATLAS - Turn studying into a game you want to win</title>
         <meta
           name="description"
           content="ATLAS is a gamified study companion: focus sessions, courses, roadmaps, quizzes, a weekly leaderboard and an AI tutor that keeps your streak alive."

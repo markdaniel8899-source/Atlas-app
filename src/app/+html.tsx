@@ -19,7 +19,7 @@ export default function Root({ children }: PropsWithChildren) {
         <meta name="theme-color" content="#04040a" />
         <meta name="color-scheme" content="dark" />
 
-        <title>ATLAS — Turn studying into a game you want to win</title>
+        <title>ATLAS - Turn studying into a game you want to win</title>
         <meta
           name="description"
           content="ATLAS is a gamified study companion: focus sessions, courses, roadmaps, quizzes, a weekly leaderboard and an AI tutor that keeps your streak alive."
@@ -30,7 +30,7 @@ export default function Root({ children }: PropsWithChildren) {
         <meta property="og:site_name" content="ATLAS" />
         <meta
           property="og:title"
-          content="ATLAS — Gamified study companion"
+          content="ATLAS - Gamified study companion"
         />
         <meta
           property="og:description"
@@ -40,7 +40,7 @@ export default function Root({ children }: PropsWithChildren) {
         <meta name="twitter:card" content="summary" />
         <meta
           name="twitter:title"
-          content="ATLAS — Gamified study companion"
+          content="ATLAS - Gamified study companion"
         />
         <meta
           name="twitter:description"

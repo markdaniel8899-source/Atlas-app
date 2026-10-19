@@ -47,7 +47,7 @@
           "widgets": [
             {
               "name": "AtlasWidget",
-              "label": "ATLAS — Streak, Badges & Stats",
+              "label": "ATLAS - Streak, Badges & Stats",
               "minWidth": "250dp",
               "minHeight": "180dp",
               "description": "Streak, today's focus, a 7-day chart and your badges at a glance.",
@@ -57,7 +57,7 @@
             },
             {
               "name": "AtlasStickyWidget",
-              "label": "ATLAS — Sticky Note",
+              "label": "ATLAS - Sticky Note",
               "minWidth": "180dp",
               "minHeight": "180dp",
               "description": "Your most recent note with one-tap next and open.",
@@ -67,7 +67,7 @@
             },
             {
               "name": "AtlasNotesWidget",
-              "label": "ATLAS — Quick Notes",
+              "label": "ATLAS - Quick Notes",
               "minWidth": "250dp",
               "minHeight": "180dp",
               "description": "Recent notes and a one-tap new note.",

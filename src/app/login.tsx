@@ -302,7 +302,7 @@ export default function LoginScreen() {
       if (mode === "signup" && result.error.includes("already exists")) {
         switchMode("login", {
           tone: "info",
-          text: "That email already has an account — log in below.",
+          text: "That email already has an account - log in below.",
         });
         return;
       }

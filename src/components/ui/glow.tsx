@@ -14,9 +14,9 @@ interface GlowProps {
 }
 
 /**
- * Soft decorative blob — the RN stand-in for a `blur-3xl` coloured disc.
+ * Soft decorative blob - the RN stand-in for a `blur-3xl` coloured disc.
  * Absolutely position it inside a card; the card's overflow clips it.
- * NOTE: always pass a hex color + numeric opacity — rgba() strings in
+ * NOTE: always pass a hex color + numeric opacity - rgba() strings in
  * stopColor render too strong on Android.
  */
 export function Glow({ size, color, opacity = 1, style }: GlowProps) {

@@ -180,7 +180,7 @@ export function NavigationDrawer({
                   Keyboard.dismiss();
                   closeForNavigation();
                   // navigate() reuses the screen if it is already in the
-                  // stack and pops back to it — no duplicate instances, no
+                  // stack and pops back to it - no duplicate instances, no
                   // remount-refetch churn on every tab switch.
                   router.navigate(item.route);
                 }}

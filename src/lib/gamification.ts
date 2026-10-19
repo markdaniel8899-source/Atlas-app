@@ -1,5 +1,5 @@
 /**
- * Atlas Ranks — minimalist geometric rank system.
+ * Atlas Ranks - minimalist geometric rank system.
  * 6 ranks x 4 tiers = 24 ranks total:
  *   Bronze (hexagon, copper)   · Silver (circle, silver)
  *   Gold (shield, gold)        · Platinum (rhombus, cyan)
@@ -132,27 +132,27 @@ const NUMERALS = ["I", "II", "III", "IIII"];
  * Tiers subdivide each band evenly.
  */
 export const RANK_THRESHOLDS = [
-  // Bronze: 0 – 1000 XP
+  // Bronze: 0 - 1000 XP
   { key: "bronze_1", tier: "bronze" as TierKey, step: 1, minXP: 0 },
   { key: "bronze_2", tier: "bronze" as TierKey, step: 2, minXP: 250 },
   { key: "bronze_3", tier: "bronze" as TierKey, step: 3, minXP: 500 },
   { key: "bronze_4", tier: "bronze" as TierKey, step: 4, minXP: 750 },
-  // Silver: 1000 – 2500 XP
+  // Silver: 1000 - 2500 XP
   { key: "silver_1", tier: "silver" as TierKey, step: 1, minXP: 1000 },
   { key: "silver_2", tier: "silver" as TierKey, step: 2, minXP: 1375 },
   { key: "silver_3", tier: "silver" as TierKey, step: 3, minXP: 1750 },
   { key: "silver_4", tier: "silver" as TierKey, step: 4, minXP: 2125 },
-  // Gold: 2500 – 5000 XP
+  // Gold: 2500 - 5000 XP
   { key: "gold_1", tier: "gold" as TierKey, step: 1, minXP: 2500 },
   { key: "gold_2", tier: "gold" as TierKey, step: 2, minXP: 3125 },
   { key: "gold_3", tier: "gold" as TierKey, step: 3, minXP: 3750 },
   { key: "gold_4", tier: "gold" as TierKey, step: 4, minXP: 4375 },
-  // Platinum: 5000 – 8000 XP
+  // Platinum: 5000 - 8000 XP
   { key: "platinum_1", tier: "platinum" as TierKey, step: 1, minXP: 5000 },
   { key: "platinum_2", tier: "platinum" as TierKey, step: 2, minXP: 5750 },
   { key: "platinum_3", tier: "platinum" as TierKey, step: 3, minXP: 6500 },
   { key: "platinum_4", tier: "platinum" as TierKey, step: 4, minXP: 7250 },
-  // Diamond: 8000 – 12000 XP
+  // Diamond: 8000 - 12000 XP
   { key: "diamond_1", tier: "diamond" as TierKey, step: 1, minXP: 8000 },
   { key: "diamond_2", tier: "diamond" as TierKey, step: 2, minXP: 9000 },
   { key: "diamond_3", tier: "diamond" as TierKey, step: 3, minXP: 10000 },

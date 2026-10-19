@@ -65,7 +65,7 @@ export function ScreenShell({
   const scrollRef = useRef<ScrollView | null>(null);
 
   // Android hardware back: close the drawer if open, otherwise jump straight
-  // home — never walk back through every tab the user visited.
+  // home - never walk back through every tab the user visited.
   useEffect(() => {
     const subscription = BackHandler.addEventListener(
       "hardwareBackPress",

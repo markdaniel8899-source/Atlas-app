@@ -30,7 +30,7 @@ function fmtXP(n: number): string {
 const NUMERALS = ["I", "II", "III", "IV"];
 
 /**
- * Atlas Ranks progression grid — all 24 badges (6 ranks x 4 tiers).
+ * Atlas Ranks progression grid - all 24 badges (6 ranks x 4 tiers).
  * Current rank: full opacity + glowing purple ring.
  * Past ranks: full opacity. Future ranks: dimmed to 30%.
  */

@@ -119,7 +119,7 @@ export default function QuizScreen() {
   const handleGenerate = async (input: GenerateInput) => {
     if (
       !(await ensureOnline(
-        "Quizzes are generated online — reconnect to start one.",
+        "Quizzes are generated online - reconnect to start one.",
       ))
     ) {
       return;

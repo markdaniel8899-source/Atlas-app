@@ -290,7 +290,7 @@ export default function RoadmapScreen() {
     async (input: RoadmapRequestInput) => {
       if (
         !(await ensureOnline(
-          "Roadmaps are generated online — reconnect to start one.",
+          "Roadmaps are generated online - reconnect to start one.",
         ))
       ) {
         return;

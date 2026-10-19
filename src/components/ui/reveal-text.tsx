@@ -16,7 +16,7 @@ interface RevealTextProps {
 
 /**
  * Word-by-word entrance: each word rises (~135% of its height) and fades in
- * on the shared ease curve, staggered left to right — the RN port of the
+ * on the shared ease curve, staggered left to right - the RN port of the
  * dashboard heading reveal.
  */
 export function RevealText({
