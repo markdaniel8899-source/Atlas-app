@@ -14,6 +14,7 @@ import { OfflineBanner } from "../components/offline-banner";
 import { SessionCompleteCard } from "../components/session-complete-card";
 import { RevealText } from "../components/ui/reveal-text";
 import { useDashboard } from "../hooks/use-dashboard";
+import { getCachedAuthUser } from "../lib/auth";
 import { hasSeenOnboarding } from "../lib/onboarding";
 import { colors, fonts } from "../theme/theme";
 
@@ -36,7 +37,12 @@ export default function DashboardScreen() {
     let cancelled = false;
     void hasSeenOnboarding().then((seen) => {
       if (cancelled) return;
-      if (!user) router.replace((seen ? "/login" : "/onboarding") as Href);
+      // A resolved or warmed session means this tab is signed in; never
+      // bounce to login while the async session read is still settling - the
+      // Android stack remounts the root screen for a frame during pops, and
+      // redirecting there made the login form flash over the dashboard.
+      if (user || getCachedAuthUser()) return;
+      router.replace((seen ? "/login" : "/onboarding") as Href);
     });
     return () => {
       cancelled = true;

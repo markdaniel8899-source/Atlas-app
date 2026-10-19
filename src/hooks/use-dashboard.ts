@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { resolveSession } from "../lib/auth";
+import { getCachedAuthUser, resolveSession } from "../lib/auth";
 import type { AuthUser } from "../lib/auth";
 import { readCache, writeCache } from "../lib/data-cache";
 import { fetchHeatmap } from "../lib/db/activity";
@@ -46,7 +46,10 @@ const EMPTY: DashboardData = {
 function seed(): DashboardData {
   const snapshot = readCache<DashboardSnapshot>(CACHE_KEY);
   return {
-    user: null,
+    // The warmed session (module scope in the root layout) is the correct
+    // synchronous answer; seeding null here made the redirect gate race the
+    // async session read on remounts.
+    user: getCachedAuthUser(),
     profile: getCachedProfile(),
     heatmap: snapshot?.heatmap ?? [],
     focus: snapshot?.focus ?? null,
@@ -61,7 +64,7 @@ export function useDashboard(): DashboardState {
 
   const reload = useCallback(() => {
     void (async () => {
-      const user = await resolveSession();
+      const user = await resolveSession().catch(() => getCachedAuthUser());
       if (!user) {
         setData(EMPTY);
         syncAtlasStatsWidget(null, []);

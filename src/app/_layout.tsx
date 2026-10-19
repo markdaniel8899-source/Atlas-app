@@ -1,10 +1,11 @@
 import { useEffect } from "react";
-import { Platform } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { Stack } from "expo-router";
 import Head from "expo-router/head";
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
+import * as SystemUI from "expo-system-ui";
 import {
   Geist_400Regular,
   Geist_500Medium,
@@ -36,17 +37,10 @@ void hydrateProfileCache();
 // chrome on the first frame instead of waiting for an async read.
 void resolveSession();
 
-// Android home-screen widget: registered at module scope so headless
-// background launches can redraw the widget too.
-if (Platform.OS === "android") {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy: older APKs ship without the widget native module
-    const handler = require("../lib/widgets/widget-task-handler") as typeof import("../lib/widgets/widget-task-handler");
-    handler.registerAtlasWidgetTaskHandler();
-  } catch {
-    // Binary without the widget module (older APK) - skipped.
-  }
-}
+// Android detaches and re-attaches screens for a frame during native-stack
+// transitions; painting the window with the app background keeps that frame
+// invisible instead of flashing black or white.
+void SystemUI.setBackgroundColorAsync(colors.appBg).catch(() => {});
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
@@ -68,34 +62,43 @@ export default function RootLayout() {
   if (!loaded && !error) return null;
 
   return (
-    <TimerProvider>
-      <Head>
-        <title>ATLAS - Turn studying into a game you want to win</title>
-        <meta
-          name="description"
-          content="ATLAS is a gamified study companion: focus sessions, courses, roadmaps, quizzes, a weekly leaderboard and an AI tutor that keeps your streak alive."
-        />
-      </Head>
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colors.appBg },
-          animation: "slide_from_right",
-          animationDuration: 240,
-          freezeOnBlur: true,
-        }}
-      >
-        <Stack.Screen
-          name="login"
-          options={{ animation: "fade", animationDuration: 300 }}
-        />
-        <Stack.Screen
-          name="onboarding"
-          options={{ animation: "fade", animationDuration: 300 }}
-        />
-      </Stack>
-      <SplashOverlay />
-      <StatusBar style="light" />
-    </TimerProvider>
+    <View style={styles.root}>
+      <TimerProvider>
+        <Head>
+          <title>ATLAS - Turn studying into a game you want to win</title>
+          <meta
+            name="description"
+            content="ATLAS is a gamified study companion: focus sessions, courses, roadmaps, quizzes, a weekly leaderboard and an AI tutor that keeps your streak alive."
+          />
+        </Head>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.appBg },
+            animation: "slide_from_right",
+            animationDuration: 240,
+            freezeOnBlur: true,
+          }}
+        >
+          <Stack.Screen
+            name="login"
+            options={{ animation: "fade", animationDuration: 300 }}
+          />
+          <Stack.Screen
+            name="onboarding"
+            options={{ animation: "fade", animationDuration: 300 }}
+          />
+        </Stack>
+        <SplashOverlay />
+        <StatusBar style="light" />
+      </TimerProvider>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.appBg,
+  },
+});
