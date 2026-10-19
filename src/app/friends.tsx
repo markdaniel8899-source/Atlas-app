@@ -392,7 +392,7 @@ export default function FriendsScreen() {
       }`;
 
   return (
-    <ScreenShell title="Friends" activeLabel="Friends">
+    <ScreenShell title="Friends">
       <ScreenHeading eyebrow="Your people" title="Friends." subtitle={subtitle} />
 
       <View style={styles.inviteRow}>

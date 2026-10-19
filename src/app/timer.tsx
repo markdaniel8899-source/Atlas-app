@@ -139,7 +139,7 @@ export default function TimerScreen() {
         : "Idle";
 
   return (
-    <ScreenShell title="Timer" activeLabel="Timer">
+    <ScreenShell title="Timer">
       <View style={styles.headingRow}>
         <ScreenHeading eyebrow="Deep work" title="Focus timer." />
       </View>

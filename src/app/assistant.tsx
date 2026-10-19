@@ -1,4 +1,9 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   BackHandler,
   Keyboard,
@@ -9,13 +14,12 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { Plus, Sparkles, TriangleAlert } from "lucide-react-native";
 import { AppHeader, HEADER_HEIGHT } from "../components/app-header";
 import { ChatComposer } from "../components/assistant/chat-composer";
 import { ChatThread } from "../components/assistant/chat-thread";
 import { MeshBackground } from "../components/mesh-background";
-import { NavigationDrawer } from "../components/navigation-drawer";
 import { OfflineBanner } from "../components/offline-banner";
 import { SessionCompleteCard } from "../components/session-complete-card";
 import { useDashboard } from "../hooks/use-dashboard";
@@ -33,6 +37,7 @@ import {
   subscribeAssistantChat,
 } from "../lib/assistant-store";
 import { resolveSession } from "../lib/auth";
+import { closeDrawer, isDrawerOpen, openDrawer } from "../lib/drawer-store";
 import { ensureOnline } from "../lib/net";
 import { colors, fonts } from "../theme/theme";
 
@@ -47,7 +52,6 @@ export default function AssistantScreen() {
   );
 
   const [draft, setDraft] = useState("");
-  const [menuOpen, setMenuOpen] = useState(false);
   const [checked, setChecked] = useState(false);
   const [composerFocused, setComposerFocused] = useState(false);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
@@ -65,26 +69,25 @@ export default function AssistantScreen() {
     };
   }, []);
 
-  // Android hardware back: close the drawer if open, otherwise jump straight
-  // home instead of popping every visited tab one by one.
-  useEffect(() => {
-    const subscription = BackHandler.addEventListener(
-      "hardwareBackPress",
-      () => {
-        if (menuOpen) {
-          setMenuOpen(false);
-          return true;
-        }
-        if (router.canDismiss()) {
+  // Android hardware back (only while this tab is focused): close the drawer
+  // if open, otherwise jump straight home.
+  useFocusEffect(
+    useCallback(() => {
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        () => {
+          if (isDrawerOpen()) {
+            closeDrawer();
+            return true;
+          }
           Keyboard.dismiss();
-          router.dismissAll();
+          router.navigate("/");
           return true;
-        }
-        return false;
-      },
-    );
-    return () => subscription.remove();
-  }, [menuOpen, router]);
+        },
+      );
+      return () => subscription.remove();
+    }, [router]),
+  );
 
   useEffect(() => {
     let active = true;
@@ -92,7 +95,7 @@ export default function AssistantScreen() {
       const user = await resolveSession();
       if (!active) return;
       if (!user) {
-        router.replace("/login");
+        router.navigate("/login");
         return;
       }
       claimAssistantChat(user.id);
@@ -263,17 +266,11 @@ export default function AssistantScreen() {
         <>
           <AppHeader
             title="Assistant"
-            onMenuPress={() => setMenuOpen(true)}
+            onMenuPress={openDrawer}
             avatarUrl={profile?.avatar_url ?? null}
           />
 
           <OfflineBanner />
-
-          <NavigationDrawer
-            open={menuOpen}
-            onClose={() => setMenuOpen(false)}
-            activeLabel="Assistant"
-          />
 
           <SessionCompleteCard />
         </>

@@ -468,7 +468,7 @@ export default function CoursesScreen() {
   const empty = !loading && courses.length === 0;
 
   return (
-    <ScreenShell title="Courses" activeLabel="Courses">
+    <ScreenShell title="Courses">
       <ScreenHeading
         eyebrow="Syllabus"
         title="Courses on the wall."

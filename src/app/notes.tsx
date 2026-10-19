@@ -18,7 +18,11 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import {
+  useFocusEffect,
+  useLocalSearchParams,
+  useRouter,
+} from "expo-router";
 import {
   Bold,
   BookOpen,
@@ -316,6 +320,20 @@ export default function NotesScreen() {
     };
   }, [coursesLoading, selectedCourseId, activeCourseId, load, applyRows]);
 
+  // Tabs stay mounted: silently re-pull on re-focus so a note shared by a
+  // friend shows up without restarting the app. The first focus is already
+  // covered by the mount fetch above.
+  const firstFocus = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (firstFocus.current) {
+        firstFocus.current = false;
+        return;
+      }
+      void load();
+    }, [load]),
+  );
+
   useEffect(() => {
     if (!flash) return;
     const timer = setTimeout(() => setFlash(null), 3200);
@@ -569,7 +587,7 @@ export default function NotesScreen() {
   };
 
   return (
-    <ScreenShell title="Notes" activeLabel="Notes">
+    <ScreenShell title="Notes">
       <ScreenHeading eyebrow="Memory" title="Notes that survive the session." />
 
       {flash ? (

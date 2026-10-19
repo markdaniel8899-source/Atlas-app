@@ -45,7 +45,7 @@ const STORY = [
 
 export default function AboutScreen() {
   return (
-    <ScreenShell title="About" activeLabel="About" publicPage>
+    <ScreenShell title="About" publicPage>
       <ScreenHeading
         eyebrow="Learning OS"
         title="About ATLAS"

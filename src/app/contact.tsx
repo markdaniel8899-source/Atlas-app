@@ -101,7 +101,6 @@ export default function ContactScreen() {
   return (
     <ScreenShell
       title="Contact"
-      activeLabel="Contact"
       publicPage
       scrollOnKeyboard
     >

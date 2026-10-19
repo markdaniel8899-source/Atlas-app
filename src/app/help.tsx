@@ -48,7 +48,7 @@ export default function HelpScreen() {
   const router = useRouter();
 
   return (
-    <ScreenShell title="Help & Support" activeLabel="Help & Support" publicPage>
+    <ScreenShell title="Help & Support" publicPage>
       <ScreenHeading
         eyebrow="Support"
         title="Help & Support"

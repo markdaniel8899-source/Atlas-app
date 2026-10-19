@@ -1,6 +1,6 @@
-import { useEffect } from "react";
-import { StyleSheet, View } from "react-native";
-import { Stack } from "expo-router";
+import { useEffect, useState } from "react";
+import { Easing, StyleSheet, View } from "react-native";
+import { Tabs } from "expo-router";
 import Head from "expo-router/head";
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
@@ -18,9 +18,10 @@ import {
 import { Outfit_600SemiBold } from "@expo-google-fonts/outfit";
 import { TimerProvider } from "../context/timer-context";
 import { SplashOverlay } from "../components/splash-overlay";
+import { GlobalDrawer } from "../components/global-drawer";
 import { initNotifications } from "../lib/notifications";
 import { hydrateProfileCache } from "../lib/profile-cache";
-import { resolveSession } from "../lib/auth";
+import { getCachedAuthUser, resolveSession, subscribeAuth } from "../lib/auth";
 import { colors } from "../theme/theme";
 
 void SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -37,7 +38,7 @@ void hydrateProfileCache();
 // chrome on the first frame instead of waiting for an async read.
 void resolveSession();
 
-// Android detaches and re-attaches screens for a frame during native-stack
+// Android detaches and re-attaches screens for a frame during navigator
 // transitions; painting the window with the app background keeps that frame
 // invisible instead of flashing black or white.
 void SystemUI.setBackgroundColorAsync(colors.appBg).catch(() => {});
@@ -53,11 +54,27 @@ export default function RootLayout() {
     CreateFuture: require("../../assets/fonts/CreateFuture.otf"),
   });
 
+  // Every route lives in one flat, always-mounted tab set, so switching
+  // sections never remounts a screen (no reloads, no stale data). Keying on
+  // the auth owner resets that state on sign-in / sign-out / account switch.
+  const [sessionKey, setSessionKey] = useState(
+    () => getCachedAuthUser()?.id ?? "anon",
+  );
+
   useEffect(() => {
     if (loaded || error) {
       void SplashScreen.hideAsync().catch(() => {});
     }
   }, [loaded, error]);
+
+  useEffect(
+    () =>
+      subscribeAuth((user) => {
+        const next = user?.id ?? "anon";
+        setSessionKey((prev) => (prev === next ? prev : next));
+      }),
+    [],
+  );
 
   if (!loaded && !error) return null;
 
@@ -71,24 +88,26 @@ export default function RootLayout() {
             content="ATLAS is a gamified study companion: focus sessions, courses, roadmaps, quizzes, a weekly leaderboard and an AI tutor that keeps your streak alive."
           />
         </Head>
-        <Stack
+        <Tabs
+          key={sessionKey}
+          backBehavior="history"
+          tabBar={() => null}
           screenOptions={{
             headerShown: false,
-            contentStyle: { backgroundColor: colors.appBg },
-            animation: "slide_from_right",
-            animationDuration: 240,
+            sceneStyle: { backgroundColor: colors.appBg },
+            animation: "fade",
+            transitionSpec: {
+              animation: "timing",
+              config: {
+                duration: 200,
+                easing: Easing.out(Easing.cubic),
+              },
+            },
+            lazy: true,
             freezeOnBlur: true,
           }}
-        >
-          <Stack.Screen
-            name="login"
-            options={{ animation: "fade", animationDuration: 300 }}
-          />
-          <Stack.Screen
-            name="onboarding"
-            options={{ animation: "fade", animationDuration: 300 }}
-          />
-        </Stack>
+        />
+        <GlobalDrawer />
         <SplashOverlay />
         <StatusBar style="light" />
       </TimerProvider>

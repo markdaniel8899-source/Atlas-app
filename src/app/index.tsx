@@ -1,7 +1,14 @@
-import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect } from "react";
+import {
+  BackHandler,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import type { Href } from "expo-router";
 import { AppHeader, HEADER_HEIGHT } from "../components/app-header";
 import { ActivityHeatmap } from "../components/dashboard/activity-heatmap";
@@ -9,12 +16,12 @@ import { FocusTimerWidget } from "../components/dashboard/focus-timer-widget";
 import { PlayerStats } from "../components/dashboard/player-stats";
 import { TodayFocus } from "../components/dashboard/today-focus";
 import { MeshBackground } from "../components/mesh-background";
-import { NavigationDrawer } from "../components/navigation-drawer";
 import { OfflineBanner } from "../components/offline-banner";
 import { SessionCompleteCard } from "../components/session-complete-card";
 import { RevealText } from "../components/ui/reveal-text";
 import { useDashboard } from "../hooks/use-dashboard";
 import { getCachedAuthUser } from "../lib/auth";
+import { closeDrawer, isDrawerOpen, openDrawer } from "../lib/drawer-store";
 import { hasSeenOnboarding } from "../lib/onboarding";
 import { colors, fonts } from "../theme/theme";
 
@@ -30,7 +37,25 @@ export default function DashboardScreen() {
   const { user, profile, heatmap, focus, loading } = useDashboard();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const [menuOpen, setMenuOpen] = useState(false);
+
+  // Home is the root tab: hardware back closes the drawer first, otherwise
+  // it leaves the app (standard Android behaviour) instead of cycling tabs.
+  useFocusEffect(
+    useCallback(() => {
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        () => {
+          if (isDrawerOpen()) {
+            closeDrawer();
+            return true;
+          }
+          BackHandler.exitApp();
+          return true;
+        },
+      );
+      return () => subscription.remove();
+    }, []),
+  );
 
   useEffect(() => {
     if (loading) return;
@@ -42,7 +67,7 @@ export default function DashboardScreen() {
       // Android stack remounts the root screen for a frame during pops, and
       // redirecting there made the login form flash over the dashboard.
       if (user || getCachedAuthUser()) return;
-      router.replace((seen ? "/login" : "/onboarding") as Href);
+      router.navigate((seen ? "/login" : "/onboarding") as Href);
     });
     return () => {
       cancelled = true;
@@ -90,21 +115,21 @@ export default function DashboardScreen() {
             <Pressable
               accessibilityRole="link"
               accessibilityLabel="Privacy Policy"
-              onPress={() => router.push("/privacy" as Href)}
+              onPress={() => router.navigate("/privacy" as Href)}
             >
               <Text style={styles.footerLink}>Privacy Policy</Text>
             </Pressable>
             <Pressable
               accessibilityRole="link"
               accessibilityLabel="Terms of Service"
-              onPress={() => router.push("/terms" as Href)}
+              onPress={() => router.navigate("/terms" as Href)}
             >
               <Text style={styles.footerLink}>Terms of Service</Text>
             </Pressable>
             <Pressable
               accessibilityRole="link"
               accessibilityLabel="Contact Us"
-              onPress={() => router.push("/contact" as Href)}
+              onPress={() => router.navigate("/contact" as Href)}
             >
               <Text style={styles.footerLink}>Contact Us</Text>
             </Pressable>
@@ -114,17 +139,11 @@ export default function DashboardScreen() {
 
       <AppHeader
         title="Dashboard"
-        onMenuPress={() => setMenuOpen(true)}
+        onMenuPress={openDrawer}
         avatarUrl={profile?.avatar_url ?? null}
       />
 
       <OfflineBanner />
-
-      <NavigationDrawer
-        open={menuOpen}
-        onClose={() => setMenuOpen(false)}
-        activeLabel="Dashboard"
-      />
 
       <SessionCompleteCard />
     </View>

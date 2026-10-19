@@ -149,7 +149,7 @@ export default function QuizScreen() {
     ) : null;
 
   return (
-    <ScreenShell title="Quiz" activeLabel="Quiz">
+    <ScreenShell title="Quiz">
       <ScreenHeading eyebrow="Assessment" title="Quiz." />
 
       {phase === "setup" ? (

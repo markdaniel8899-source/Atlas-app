@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { useFocusEffect } from "expo-router";
 import { Flame, Medal, Trophy, WifiOff, Zap } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { ScreenHeading, ScreenShell } from "../components/screen-shell";
@@ -303,6 +304,19 @@ export default function LeaderboardScreen() {
   );
   const [failed, setFailed] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const firstFocus = useRef(true);
+
+  // Tabs stay mounted, so re-pull the board (silently, cache stays visible)
+  // every time this tab is focused after the first mount.
+  useFocusEffect(
+    useCallback(() => {
+      if (firstFocus.current) {
+        firstFocus.current = false;
+        return;
+      }
+      setReloadKey((key) => key + 1);
+    }, []),
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -337,7 +351,7 @@ export default function LeaderboardScreen() {
   const myRank = myRankIndex >= 0 ? myRankIndex + 1 : null;
 
   return (
-    <ScreenShell title="Leaderboard" activeLabel="Leaderboard">
+    <ScreenShell title="Leaderboard">
       <ScreenHeading
         eyebrow="This week"
         title="Leaderboard."

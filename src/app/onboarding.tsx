@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
   Animated,
+  BackHandler,
   Easing,
   FlatList,
   Image,
@@ -12,7 +13,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   ArrowRight,
@@ -310,11 +311,25 @@ export default function OnboardingScreen() {
   );
   const last = index === SLIDES.length - 1;
 
+  // Hardware back is not part of the first-run flow - it leaves the app.
+  useFocusEffect(
+    useCallback(() => {
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        () => {
+          BackHandler.exitApp();
+          return true;
+        },
+      );
+      return () => subscription.remove();
+    }, []),
+  );
+
   async function finish() {
     await markOnboardingSeen();
     // Straight to login: index.tsx would bounce signed-out users here anyway,
     // and login auto-redirects to "/" for the signed-in deep-link edge case.
-    router.replace("/login");
+    router.navigate("/login");
   }
 
   function next() {

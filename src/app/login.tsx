@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
   Animated,
+  BackHandler,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -14,7 +15,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   ArrowLeft,
@@ -73,6 +74,21 @@ export default function LoginScreen() {
     height: Math.max(bgSize.current.height, winHeight),
   };
 
+  // Hardware back on the auth screen leaves the app - walking back into the
+  // dashboard would instantly bounce here again while signed out.
+  useFocusEffect(
+    useCallback(() => {
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        () => {
+          BackHandler.exitApp();
+          return true;
+        },
+      );
+      return () => subscription.remove();
+    }, []),
+  );
+
   const [mode, setMode] = useState<Mode>("login");
   const [resetPhase, setResetPhase] = useState<ResetPhase>("code");
   const [verifyOrigin, setVerifyOrigin] = useState<VerifyOrigin>("signup");
@@ -98,7 +114,7 @@ export default function LoginScreen() {
   useEffect(() => {
     let active = true;
     resolveSession().then((user) => {
-      if (active && user) router.replace("/");
+      if (active && user) router.navigate("/");
     });
     return () => {
       active = false;
@@ -175,7 +191,7 @@ export default function LoginScreen() {
         return;
       }
       if (type === "signup") {
-        router.replace("/");
+        router.navigate("/");
         return;
       }
       setPassword("");
@@ -238,7 +254,7 @@ export default function LoginScreen() {
         setNotice({ tone: "error", text: result.error });
         return;
       }
-      router.replace("/");
+      router.navigate("/");
       return;
     }
 
@@ -321,7 +337,7 @@ export default function LoginScreen() {
       return;
     }
 
-    router.replace("/");
+    router.navigate("/");
   };
 
   const header = useMemo(() => {

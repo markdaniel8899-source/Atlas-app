@@ -253,7 +253,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <ScreenShell title="Settings" activeLabel="Settings">
+    <ScreenShell title="Settings">
       <Text style={styles.heading}>Settings.</Text>
 
       {/* PROFILE */}

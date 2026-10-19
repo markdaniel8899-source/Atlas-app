@@ -137,7 +137,7 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
   const handleLogOut = async () => {
     handleClose();
     await signOut();
-    router.replace("/login");
+    router.navigate("/login");
   };
 
   const displayName =

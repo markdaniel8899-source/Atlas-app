@@ -537,7 +537,7 @@ export default function RoadmapScreen() {
 
   if (loading) {
     return (
-      <ScreenShell title="Roadmap" activeLabel="Roadmap">
+      <ScreenShell title="Roadmap">
         <View style={styles.loadingBox}>
           <ActivityIndicator size="small" color={colors.w40} />
           <Text style={styles.loadingText}>Loading roadmap…</Text>
@@ -548,7 +548,7 @@ export default function RoadmapScreen() {
 
   if (!graph) {
     return (
-      <ScreenShell title="Roadmap" activeLabel="Roadmap">
+      <ScreenShell title="Roadmap">
         <ScreenHeading eyebrow="Path map" title="Roadmap" />
 
         <View style={styles.controlsRow}>
@@ -607,7 +607,7 @@ export default function RoadmapScreen() {
     ((progress ? progress.percent : 0) / 100) * RING_CIRCUMFERENCE;
 
   return (
-    <ScreenShell title="Roadmap" activeLabel="Roadmap">
+    <ScreenShell title="Roadmap">
       <ScreenHeading eyebrow="Path map" title="Roadmap" />
 
       <View style={styles.controlsRow}>

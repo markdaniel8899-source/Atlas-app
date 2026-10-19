@@ -107,18 +107,6 @@ export function NavigationDrawer({
 
   if (!rendered) return null;
 
-  /**
-   * Snap the drawer shut (no 250ms exit) when navigating: overlapping the
-   * drawer close with the screen slide is what made tab switches feel jerky.
-   * Backdrop taps / the close button keep the soft animated close.
-   */
-  const closeForNavigation = () => {
-    anim.stopAnimation();
-    anim.setValue(0);
-    setRendered(false);
-    onClose();
-  };
-
   const panelBody = (
     <>
       <View style={styles.headerRow}>
@@ -178,11 +166,12 @@ export function NavigationDrawer({
                     return;
                   }
                   Keyboard.dismiss();
-                  closeForNavigation();
-                  // navigate() reuses the screen if it is already in the
-                  // stack and pops back to it - no duplicate instances, no
-                  // remount-refetch churn on every tab switch.
+                  // Start the section change while the panel is still
+                  // covering the screen, then let it slide away over the
+                  // already-switched page. Tabs stay mounted, so nothing
+                  // reloads and the outgoing tab is never visible.
                   router.navigate(item.route);
+                  onClose();
                 }}
                 style={({ pressed }) => [
                   styles.item,

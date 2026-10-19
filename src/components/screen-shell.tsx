@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
   BackHandler,
@@ -10,22 +10,21 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import type { Href } from "expo-router";
 import { BlurTargetView } from "expo-blur";
 import { AppHeader, HEADER_HEIGHT } from "./app-header";
 import { BlurTargetRefContext } from "./blur-target";
 import { MeshBackground } from "./mesh-background";
-import { NavigationDrawer } from "./navigation-drawer";
 import { OfflineBanner } from "./offline-banner";
 import { SessionCompleteCard } from "./session-complete-card";
 import { useProfile } from "../hooks/use-profile";
 import { getCachedAuthUser, resolveSession } from "../lib/auth";
+import { closeDrawer, isDrawerOpen, openDrawer } from "../lib/drawer-store";
 import { colors, fonts } from "../theme/theme";
 
 interface ScreenShellProps {
   title: string;
-  activeLabel: string;
   children: ReactNode;
   /** Hide the Privacy/Terms footer for full-bleed screens. */
   hideFooter?: boolean;
@@ -39,12 +38,11 @@ interface ScreenShellProps {
 }
 
 /**
- * Shared chrome for the inner screens (timer, leaderboard, friends,
- * settings): mesh backdrop, scrolling body, fixed header and drawer.
+ * Shared chrome for the section screens: mesh backdrop, scrolling body and
+ * fixed header. The navigation drawer itself is global (see GlobalDrawer).
  */
 export function ScreenShell({
   title,
-  activeLabel,
   children,
   hideFooter = false,
   publicPage = false,
@@ -52,7 +50,6 @@ export function ScreenShell({
 }: ScreenShellProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const [menuOpen, setMenuOpen] = useState(false);
   const profile = useProfile();
   // Public pages can render at once; protected pages skip the "nothing"
   // frame when the session was already resolved (the common case after
@@ -64,26 +61,25 @@ export function ScreenShell({
   const blurTargetRef = useRef<View | null>(null);
   const scrollRef = useRef<ScrollView | null>(null);
 
-  // Android hardware back: close the drawer if open, otherwise jump straight
-  // home - never walk back through every tab the user visited.
-  useEffect(() => {
-    const subscription = BackHandler.addEventListener(
-      "hardwareBackPress",
-      () => {
-        if (menuOpen) {
-          setMenuOpen(false);
-          return true;
-        }
-        if (router.canDismiss()) {
+  // Android hardware back, scoped to the focused tab: close the drawer if
+  // open, otherwise jump straight home - never walk back through history.
+  useFocusEffect(
+    useCallback(() => {
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        () => {
+          if (isDrawerOpen()) {
+            closeDrawer();
+            return true;
+          }
           Keyboard.dismiss();
-          router.dismissAll();
+          router.navigate("/");
           return true;
-        }
-        return false;
-      },
-    );
-    return () => subscription.remove();
-  }, [menuOpen, router]);
+        },
+      );
+      return () => subscription.remove();
+    }, [router]),
+  );
 
   // Keep form fields reachable while typing: pad the scroll content by the
   // live keyboard height (edge-to-edge Android does not resize the window).
@@ -111,7 +107,7 @@ export function ScreenShell({
       const user = await resolveSession();
       if (!active) return;
       if (!user && !publicPage) {
-        router.replace("/login");
+        router.navigate("/login");
         return;
       }
       setChecked(true);
@@ -154,21 +150,21 @@ export function ScreenShell({
                 <Pressable
                   accessibilityRole="link"
                   accessibilityLabel="Privacy Policy"
-                  onPress={() => router.push("/privacy" as Href)}
+                  onPress={() => router.navigate("/privacy" as Href)}
                 >
                   <Text style={styles.footerLink}>Privacy Policy</Text>
                 </Pressable>
                 <Pressable
                   accessibilityRole="link"
                   accessibilityLabel="Terms of Service"
-                  onPress={() => router.push("/terms" as Href)}
+                  onPress={() => router.navigate("/terms" as Href)}
                 >
                   <Text style={styles.footerLink}>Terms of Service</Text>
                 </Pressable>
                 <Pressable
                   accessibilityRole="link"
                   accessibilityLabel="Contact Us"
-                  onPress={() => router.push("/contact" as Href)}
+                  onPress={() => router.navigate("/contact" as Href)}
                 >
                   <Text style={styles.footerLink}>Contact Us</Text>
                 </Pressable>
@@ -181,12 +177,12 @@ export function ScreenShell({
           <>
             <AppHeader
               title={title}
-              onMenuPress={() => setMenuOpen(true)}
+              onMenuPress={openDrawer}
               onBackPress={
                 publicPage
                   ? () => {
                       if (router.canGoBack()) router.back();
-                      else router.replace("/");
+                      else router.navigate("/");
                     }
                   : undefined
               }
@@ -194,12 +190,6 @@ export function ScreenShell({
             />
 
             <OfflineBanner />
-
-            <NavigationDrawer
-              open={menuOpen}
-              onClose={() => setMenuOpen(false)}
-              activeLabel={activeLabel}
-            />
 
             <SessionCompleteCard />
           </>
