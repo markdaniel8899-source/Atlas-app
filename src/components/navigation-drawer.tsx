@@ -83,12 +83,10 @@ export function NavigationDrawer({
   const anim = useRef(new Animated.Value(0)).current;
   const [rendered, setRendered] = useState(open);
   const opening = useRef(false);
-  const pendingRoute = useRef<NavRoute | null>(null);
 
   useEffect(() => {
     if (open) {
       if (!rendered) setRendered(true);
-      pendingRoute.current = null;
       // The rendered update re-runs this effect; start the open animation
       // only once so it is never restarted from a partial value.
       if (opening.current) return;
@@ -112,14 +110,9 @@ export function NavigationDrawer({
       }).start(({ finished }) => {
         if (!finished) return;
         setRendered(false);
-        // Let the panel finish sliding before the screen changes, so the
-        // route commit never lands in the middle of the close animation.
-        const route = pendingRoute.current;
-        pendingRoute.current = null;
-        if (route) router.navigate(route);
       });
     }
-  }, [open, rendered, anim, router]);
+  }, [open, rendered, anim]);
 
   if (!rendered) return null;
 
@@ -182,9 +175,9 @@ export function NavigationDrawer({
                     return;
                   }
                   Keyboard.dismiss();
-                  // Close the panel first; the close callback navigates once
-                  // the slide has finished (no route work mid-animation).
-                  pendingRoute.current = item.route;
+                  // Navigate immediately, then slide the panel away over the
+                  // incoming screen so there is no two-stage delay.
+                  router.navigate(item.route);
                   onClose();
                 }}
                 style={({ pressed }) => [

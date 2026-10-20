@@ -377,7 +377,7 @@ export default function NotesScreen() {
     notesRef.current = notes;
   }, [notes]);
 
-  // Keep the home-screen sticky + quick-notes widgets mirrored (debounced
+  // Keep the home-screen quick-notes widget mirrored (debounced
   // so a typing burst only pushes one update).
   useEffect(() => {
     const timer = setTimeout(() => syncAtlasNotesWidget(notes), 800);

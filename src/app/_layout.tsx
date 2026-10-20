@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { Tabs } from "expo-router";
+import { DarkTheme, Tabs, ThemeProvider } from "expo-router";
 import Head from "expo-router/head";
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
@@ -25,7 +25,6 @@ import { BlurTargetRefContext } from "../components/blur-target";
 import { initNotifications } from "../lib/notifications";
 import { hydrateProfileCache } from "../lib/profile-cache";
 import { getCachedAuthUser, resolveSession, subscribeAuth } from "../lib/auth";
-import { MOTION } from "../theme/motion";
 import { colors } from "../theme/theme";
 
 void SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -46,6 +45,14 @@ void resolveSession();
 // transitions; painting the window with the app background keeps that frame
 // invisible instead of flashing black or white.
 void SystemUI.setBackgroundColorAsync(colors.appBg).catch(() => {});
+
+// React Navigation defaults to its light theme. A transparent navigation
+// background lets the shared mesh show through every tab, matching the app's
+// dark palette without a per-scene background override.
+const NAVIGATION_THEME = {
+  ...DarkTheme,
+  colors: { ...DarkTheme.colors, background: "transparent" },
+};
 
 /**
  * Sections are mounted in small background waves so the first visit to any
@@ -150,30 +157,17 @@ export default function RootLayout() {
               content="ATLAS is a gamified study companion: focus sessions, courses, roadmaps, quizzes, a weekly leaderboard and an AI tutor that keeps your streak alive."
             />
           </Head>
-          <Tabs
-            key={sessionKey}
-            backBehavior="history"
-            tabBar={() => null}
-            // Keep every mounted scene attached: switching tabs is an instant
-            // swap instead of a native detach/attach + layout pass.
-            detachInactiveScreens={false}
-            screenOptions={({ route }) => ({
-              headerShown: false,
-              sceneStyle: { backgroundColor: "transparent" },
-              // Native bottom-tabs shift only. No custom interpolator: the
-              // drawer close is the visible transition, then the section
-              // swaps natively over the shared mesh.
-              animation: "shift",
-              transitionSpec: {
-                animation: "timing",
-                config: {
-                  duration: MOTION.page,
-                  easing: MOTION.easing,
-                },
-              },
-              lazy: !preloadedRoutes?.has(route.name),
-            })}
-          />
+          <ThemeProvider value={NAVIGATION_THEME}>
+            <Tabs
+              key={sessionKey}
+              backBehavior="history"
+              tabBar={() => null}
+              screenOptions={({ route }) => ({
+                headerShown: false,
+                lazy: !preloadedRoutes?.has(route.name),
+              })}
+            />
+          </ThemeProvider>
           <GlobalDrawer />
           <SplashOverlay />
           <StatusBar style="light" />

@@ -2,28 +2,15 @@ import { requestWidgetUpdate } from "react-native-android-widget";
 import { AtlasWidget } from "./atlas-widget";
 import { ATLAS_WIDGET_NAME } from "./atlas-widget-data";
 import type { AtlasWidgetData } from "./atlas-widget-data";
-import { AtlasStickyWidget } from "./atlas-sticky-widget";
 import { AtlasNotesWidget } from "./atlas-notes-widget";
-import {
-  ATLAS_NOTES_WIDGET_NAME,
-  ATLAS_STICKY_WIDGET_NAME,
-} from "./notes-widget-data";
-import type { NotesWidgetData, WidgetNote } from "./notes-widget-data";
+import { ATLAS_NOTES_WIDGET_NAME } from "./notes-widget-data";
+import type { NotesWidgetData } from "./notes-widget-data";
 
 /** Re-renders every stats widget on the home screen with fresh data. */
 export function pushAtlasStatsWidgetUpdate(data: AtlasWidgetData): void {
   void requestWidgetUpdate({
     widgetName: ATLAS_WIDGET_NAME,
     renderWidget: () => <AtlasWidget data={data} />,
-    widgetNotFound: () => undefined,
-  }).catch(() => undefined);
-}
-
-/** Re-renders every sticky-note widget with the current note. */
-export function pushStickyWidgetUpdate(note: WidgetNote | null): void {
-  void requestWidgetUpdate({
-    widgetName: ATLAS_STICKY_WIDGET_NAME,
-    renderWidget: () => <AtlasStickyWidget note={note} />,
     widgetNotFound: () => undefined,
   }).catch(() => undefined);
 }

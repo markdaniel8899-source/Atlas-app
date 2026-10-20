@@ -7,7 +7,6 @@ import {
 } from "./atlas-widget-data";
 import {
   EMPTY_NOTES_WIDGET_DATA,
-  loadStickyNoteIndex,
   saveNotesWidgetData,
 } from "./notes-widget-data";
 import { buildNotesWidgetData, buildStatsData } from "./widget-model";
@@ -34,25 +33,19 @@ export function syncAtlasStatsWidget(
 }
 
 /**
- * Mirrors the newest notes into the sticky + quick-notes widget caches.
- * Pass null on sign-out so both widgets fall back to their empty states.
+ * Mirrors the newest notes into the quick-notes widget cache.
+ * Pass null on sign-out so the widget falls back to its empty state.
  */
 export function syncAtlasNotesWidget(notes: Note[] | null): void {
   const data =
     notes === null ? EMPTY_NOTES_WIDGET_DATA : buildNotesWidgetData(notes);
   void saveNotesWidgetData(data);
   if (Platform.OS !== "android") return;
-  void (async () => {
-    try {
-      const index = await loadStickyNoteIndex();
-      const note =
-        data.notes.length > 0 ? data.notes[index % data.notes.length] : null;
-      // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy: older APKs ship without the widget native module
-      const updater = require("./widget-update") as typeof import("./widget-update");
-      updater.pushStickyWidgetUpdate(note);
-      updater.pushNotesWidgetUpdate(data);
-    } catch {
-      // Widget native module missing (older APK) - skip silently.
-    }
-  })();
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy: older APKs ship without the widget native module
+    const updater = require("./widget-update") as typeof import("./widget-update");
+    updater.pushNotesWidgetUpdate(data);
+  } catch {
+    // Widget native module missing (older APK) - skip silently.
+  }
 }
