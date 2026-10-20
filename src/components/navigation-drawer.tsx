@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ComponentType } from "react";
 import {
   Animated,
+  Easing,
   Image,
   Keyboard,
   Platform,
@@ -27,7 +28,7 @@ import {
   Trophy,
   Users,
 } from "lucide-react-native";
-import { colors, ease, fonts } from "../theme/theme";
+import { colors, fonts } from "../theme/theme";
 
 const DRAWER_WIDTH = 240;
 
@@ -81,29 +82,44 @@ export function NavigationDrawer({
   const router = useRouter();
   const anim = useRef(new Animated.Value(0)).current;
   const [rendered, setRendered] = useState(open);
+  const opening = useRef(false);
+  const pendingRoute = useRef<NavRoute | null>(null);
 
   useEffect(() => {
     if (open) {
-      setRendered(true);
+      if (!rendered) setRendered(true);
+      pendingRoute.current = null;
+      // The rendered update re-runs this effect; start the open animation
+      // only once so it is never restarted from a partial value.
+      if (opening.current) return;
+      opening.current = true;
       // Never leave a keyboard hanging under the drawer / next screen.
       Keyboard.dismiss();
       Animated.timing(anim, {
         toValue: 1,
-        duration: 350,
-        easing: ease,
+        duration: 300,
+        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
         useNativeDriver: true,
       }).start();
-    } else if (rendered) {
+    } else {
+      opening.current = false;
+      if (!rendered) return;
       Animated.timing(anim, {
         toValue: 0,
-        duration: 250,
-        easing: ease,
+        duration: 200,
+        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
         useNativeDriver: true,
       }).start(({ finished }) => {
-        if (finished) setRendered(false);
+        if (!finished) return;
+        setRendered(false);
+        // Let the panel finish sliding before the screen changes, so the
+        // route commit never lands in the middle of the close animation.
+        const route = pendingRoute.current;
+        pendingRoute.current = null;
+        if (route) router.navigate(route);
       });
     }
-  }, [open, rendered, anim]);
+  }, [open, rendered, anim, router]);
 
   if (!rendered) return null;
 
@@ -166,11 +182,9 @@ export function NavigationDrawer({
                     return;
                   }
                   Keyboard.dismiss();
-                  // Start the section change while the panel is still
-                  // covering the screen, then let it slide away over the
-                  // already-switched page. Tabs stay mounted, so nothing
-                  // reloads and the outgoing tab is never visible.
-                  router.navigate(item.route);
+                  // Close the panel first; the close callback navigates once
+                  // the slide has finished (no route work mid-animation).
+                  pendingRoute.current = item.route;
                   onClose();
                 }}
                 style={({ pressed }) => [

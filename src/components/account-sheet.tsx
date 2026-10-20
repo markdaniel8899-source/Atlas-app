@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import type { ComponentType } from "react";
 import {
   Animated,
+  Dimensions,
+  Easing,
   Keyboard,
   Modal,
   Platform,
@@ -34,9 +36,13 @@ import { getCachedProfile } from "../lib/profile-cache";
 import { pngAvatarUrl } from "../lib/dicebear";
 import { PROFILE_CHANGED_EVENT, listen } from "../lib/events";
 import type { Profile } from "../lib/db/types";
-import { colors, ease, fonts } from "../theme/theme";
+import { colors, fonts } from "../theme/theme";
 
 const APP_ICON = require("../../assets/icon.png");
+
+// The sheet is bottom-anchored and shorter than the window, so translating by
+// the full window height guarantees it is completely off-screen when closed.
+const SHEET_HIDDEN_OFFSET = Dimensions.get("window").height;
 
 type InfoRoute = "/about" | "/help" | "/privacy" | "/terms" | "/contact";
 
@@ -66,6 +72,7 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
   const router = useRouter();
   const anim = useRef(new Animated.Value(0)).current;
   const [rendered, setRendered] = useState(open);
+  const opening = useRef(false);
   const [profile, setProfile] = useState<Profile | null>(() =>
     getCachedProfile(),
   );
@@ -73,19 +80,27 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
 
   useEffect(() => {
     if (open) {
-      setRendered(true);
+      if (!rendered) setRendered(true);
+      // The rendered update re-runs this effect; start the spring only once
+      // so it is never restarted from a partial offset (the open jerk).
+      if (opening.current) return;
+      opening.current = true;
       Keyboard.dismiss();
-      Animated.timing(anim, {
+      Animated.spring(anim, {
         toValue: 1,
-        duration: 320,
-        easing: ease,
+        stiffness: 300,
+        damping: 20,
+        mass: 1,
+        overshootClamping: true,
         useNativeDriver: true,
       }).start();
-    } else if (rendered) {
+    } else {
+      opening.current = false;
+      if (!rendered) return;
       Animated.timing(anim, {
         toValue: 0,
-        duration: 240,
-        easing: ease,
+        duration: 300,
+        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
         useNativeDriver: true,
       }).start(({ finished }) => {
         if (finished) setRendered(false);
@@ -115,29 +130,30 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
     };
   }, [open]);
 
-  const handleClose = () => {
+  const handleClose = (after?: () => void) => {
     Animated.timing(anim, {
       toValue: 0,
-      duration: 240,
-      easing: ease,
+      duration: 300,
+      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
       useNativeDriver: true,
     }).start(({ finished }) => {
-      if (finished) {
-        setRendered(false);
-        onClose();
-      }
+      if (!finished) return;
+      setRendered(false);
+      onClose();
+      // Navigate only after the sheet has finished closing, so the route
+      // commit never freezes the slide halfway down.
+      after?.();
     });
   };
 
   const go = (route: InfoRoute) => {
-    handleClose();
-    router.push(route);
+    handleClose(() => router.push(route));
   };
 
-  const handleLogOut = async () => {
-    handleClose();
-    await signOut();
-    router.navigate("/login");
+  const handleLogOut = () => {
+    handleClose(() => {
+      void signOut().then(() => router.navigate("/login"));
+    });
   };
 
   const displayName =
@@ -188,7 +204,7 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Close account menu"
-          onPress={handleClose}
+          onPress={() => handleClose()}
           hitSlop={8}
           style={styles.closeButton}
         >
@@ -249,14 +265,14 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
       transparent
       animationType="none"
       statusBarTranslucent
-      onRequestClose={handleClose}
+      onRequestClose={() => handleClose()}
     >
       <View style={styles.root}>
         <Animated.View style={[StyleSheet.absoluteFill, { opacity: anim }]}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Close account menu"
-            onPress={handleClose}
+            onPress={() => handleClose()}
             style={[StyleSheet.absoluteFill, styles.backdrop]}
           />
         </Animated.View>
@@ -271,7 +287,7 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
                 {
                   translateY: anim.interpolate({
                     inputRange: [0, 1],
-                    outputRange: [480, 0],
+                    outputRange: [SHEET_HIDDEN_OFFSET, 0],
                   }),
                 },
               ],

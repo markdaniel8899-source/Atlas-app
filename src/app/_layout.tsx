@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Easing, StyleSheet, View } from "react-native";
 import { Tabs } from "expo-router";
 import Head from "expo-router/head";
 import { StatusBar } from "expo-status-bar";
@@ -161,11 +161,17 @@ export default function RootLayout() {
               // Scenes sit above the shared mesh; without this every tab
               // paints the default light navigation background over it.
               sceneStyle: { backgroundColor: "transparent" },
-              // Sections switch in one frame. The visible transition is the
-              // drawer sliding shut; crossfading two full, heavy screens
-              // underneath it made the close stutter on Android, and the fade
-              // sat behind the backdrop anyway.
-              animation: "none",
+              // Slide the incoming section in from the right once the drawer
+              // has finished closing. This navigator is Tabs, so its built-in
+              // horizontal shift is the slide transition (there is no Stack).
+              animation: "shift",
+              transitionSpec: {
+                animation: "timing",
+                config: {
+                  duration: 250,
+                  easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+                },
+              },
               lazy: !preloadedRoutes?.has(route.name),
             })}
           />
