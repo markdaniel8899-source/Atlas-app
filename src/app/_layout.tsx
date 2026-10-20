@@ -158,6 +158,9 @@ export default function RootLayout() {
             detachInactiveScreens={false}
             screenOptions={({ route }) => ({
               headerShown: false,
+              // Scenes sit above the shared mesh; without this every tab
+              // paints the default light navigation background over it.
+              sceneStyle: { backgroundColor: "transparent" },
               animation: "fade",
               // Pure opacity crossfade over the shared mesh. Scaling full
               // screens forces Android to re-rasterize every text layer, so

@@ -205,6 +205,8 @@
   - Verified: `npx tsc --noEmit`, `npx expo lint`, and a Node script that compiles the widget files with `babel-preset-expo` + React Compiler enabled, then runs the real `buildWidgetTree` on all 3 widgets (stats 47 nodes, sticky note/empty, notes list/empty) with zero `_c(` calls.
   - `app.json` versionCode bumped 4 -> 5. JS fix is OTA-able, but the installed vc3/vc4 embedded bundles lack `index.js`, so a fresh APK is the reliable fix (also carries widget preview images + icon/splash).
 
+- **White background regression fix (2026-10-20):** after the smoothness pass moved `MeshBackground` to the root, every tab still painted the default **light** navigation theme background (`rgb(242,242,242)` from `elements.Screen` -> `Background`) over the shared mesh, so the whole app looked white while cards/header stayed dark. Fix: `sceneStyle: { backgroundColor: "transparent" }` in the root Tabs `screenOptions` (`src/app/_layout.tsx`), letting the shared mesh show through. JS-only, OTA-able. The queued vc5 APK (`c90c6b87`, built from `10d0f04`) finished but was deleted per the user's "no new APK this time" request.
+
 ## Workflow Preferences (user)
 - User communicates in **Roman Urdu** — reply concisely in Roman Urdu.
 - Do not ask for confirmation mid-task; finish the task, then report.
