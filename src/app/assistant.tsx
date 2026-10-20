@@ -21,6 +21,7 @@ import { AppHeader, HEADER_HEIGHT } from "../components/app-header";
 import { ChatComposer } from "../components/assistant/chat-composer";
 import { ChatThread } from "../components/assistant/chat-thread";
 import { OfflineBanner } from "../components/offline-banner";
+import { SceneBackdrop } from "../components/scene-backdrop";
 import { SessionCompleteCard } from "../components/session-complete-card";
 import { useDashboard } from "../hooks/use-dashboard";
 import {
@@ -153,6 +154,7 @@ export default function AssistantScreen() {
 
   return (
     <View style={styles.root}>
+      <SceneBackdrop />
       <KeyboardAvoidingView
         style={styles.body}
         behavior="padding"

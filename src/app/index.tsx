@@ -16,6 +16,7 @@ import { FocusTimerWidget } from "../components/dashboard/focus-timer-widget";
 import { PlayerStats } from "../components/dashboard/player-stats";
 import { TodayFocus } from "../components/dashboard/today-focus";
 import { OfflineBanner } from "../components/offline-banner";
+import { SceneBackdrop } from "../components/scene-backdrop";
 import { SessionCompleteCard } from "../components/session-complete-card";
 import { RevealText } from "../components/ui/reveal-text";
 import { useDashboard } from "../hooks/use-dashboard";
@@ -78,6 +79,7 @@ export default function DashboardScreen() {
 
   return (
     <View style={styles.root}>
+      <SceneBackdrop />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[
