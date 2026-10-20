@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Easing, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { Tabs } from "expo-router";
 import Head from "expo-router/head";
 import { StatusBar } from "expo-status-bar";
@@ -130,8 +130,8 @@ export default function RootLayout() {
       <View style={styles.root}>
         {/*
          * One shared mesh behind every tab. Screens are transparent, so a tab
-         * change only crossfades their content over a static backdrop - no
-         * per-screen SVG is animated, which keeps the transition on the GPU.
+         * change only swaps their content over a static backdrop - no
+         * per-screen SVG or full-screen alpha layer is drawn.
          */}
         <BlurTargetView
           ref={blurTargetRef}
@@ -153,34 +153,19 @@ export default function RootLayout() {
             key={sessionKey}
             backBehavior="history"
             tabBar={() => null}
-            // Keep every mounted scene attached: switching tabs then costs one
-            // GPU crossfade instead of a native detach/attach + layout pass.
+            // Keep every mounted scene attached: switching tabs is an instant
+            // swap instead of a native detach/attach + layout pass.
             detachInactiveScreens={false}
             screenOptions={({ route }) => ({
               headerShown: false,
               // Scenes sit above the shared mesh; without this every tab
               // paints the default light navigation background over it.
               sceneStyle: { backgroundColor: "transparent" },
-              animation: "fade",
-              // Pure opacity crossfade over the shared mesh. Scaling full
-              // screens forces Android to re-rasterize every text layer, so
-              // only opacity animates; 220ms ends as the drawer finishes
-              // closing, which hides the switch completely.
-              transitionSpec: {
-                animation: "timing",
-                config: {
-                  duration: 220,
-                  easing: Easing.bezier(0.22, 1, 0.36, 1),
-                },
-              },
-              sceneStyleInterpolator: ({ current }) => ({
-                sceneStyle: {
-                  opacity: current.progress.interpolate({
-                    inputRange: [-1, 0, 1],
-                    outputRange: [0, 1, 0],
-                  }),
-                },
-              }),
+              // Sections switch in one frame. The visible transition is the
+              // drawer sliding shut; crossfading two full, heavy screens
+              // underneath it made the close stutter on Android, and the fade
+              // sat behind the backdrop anyway.
+              animation: "none",
               lazy: !preloadedRoutes?.has(route.name),
             })}
           />

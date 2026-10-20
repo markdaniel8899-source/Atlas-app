@@ -23,8 +23,8 @@ const SECTION_LABELS: Record<string, string> = {
 
 /**
  * Single drawer instance rendered above the tab navigator. Keeping it out of
- * the individual screens means tapping a row starts the section crossfade
- * underneath the closing panel - the user never sees the outgoing tab first.
+ * the individual screens means tapping a row swaps the section underneath the
+ * closing panel - the user never sees the outgoing tab first.
  */
 export function GlobalDrawer() {
   const open = useSyncExternalStore(
