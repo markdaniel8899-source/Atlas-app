@@ -133,8 +133,19 @@ async function runAsk(
   systemPrompt: string | null,
   userName?: string,
 ) {
+  const startedAt = Date.now();
+  console.log("[assistant] request start", text.length, "chars");
   try {
     const reply = await ask(text, history, systemPrompt, userName);
+    console.log(
+      "[assistant] reply",
+      reply.content.length,
+      "chars from",
+      reply.model ?? "unknown",
+      "in",
+      Date.now() - startedAt,
+      "ms",
+    );
     state = {
       ...state,
       turns: [...state.turns, reply],
@@ -144,6 +155,10 @@ async function runAsk(
     emit();
     persist();
   } catch (caught) {
+    console.log(
+      "[assistant] request failed",
+      caught instanceof Error ? caught.message : String(caught),
+    );
     state = { ...state, pending: false, error: classify(caught), lastSent: text };
     emit();
   }

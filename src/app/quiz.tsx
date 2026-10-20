@@ -27,7 +27,6 @@ import { QuizSetup } from "../components/quiz/quiz-setup";
 import { RichText } from "../components/quiz/rich-text";
 import { KIND_ICON } from "../components/quiz/icons";
 import { useCourses } from "../hooks/use-courses";
-import { ensureOnline } from "../lib/net";
 import { canSubmit, KIND_LABEL, summarize } from "../lib/quiz";
 import type { GenerateInput } from "../lib/quiz";
 import {
@@ -42,7 +41,8 @@ import {
   submitQuizAnswer,
   subscribeQuizSession,
 } from "../lib/quiz-store";
-import { colors, ease, fonts } from "../theme/theme";
+import { MOTION } from "../theme/motion";
+import { colors, fonts } from "../theme/theme";
 
 const ACHIEVEMENT_TITLES: Record<string, string> = {
   first_quiz: "First Steps",
@@ -65,9 +65,9 @@ function FadeIn({
   useEffect(() => {
     Animated.timing(anim, {
       toValue: 1,
-      duration: 400,
+      duration: MOTION.sheet,
       delay,
-      easing: ease,
+      easing: MOTION.easing,
       useNativeDriver: true,
     }).start();
   }, [anim, delay]);
@@ -116,15 +116,8 @@ export default function QuizScreen() {
     attempts.length > 0 ? (answered / attempts.length) * 100 : 0;
   const summary = summarize(attempts);
 
-  const handleGenerate = async (input: GenerateInput) => {
-    if (
-      !(await ensureOnline(
-        "Quizzes are generated online - reconnect to start one.",
-      ))
-    ) {
-      return;
-    }
-    await generateQuizSession(input);
+  const handleGenerate = (input: GenerateInput) => {
+    void generateQuizSession(input);
   };
 
   const alert =
@@ -165,7 +158,7 @@ export default function QuizScreen() {
       ) : null}
 
       {phase === "loading" ? (
-        <FadeIn style={styles.loadingCard}>
+        <View style={styles.loadingCard}>
           <ActivityIndicator size="large" color={colors.star} />
           <View style={styles.loadingTextWrap}>
             <Text style={styles.loadingTitle}>Writing your questions</Text>
@@ -176,7 +169,7 @@ export default function QuizScreen() {
               This keeps running even if you leave the screen.
             </Text>
           </View>
-        </FadeIn>
+        </View>
       ) : null}
 
       {phase === "running" && question ? (

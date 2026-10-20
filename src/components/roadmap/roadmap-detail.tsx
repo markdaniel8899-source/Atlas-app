@@ -35,7 +35,8 @@ import {
 import type { ComponentType } from "react";
 import type { GraphNode, RoadmapGraph } from "../../lib/roadmap-graph";
 import { objectivesFor, xpFor } from "../../lib/roadmap-graph";
-import { colors, ease, fonts } from "../../theme/theme";
+import { MOTION } from "../../theme/motion";
+import { colors, fonts } from "../../theme/theme";
 
 interface RoadmapDetailProps {
   graph: RoadmapGraph;
@@ -82,26 +83,33 @@ export function RoadmapDetail({
   const safeTop = Math.max(insets.top, topInset, 12);
   const router = useRouter();
   const anim = useRef(new Animated.Value(0)).current;
+  const closing = useRef(false);
 
   useEffect(() => {
     Animated.timing(anim, {
       toValue: 1,
-      duration: 350,
-      easing: ease,
+      duration: MOTION.sheet,
+      easing: MOTION.easing,
       useNativeDriver: true,
     }).start();
   }, [anim]);
 
-  const handleClose = () => {
+  const closeThen = (after?: () => void) => {
+    if (closing.current) return;
+    closing.current = true;
     Animated.timing(anim, {
       toValue: 0,
-      duration: 250,
-      easing: ease,
+      duration: MOTION.sheetClose,
+      easing: MOTION.easing,
       useNativeDriver: true,
     }).start(({ finished }) => {
-      if (finished) onClose();
+      if (!finished) return;
+      onClose();
+      after?.();
     });
   };
+
+  const handleClose = () => closeThen();
 
   const node = graph.nodes.find((item) => item.key === nodeKey) ?? null;
   const phase = graph.phases.find((item) => item.number === node?.phaseNumber);
@@ -123,15 +131,15 @@ export function RoadmapDetail({
     : node.title;
 
   const startLearning = () => {
-    onClose();
-    router.push(
-      graph.courseId != null ? `/timer?courseId=${graph.courseId}` : "/timer",
+    closeThen(() =>
+      router.push(
+        graph.courseId != null ? `/timer?courseId=${graph.courseId}` : "/timer",
+      ),
     );
   };
 
   const takeBossBattle = () => {
-    onClose();
-    router.push("/quiz" as Href);
+    closeThen(() => router.push("/quiz" as Href));
   };
 
   return (

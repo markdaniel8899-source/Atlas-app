@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import {
   Animated,
@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { Bot, UserRound } from "lucide-react-native";
 import type { Turn } from "../../lib/assistant";
+import { MOTION } from "../../theme/motion";
 import { colors, ease, fonts } from "../../theme/theme";
 
 interface ChatThreadProps {
@@ -22,8 +23,8 @@ function FadeSlideIn({ children }: { children: ReactNode }) {
   useEffect(() => {
     Animated.timing(anim, {
       toValue: 1,
-      duration: 350,
-      easing: ease,
+      duration: MOTION.sheet,
+      easing: MOTION.easing,
       useNativeDriver: true,
     }).start();
   }, [anim]);
@@ -113,7 +114,7 @@ function TypingIndicator() {
   );
 }
 
-function TurnRow({ turn }: { turn: Turn }) {
+const TurnRow = memo(function TurnRow({ turn }: { turn: Turn }) {
   const mine = turn.role === "user";
 
   return (
@@ -144,9 +145,12 @@ function TurnRow({ turn }: { turn: Turn }) {
       </View>
     </FadeSlideIn>
   );
-}
+});
 
-export function ChatThread({ turns, thinking }: ChatThreadProps) {
+export const ChatThread = memo(function ChatThread({
+  turns,
+  thinking,
+}: ChatThreadProps) {
   const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -174,7 +178,7 @@ export function ChatThread({ turns, thinking }: ChatThreadProps) {
       {thinking ? <TypingIndicator /> : null}
     </ScrollView>
   );
-}
+});
 
 const styles = StyleSheet.create({
   threadScroll: {

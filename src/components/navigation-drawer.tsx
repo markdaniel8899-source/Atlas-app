@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import type { ComponentType } from "react";
 import {
   Animated,
-  Easing,
   Image,
   Keyboard,
   Platform,
@@ -28,6 +27,7 @@ import {
   Trophy,
   Users,
 } from "lucide-react-native";
+import { MOTION } from "../theme/motion";
 import { colors, fonts } from "../theme/theme";
 
 const DRAWER_WIDTH = 240;
@@ -97,8 +97,8 @@ export function NavigationDrawer({
       Keyboard.dismiss();
       Animated.timing(anim, {
         toValue: 1,
-        duration: 300,
-        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+        duration: MOTION.drawerOpen,
+        easing: MOTION.easing,
         useNativeDriver: true,
       }).start();
     } else {
@@ -106,8 +106,8 @@ export function NavigationDrawer({
       if (!rendered) return;
       Animated.timing(anim, {
         toValue: 0,
-        duration: 200,
-        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+        duration: MOTION.drawerClose,
+        easing: MOTION.easing,
         useNativeDriver: true,
       }).start(({ finished }) => {
         if (!finished) return;

@@ -115,45 +115,45 @@ async function buildLearnerContext(
     }
   }
 
-  try {
-    const roadmap = await fetchLatestRoadmap(course ? course.id : undefined);
-    if (roadmap && roadmap.nodes.length > 0) {
-      const completed = roadmap.nodes.filter(
-        (node) => node.status === "completed",
-      );
-      const active = roadmap.nodes.filter((node) => node.status === "active");
-      parts.push(`Roadmap: ${roadmap.title}`);
+  const notesPromise = course
+    ? fetchNotes({
+        courseId: course.id,
+        topicIds: course.topics.map((item) => item.id),
+      })
+    : fetchNotes();
+  const [roadmap, notes] = await Promise.all([
+    fetchLatestRoadmap(course ? course.id : undefined).catch(() => null),
+    notesPromise.catch(() => null),
+  ]);
+
+  if (roadmap && roadmap.nodes.length > 0) {
+    const completed = roadmap.nodes.filter(
+      (node) => node.status === "completed",
+    );
+    const active = roadmap.nodes.filter((node) => node.status === "active");
+    parts.push(`Roadmap: ${roadmap.title}`);
+    parts.push(
+      `Roadmap progress: ${completed.length}/${roadmap.nodes.length} levels completed`,
+    );
+    if (completed.length > 0) {
       parts.push(
-        `Roadmap progress: ${completed.length}/${roadmap.nodes.length} levels completed`,
+        `Levels already studied: ${completed
+          .slice(0, 12)
+          .map((node) => node.title)
+          .join("; ")}`,
       );
-      if (completed.length > 0) {
-        parts.push(
-          `Levels already studied: ${completed
-            .slice(0, 12)
-            .map((node) => node.title)
-            .join("; ")}`,
-        );
-      }
-      if (active.length > 0) {
-        parts.push(
-          `Current levels: ${active
-            .slice(0, 6)
-            .map((node) => node.title)
-            .join("; ")}`,
-        );
-      }
     }
-  } catch {
-    // No roadmap - the course-only fallback covers this.
+    if (active.length > 0) {
+      parts.push(
+        `Current levels: ${active
+          .slice(0, 6)
+          .map((node) => node.title)
+          .join("; ")}`,
+      );
+    }
   }
 
-  try {
-    const notes = course
-      ? await fetchNotes({
-          courseId: course.id,
-          topicIds: course.topics.map((item) => item.id),
-        })
-      : await fetchNotes();
+  if (notes) {
     const excerpts = notes
       .map((note) => ({
         entry: `${note.title}: ${htmlToText(note.html)}`,
@@ -168,8 +168,6 @@ async function buildLearnerContext(
     if (excerpts.length > 0) {
       parts.push(`Saved notes:\n${excerpts.join("\n---\n")}`);
     }
-  } catch {
-    // No notes available.
   }
 
   return parts.join("\n").slice(0, CONTEXT_CAP);
@@ -353,7 +351,7 @@ export function QuizSetup({
 
   const showTopicText = topicChoice === CUSTOM;
 
-  const submit = async () => {
+  const submit = () => {
     // A selected course is enough: the backend scopes the quiz to it even
     // when no focus text is typed.
     if (resolvedTopic.length < 2 && !course) {
@@ -376,32 +374,17 @@ export function QuizSetup({
     // notes to it (English quiz never receives Python notes).
     const subject = course ? "" : (inferSubject(topic) ?? "");
     setPreparing(true);
-    try {
-      const context = await buildLearnerContext(course, topic);
-      onGenerate({
-        topic,
-        kind,
-        count,
-        difficulty: difficulty as Difficulty,
-        context,
-        courseId: attachedCourseId,
-        subject,
-        pdf: pdfFile,
-      });
-    } catch {
-      onGenerate({
-        topic,
-        kind,
-        count,
-        difficulty: difficulty as Difficulty,
-        context: course ? `Course: ${course.title}` : "",
-        courseId: attachedCourseId,
-        subject,
-        pdf: pdfFile,
-      });
-    } finally {
-      setPreparing(false);
-    }
+    onGenerate({
+      topic,
+      kind,
+      count,
+      difficulty: difficulty as Difficulty,
+      context: course ? `Course: ${course.title}` : "",
+      contextBuilder: () => buildLearnerContext(course, topic),
+      courseId: attachedCourseId,
+      subject,
+      pdf: pdfFile,
+    });
   };
 
   const message = localError ?? error;

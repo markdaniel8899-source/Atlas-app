@@ -31,6 +31,7 @@ export interface GenerateInput {
   count: number;
   difficulty: Difficulty;
   context?: string;
+  contextBuilder?: () => Promise<string>;
   /** Course the quiz belongs to; the backend uses it to scope the context. */
   courseId?: number | null;
   /** Subject scope when no course is attached; backend scopes notes to it. */

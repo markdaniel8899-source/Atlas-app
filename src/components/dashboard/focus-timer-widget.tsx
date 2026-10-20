@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
   Pressable,
@@ -21,6 +21,7 @@ import { useRouter } from "expo-router";
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { useTimer } from "../../context/timer-context";
+import { MOTION } from "../../theme/motion";
 import { colors, ease, fonts } from "../../theme/theme";
 
 const PRESETS = [25, 50, 90];
@@ -72,22 +73,53 @@ function QuickStartDialog({
   onSelect,
   onStart,
   onClose,
+  requestCloseRef,
 }: {
   preset: number;
   onSelect: (minutes: number) => void;
   onStart: () => void;
   onClose: () => void;
+  requestCloseRef: { current: (() => void) | null };
 }) {
   const anim = useRef(new Animated.Value(0)).current;
+  const closing = useRef(false);
 
   useEffect(() => {
     Animated.timing(anim, {
       toValue: 1,
-      duration: 220,
-      easing: ease,
+      duration: MOTION.sheet,
+      easing: MOTION.easing,
       useNativeDriver: true,
     }).start();
   }, [anim]);
+
+  const close = useCallback(
+    (after?: () => void) => {
+      if (closing.current) return;
+      closing.current = true;
+      Animated.timing(anim, {
+        toValue: 0,
+        duration: MOTION.sheetClose,
+        easing: MOTION.easing,
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (!finished) return;
+        try {
+          after?.();
+        } finally {
+          onClose();
+        }
+      });
+    },
+    [anim, onClose],
+  );
+
+  useEffect(() => {
+    requestCloseRef.current = () => close();
+    return () => {
+      requestCloseRef.current = null;
+    };
+  }, [requestCloseRef, close]);
 
   return (
     <View style={styles.modalRoot}>
@@ -95,7 +127,7 @@ function QuickStartDialog({
         <Pressable
           accessibilityLabel="Close quick start"
           style={[StyleSheet.absoluteFill, styles.backdrop]}
-          onPress={onClose}
+          onPress={() => close()}
         />
       </Animated.View>
 
@@ -129,7 +161,7 @@ function QuickStartDialog({
           </View>
           <Pressable
             accessibilityLabel="Close"
-            onPress={onClose}
+            onPress={() => close()}
             hitSlop={6}
             style={styles.dialogClose}
           >
@@ -173,10 +205,10 @@ function QuickStartDialog({
           <Button
             label="Start session"
             icon={<Play size={16} color={colors.primaryText} />}
-            onPress={onStart}
+            onPress={() => close(onStart)}
             style={styles.dialogStart}
           />
-          <Button variant="ghost" label="Cancel" onPress={onClose} />
+          <Button variant="ghost" label="Cancel" onPress={() => close()} />
         </View>
       </Animated.View>
     </View>
@@ -188,6 +220,7 @@ export function FocusTimerWidget() {
   const router = useRouter();
   const { state, globalTotal, progress, activeCourse, flash } = timer;
   const [quickOpen, setQuickOpen] = useState(false);
+  const quickCloseRef = useRef<(() => void) | null>(null);
   const [preset, setPreset] = useState(state.targetMin);
   const active = state.mode !== "idle";
 
@@ -338,13 +371,18 @@ export function FocusTimerWidget() {
         transparent
         animationType="none"
         statusBarTranslucent
-        onRequestClose={() => setQuickOpen(false)}
+        onRequestClose={() =>
+          quickCloseRef.current
+            ? quickCloseRef.current()
+            : setQuickOpen(false)
+        }
       >
         <QuickStartDialog
           preset={preset}
           onSelect={setPreset}
           onStart={startQuick}
           onClose={() => setQuickOpen(false)}
+          requestCloseRef={quickCloseRef}
         />
       </Modal>
     </>

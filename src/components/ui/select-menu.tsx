@@ -9,7 +9,8 @@ import {
 } from "react-native";
 import type { ComponentType } from "react";
 import { Check, ChevronDown } from "lucide-react-native";
-import { colors, ease, fonts } from "../../theme/theme";
+import { MOTION } from "../../theme/motion";
+import { colors, fonts } from "../../theme/theme";
 
 export interface SelectOption<T extends string = string> {
   value: T;
@@ -37,27 +38,65 @@ export function SelectMenu<T extends string>({
   disabled = false,
 }: SelectMenuProps<T>) {
   const [open, setOpen] = useState(false);
+  const [rendered, setRendered] = useState(false);
   const anim = useRef(new Animated.Value(0)).current;
+  const opening = useRef(false);
+  const closing = useRef(false);
+  const pendingPick = useRef<T | null>(null);
 
   const selected =
     options.find((option) => option.value === value) ?? options[0];
   const SelectedIcon = selected?.icon;
 
   useEffect(() => {
-    if (open) {
-      anim.setValue(0);
-      Animated.timing(anim, {
-        toValue: 1,
-        duration: 180,
-        easing: ease,
-        useNativeDriver: true,
-      }).start();
+    if (!open) return;
+    if (!rendered) {
+      setRendered(true);
+      return;
     }
-  }, [open, anim]);
+    if (opening.current) return;
+    opening.current = true;
+    closing.current = false;
+    anim.stopAnimation();
+    Animated.timing(anim, {
+      toValue: 1,
+      duration: MOTION.sheet,
+      easing: MOTION.easing,
+      useNativeDriver: true,
+    }).start();
+  }, [open, rendered, anim]);
+
+  const close = (after?: () => void) => {
+    if (closing.current) return;
+    closing.current = true;
+    opening.current = false;
+    anim.stopAnimation();
+    Animated.timing(anim, {
+      toValue: 0,
+      duration: MOTION.sheetClose,
+      easing: MOTION.easing,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      closing.current = false;
+      if (!finished) return;
+      setRendered(false);
+      const next = pendingPick.current;
+      pendingPick.current = null;
+      if (next !== null) onChange(next);
+      after?.();
+    });
+  };
+
+  const dismiss = () => {
+    pendingPick.current = null;
+    setOpen(false);
+    close();
+  };
 
   const pick = (next: T) => {
+    pendingPick.current = next;
     setOpen(false);
-    onChange(next);
+    close();
   };
 
   return (
@@ -100,18 +139,18 @@ export function SelectMenu<T extends string>({
       </Pressable>
 
       <Modal
-        visible={open}
+        visible={rendered}
         transparent
         animationType="none"
         statusBarTranslucent
-        onRequestClose={() => setOpen(false)}
+        onRequestClose={dismiss}
       >
         <View style={styles.modalRoot}>
           <Animated.View style={[StyleSheet.absoluteFill, { opacity: anim }]}>
             <Pressable
               accessibilityLabel="Close options"
               style={[StyleSheet.absoluteFill, styles.backdrop]}
-              onPress={() => setOpen(false)}
+              onPress={dismiss}
             />
           </Animated.View>
 

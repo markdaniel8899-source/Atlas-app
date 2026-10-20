@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Modal,
@@ -8,7 +8,8 @@ import {
   View,
 } from "react-native";
 import { AlertTriangle, Trash2 } from "lucide-react-native";
-import { colors, ease, fonts } from "../../theme/theme";
+import { MOTION } from "../../theme/motion";
+import { colors, fonts } from "../../theme/theme";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -30,33 +31,75 @@ export function ConfirmDialog({
   onCancel,
 }: ConfirmDialogProps) {
   const anim = useRef(new Animated.Value(0)).current;
+  const [rendered, setRendered] = useState(open);
+  const opening = useRef(false);
+  const closing = useRef(false);
 
   useEffect(() => {
     if (open) {
-      anim.setValue(0);
+      if (!rendered) {
+        setRendered(true);
+        return;
+      }
+      if (opening.current) return;
+      opening.current = true;
+      closing.current = false;
+      anim.stopAnimation();
       Animated.timing(anim, {
         toValue: 1,
-        duration: 200,
-        easing: ease,
+        duration: MOTION.sheet,
+        easing: MOTION.easing,
         useNativeDriver: true,
       }).start();
+    } else if (rendered && !closing.current) {
+      opening.current = false;
+      anim.stopAnimation();
+      Animated.timing(anim, {
+        toValue: 0,
+        duration: MOTION.sheetClose,
+        easing: MOTION.easing,
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished) setRendered(false);
+      });
     }
-  }, [open, anim]);
+  }, [open, rendered, anim]);
+
+  const close = (after: () => void) => {
+    if (closing.current) return;
+    closing.current = true;
+    opening.current = false;
+    anim.stopAnimation();
+    Animated.timing(anim, {
+      toValue: 0,
+      duration: MOTION.sheetClose,
+      easing: MOTION.easing,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      closing.current = false;
+      if (!finished) return;
+      setRendered(false);
+      after();
+    });
+  };
+
+  const handleCancel = () => close(onCancel);
+  const handleConfirm = () => close(onConfirm);
 
   return (
     <Modal
-      visible={open}
+      visible={rendered}
       transparent
       animationType="none"
       statusBarTranslucent
-      onRequestClose={onCancel}
+      onRequestClose={handleCancel}
     >
       <View style={styles.root}>
         <Animated.View style={[StyleSheet.absoluteFill, { opacity: anim }]}>
           <Pressable
             accessibilityLabel="Cancel"
             style={[StyleSheet.absoluteFill, styles.backdrop]}
-            onPress={onCancel}
+            onPress={handleCancel}
           />
         </Animated.View>
 
@@ -96,14 +139,14 @@ export function ConfirmDialog({
           <View style={styles.actions}>
             <Pressable
               accessibilityRole="button"
-              onPress={onCancel}
+              onPress={handleCancel}
               style={styles.cancel}
             >
               <Text style={styles.cancelText}>{cancelLabel}</Text>
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              onPress={onConfirm}
+              onPress={handleConfirm}
               style={styles.confirm}
             >
               <Trash2 size={16} color={colors.white} />

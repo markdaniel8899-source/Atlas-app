@@ -44,7 +44,7 @@ function classify(error: unknown): string {
   if (isOfflineError(error)) return OFFLINE_MESSAGE;
   if (error instanceof AiError) {
     if (error.status === 0 || error.status === 503) {
-      return "Something went wrong. Please try again.";
+      return OFFLINE_MESSAGE;
     }
     if (error.status === 408) return TIMEOUT_MESSAGE;
     return error.message;
@@ -95,7 +95,12 @@ export async function generateQuizSession(input: GenerateInput) {
   state = { ...state, phase: "loading", error: null };
   emit();
   try {
-    const result = await requestQuiz(input);
+    const context = input.contextBuilder
+      ? await Promise.resolve()
+          .then(input.contextBuilder)
+          .catch(() => input.context ?? "")
+      : input.context;
+    const result = await requestQuiz({ ...input, context });
     if (result.questions.length === 0) {
       throw new AiError("The AI returned an empty quiz. Try again.", 0);
     }

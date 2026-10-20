@@ -12,7 +12,8 @@ import { X } from "lucide-react-native";
 import { RANKS, RANK_TIER_KEYS, TIERS } from "../../lib/gamification";
 import type { RankData } from "../../lib/gamification";
 import { RankBadge } from "./rank-badge";
-import { colors, ease, fonts } from "../../theme/theme";
+import { MOTION } from "../../theme/motion";
+import { colors, fonts } from "../../theme/theme";
 
 interface RankProgressionModalProps {
   open: boolean;
@@ -42,36 +43,43 @@ export function RankProgressionModal({
   const backdrop = useRef(new Animated.Value(0)).current;
   const panel = useRef(new Animated.Value(0)).current;
   const [rendered, setRendered] = useState(open);
+  const opening = useRef(false);
 
   useEffect(() => {
     if (open) {
-      setRendered(true);
+      if (!rendered) {
+        setRendered(true);
+        return;
+      }
+      if (opening.current) return;
+      opening.current = true;
       Animated.parallel([
         Animated.timing(backdrop, {
           toValue: 1,
-          duration: 200,
-          easing: ease,
+          duration: MOTION.sheetClose,
+          easing: MOTION.easing,
           useNativeDriver: true,
         }),
         Animated.timing(panel, {
           toValue: 1,
-          duration: 250,
-          easing: ease,
+          duration: MOTION.sheet,
+          easing: MOTION.easing,
           useNativeDriver: true,
         }),
       ]).start();
     } else if (rendered) {
+      opening.current = false;
       Animated.parallel([
         Animated.timing(backdrop, {
           toValue: 0,
-          duration: 200,
-          easing: ease,
+          duration: MOTION.sheetClose,
+          easing: MOTION.easing,
           useNativeDriver: true,
         }),
         Animated.timing(panel, {
           toValue: 0,
-          duration: 250,
-          easing: ease,
+          duration: MOTION.sheetClose,
+          easing: MOTION.easing,
           useNativeDriver: true,
         }),
       ]).start(({ finished }) => {

@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useState,
   useSyncExternalStore,
 } from "react";
@@ -37,7 +38,6 @@ import {
 } from "../lib/assistant-store";
 import { resolveSession } from "../lib/auth";
 import { closeDrawer, isDrawerOpen, openDrawer } from "../lib/drawer-store";
-import { ensureOnline } from "../lib/net";
 import { colors, fonts } from "../theme/theme";
 
 export default function AssistantScreen() {
@@ -105,22 +105,20 @@ export default function AssistantScreen() {
     };
   }, [router]);
 
-  const systemPrompt = buildLearnerContext({ profile, focus });
+  const systemPrompt = useMemo(
+    () => buildLearnerContext({ profile, focus }),
+    [profile, focus],
+  );
   const empty = chat.turns.length === 0;
   const canRetry = Boolean(chat.lastSent && !chat.pending && !draft.trim());
 
   const send = (text: string) => {
     setDraft("");
-    void (async () => {
-      if (!(await ensureOnline("ATLAS AI needs an internet connection."))) {
-        return;
-      }
-      await sendAssistantMessage(
-        text,
-        systemPrompt,
-        profile?.display_name?.trim(),
-      );
-    })();
+    void sendAssistantMessage(
+      text,
+      systemPrompt,
+      profile?.display_name?.trim(),
+    );
   };
 
   const retry = () => {

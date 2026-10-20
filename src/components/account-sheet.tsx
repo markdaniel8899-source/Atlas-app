@@ -3,7 +3,6 @@ import type { ComponentType } from "react";
 import {
   Animated,
   Dimensions,
-  Easing,
   Keyboard,
   Modal,
   Platform,
@@ -36,6 +35,7 @@ import { getCachedProfile } from "../lib/profile-cache";
 import { pngAvatarUrl } from "../lib/dicebear";
 import { PROFILE_CHANGED_EVENT, listen } from "../lib/events";
 import type { Profile } from "../lib/db/types";
+import { MOTION } from "../theme/motion";
 import { colors, fonts } from "../theme/theme";
 
 const APP_ICON = require("../../assets/icon.png");
@@ -99,8 +99,8 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
       if (!rendered) return;
       Animated.timing(anim, {
         toValue: 0,
-        duration: 300,
-        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+        duration: MOTION.sheetClose,
+        easing: MOTION.easing,
         useNativeDriver: true,
       }).start(({ finished }) => {
         if (finished) setRendered(false);
@@ -133,8 +133,8 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
   const handleClose = (after?: () => void) => {
     Animated.timing(anim, {
       toValue: 0,
-      duration: 300,
-      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+      duration: MOTION.sheetClose,
+      easing: MOTION.easing,
       useNativeDriver: true,
     }).start(({ finished }) => {
       if (!finished) return;
