@@ -207,6 +207,8 @@
 
 - **White background regression fix (2026-10-20):** after the smoothness pass moved `MeshBackground` to the root, every tab still painted the default **light** navigation theme background (`rgb(242,242,242)` from `elements.Screen` -> `Background`) over the shared mesh, so the whole app looked white while cards/header stayed dark. Fix: `sceneStyle: { backgroundColor: "transparent" }` in the root Tabs `screenOptions` (`src/app/_layout.tsx`), letting the shared mesh show through. JS-only, OTA-able. The queued vc5 APK (`c90c6b87`, built from `10d0f04`) finished but was deleted per the user's "no new APK this time" request.
 
+- **Section switch smoothness (2026-10-20, commit `e17c105`, OTA `343a5d35-cef0-485e-aa83-976bda8fffc2`):** user reported Assistant/Settings felt smooth while other sections lagged on switch. The 220ms tab crossfade animated the alpha of two full, heavy scenes over the shared mesh while the global drawer was already covering the switch, so its cost showed up as stutter in the drawer close. Fix: root Tabs `animation: "none"` with `transitionSpec`/`sceneStyleInterpolator` removed; the drawer's 250ms slide is the visible transition and the section swaps in one frame beneath it. `detachInactiveScreens={false}` and transparent scenes unchanged. Unused `Easing` import removed and stale crossfade comments updated in `_layout.tsx` + `global-drawer.tsx`. Verified `tsc`, `expo lint`, web export 19/19. JS-only, OTA-able; no APK built (per user request).
+
 ## Workflow Preferences (user)
 - User communicates in **Roman Urdu** — reply concisely in Roman Urdu.
 - Do not ask for confirmation mid-task; finish the task, then report.
