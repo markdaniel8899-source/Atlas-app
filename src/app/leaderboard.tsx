@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -146,16 +146,9 @@ function Avatar({ entry, size = 48 }: { entry: LeaderboardEntry; size?: number }
           style={{ width: size, height: size, borderRadius: size / 2 }}
         />
       ) : (
-        <LinearGradient
-          colors={["#334155", "#1e293b"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        >
-          <View style={styles.avatarInitialsWrap}>
-            <Text style={styles.avatarInitials}>{entry.initials}</Text>
-          </View>
-        </LinearGradient>
+        <View style={styles.avatarFallback}>
+          <Text style={styles.avatarInitials}>{entry.initials}</Text>
+        </View>
       )}
     </View>
   );
@@ -186,7 +179,13 @@ function RankChip({
   );
 }
 
-function LeaderRow({ entry, place }: { entry: LeaderboardEntry; place: number }) {
+const LeaderRow = memo(function LeaderRow({
+  entry,
+  place,
+}: {
+  entry: LeaderboardEntry;
+  place: number;
+}) {
   const podium = PODIUM_STYLE[place];
 
   if (podium) {
@@ -291,9 +290,36 @@ function LeaderRow({ entry, place }: { entry: LeaderboardEntry; place: number })
       </View>
     </View>
   );
-}
+});
 
 const CACHE_KEY = "leaderboard.weekly";
+
+/**
+ * The board is refetched on every focus, but the payload is usually
+ * identical. Skipping the state commit keeps the 50 mounted rows from
+ * re-rendering right after a tab switch.
+ */
+function sameBoard(a: LeaderboardEntry[], b: LeaderboardEntry[]) {
+  if (a.length !== b.length) return false;
+  for (let index = 0; index < a.length; index += 1) {
+    const left = a[index];
+    const right = b[index];
+    if (
+      left.id !== right.id ||
+      left.weeklyXp !== right.weeklyXp ||
+      left.totalXp !== right.totalXp ||
+      left.streak !== right.streak ||
+      left.displayName !== right.displayName ||
+      left.username !== right.username ||
+      left.avatarUrl !== right.avatarUrl ||
+      left.initials !== right.initials ||
+      left.isYou !== right.isYou
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
 
 export default function LeaderboardScreen() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>(
@@ -314,7 +340,10 @@ export default function LeaderboardScreen() {
         firstFocus.current = false;
         return;
       }
-      setReloadKey((key) => key + 1);
+      // Let the tab transition finish before committing the refreshed board;
+      // re-rendering 50 rows mid-animation was the worst switch stutter.
+      const timer = setTimeout(() => setReloadKey((key) => key + 1), 420);
+      return () => clearTimeout(timer);
     }, []),
   );
 
@@ -326,8 +355,11 @@ export default function LeaderboardScreen() {
       .then((result) => {
         if (cancelled) return;
         if (result.ok) {
-          setEntries(result.entries);
-          writeCache(CACHE_KEY, result.entries);
+          const cached = readCache<LeaderboardEntry[]>(CACHE_KEY);
+          if (!cached || !sameBoard(cached, result.entries)) {
+            setEntries(result.entries);
+            writeCache(CACHE_KEY, result.entries);
+          }
         }
         setFailed(!result.ok);
       })
@@ -562,10 +594,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarInitialsWrap: {
-    flex: 1,
+  avatarFallback: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#2b3244",
   },
   avatarInitials: {
     fontSize: 14,

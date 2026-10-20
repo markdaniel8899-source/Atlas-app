@@ -15,7 +15,6 @@ import { ActivityHeatmap } from "../components/dashboard/activity-heatmap";
 import { FocusTimerWidget } from "../components/dashboard/focus-timer-widget";
 import { PlayerStats } from "../components/dashboard/player-stats";
 import { TodayFocus } from "../components/dashboard/today-focus";
-import { MeshBackground } from "../components/mesh-background";
 import { OfflineBanner } from "../components/offline-banner";
 import { SessionCompleteCard } from "../components/session-complete-card";
 import { RevealText } from "../components/ui/reveal-text";
@@ -79,8 +78,6 @@ export default function DashboardScreen() {
 
   return (
     <View style={styles.root}>
-      <MeshBackground />
-
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[
@@ -153,7 +150,6 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.appBg,
   },
   scroll: {
     flex: 1,

@@ -12,10 +12,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
 import type { Href } from "expo-router";
-import { BlurTargetView } from "expo-blur";
 import { AppHeader, HEADER_HEIGHT } from "./app-header";
-import { BlurTargetRefContext } from "./blur-target";
-import { MeshBackground } from "./mesh-background";
 import { OfflineBanner } from "./offline-banner";
 import { SessionCompleteCard } from "./session-complete-card";
 import { useProfile } from "../hooks/use-profile";
@@ -58,7 +55,6 @@ export function ScreenShell({
     publicPage || getCachedAuthUser() !== null,
   );
   const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const blurTargetRef = useRef<View | null>(null);
   const scrollRef = useRef<ScrollView | null>(null);
 
   // Android hardware back, scoped to the focused tab: close the drawer if
@@ -118,84 +114,74 @@ export function ScreenShell({
   }, [router, publicPage]);
 
   return (
-    <BlurTargetRefContext.Provider value={blurTargetRef}>
-      <View style={styles.root}>
-        <BlurTargetView
-          ref={blurTargetRef}
-          style={StyleSheet.absoluteFill}
-          pointerEvents="none"
-        >
-          <MeshBackground />
-        </BlurTargetView>
+    <View style={styles.root}>
+      <ScrollView
+        ref={scrollRef}
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingTop: insets.top + HEADER_HEIGHT + 32,
+            paddingBottom: insets.bottom + 32 + keyboardHeight,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+        contentInsetAdjustmentBehavior="never"
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.sections}>{children}</View>
 
-        <ScrollView
-          ref={scrollRef}
-          style={styles.scroll}
-          contentContainerStyle={[
-            styles.content,
-            {
-              paddingTop: insets.top + HEADER_HEIGHT + 32,
-              paddingBottom: insets.bottom + 32 + keyboardHeight,
-            },
-          ]}
-          showsVerticalScrollIndicator={false}
-          contentInsetAdjustmentBehavior="never"
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.sections}>{children}</View>
-
-          {!hideFooter && (
-            <View style={styles.footerWrap}>
-              <View style={styles.footer}>
-                <Pressable
-                  accessibilityRole="link"
-                  accessibilityLabel="Privacy Policy"
-                  onPress={() => router.navigate("/privacy" as Href)}
-                >
-                  <Text style={styles.footerLink}>Privacy Policy</Text>
-                </Pressable>
-                <Pressable
-                  accessibilityRole="link"
-                  accessibilityLabel="Terms of Service"
-                  onPress={() => router.navigate("/terms" as Href)}
-                >
-                  <Text style={styles.footerLink}>Terms of Service</Text>
-                </Pressable>
-                <Pressable
-                  accessibilityRole="link"
-                  accessibilityLabel="Contact Us"
-                  onPress={() => router.navigate("/contact" as Href)}
-                >
-                  <Text style={styles.footerLink}>Contact Us</Text>
-                </Pressable>
-              </View>
+        {!hideFooter && (
+          <View style={styles.footerWrap}>
+            <View style={styles.footer}>
+              <Pressable
+                accessibilityRole="link"
+                accessibilityLabel="Privacy Policy"
+                onPress={() => router.navigate("/privacy" as Href)}
+              >
+                <Text style={styles.footerLink}>Privacy Policy</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="link"
+                accessibilityLabel="Terms of Service"
+                onPress={() => router.navigate("/terms" as Href)}
+              >
+                <Text style={styles.footerLink}>Terms of Service</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="link"
+                accessibilityLabel="Contact Us"
+                onPress={() => router.navigate("/contact" as Href)}
+              >
+                <Text style={styles.footerLink}>Contact Us</Text>
+              </Pressable>
             </View>
-          )}
-        </ScrollView>
-
-        {checked && (
-          <>
-            <AppHeader
-              title={title}
-              onMenuPress={openDrawer}
-              onBackPress={
-                publicPage
-                  ? () => {
-                      if (router.canGoBack()) router.back();
-                      else router.navigate("/");
-                    }
-                  : undefined
-              }
-              avatarUrl={profile?.avatar_url ?? null}
-            />
-
-            <OfflineBanner />
-
-            <SessionCompleteCard />
-          </>
+          </View>
         )}
-      </View>
-    </BlurTargetRefContext.Provider>
+      </ScrollView>
+
+      {checked && (
+        <>
+          <AppHeader
+            title={title}
+            onMenuPress={openDrawer}
+            onBackPress={
+              publicPage
+                ? () => {
+                    if (router.canGoBack()) router.back();
+                    else router.navigate("/");
+                  }
+                : undefined
+            }
+            avatarUrl={profile?.avatar_url ?? null}
+          />
+
+          <OfflineBanner />
+
+          <SessionCompleteCard />
+        </>
+      )}
+    </View>
   );
 }
 
@@ -221,7 +207,6 @@ export function ScreenHeading({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.appBg,
   },
   scroll: {
     flex: 1,

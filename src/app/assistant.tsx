@@ -19,7 +19,6 @@ import { Plus, Sparkles, TriangleAlert } from "lucide-react-native";
 import { AppHeader, HEADER_HEIGHT } from "../components/app-header";
 import { ChatComposer } from "../components/assistant/chat-composer";
 import { ChatThread } from "../components/assistant/chat-thread";
-import { MeshBackground } from "../components/mesh-background";
 import { OfflineBanner } from "../components/offline-banner";
 import { SessionCompleteCard } from "../components/session-complete-card";
 import { useDashboard } from "../hooks/use-dashboard";
@@ -156,8 +155,6 @@ export default function AssistantScreen() {
 
   return (
     <View style={styles.root}>
-      <MeshBackground />
-
       <KeyboardAvoidingView
         style={styles.body}
         behavior="padding"
@@ -282,7 +279,6 @@ export default function AssistantScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.appBg,
   },
   body: {
     flex: 1,

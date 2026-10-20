@@ -330,7 +330,9 @@ export default function NotesScreen() {
         firstFocus.current = false;
         return;
       }
-      void load();
+      // Let the tab transition finish before swapping the list in.
+      const timer = setTimeout(() => void load(), 420);
+      return () => clearTimeout(timer);
     }, [load]),
   );
 
