@@ -1,3 +1,5 @@
+"use no memo";
+
 import { FlexWidget, TextWidget } from "react-native-android-widget";
 import type { AtlasWidgetData, WidgetWeekDay } from "./atlas-widget-data";
 import { barHeight, formatFocus } from "./widget-model";

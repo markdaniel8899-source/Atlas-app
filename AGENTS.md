@@ -197,6 +197,14 @@
   - Verified `tsc` + `expo lint` + web export 19/19. **All EAS builds deleted again** (the queued vc4 APK from `46b7092` finished but was stale/flat-tabs-less → `eas build:delete`). No downloadable APK exists; next `eas build` must be from `578bfe8` or later.
 - Next sensible steps: device-test OTA `3cd0d471` (drawer switches incl. Leaderboard, hardware back, login/onboarding back, notes share focus refresh, splash hand-off, widget rendering); then `eas build --platform android --profile production` from the final commit (carries icon/splash/widget previews + `index.js` widget task registration + notifications); delete probe users from Supabase; run the `revoke … from anon` lines from `supabase/security-hardening.sql`; align expo-* patch versions with `npx expo install --check` after tests pass (expo-doctor 2026-10-18: 20/21 passed; only patch mismatches — expo 57.0.28→.30, expo-linking 57.0.12→.13, expo-router 57.0.26→.28).
 
+- **Widget transparency root cause + fix (2026-10-20):**
+  - Cause 1: `app.json` has `experiments.reactCompiler: true`, so React Compiler memoized the widget components (`_c()` hook calls). `react-native-android-widget` renders widgets by calling them as raw functions (`buildWidgetTree`), so the headless task threw "Invalid hook call" and every widget stayed on the transparent initial layout. Fix: `'use no memo';` as the first line of `atlas-widget.tsx`, `atlas-sticky-widget.tsx`, `atlas-notes-widget.tsx` (verified via Babel: `_c()` count 1 -> 0).
+  - Cause 2: `atlas-sticky-widget.tsx` wrapped its body in a React `<>...</>` fragment; the library does not support fragments (it calls `jsxTree.type(...)`), so that widget crashed separately. Replaced with a single `FlexWidget` wrapper.
+  - `widget-task-handler.tsx` now try/catches the whole render and draws a solid `ATLAS / Open the app to refresh this widget` fallback card on failure (never a transparent widget again).
+  - `index.js` catch now `console.warn`s instead of silently swallowing registration errors.
+  - Verified: `npx tsc --noEmit`, `npx expo lint`, and a Node script that compiles the widget files with `babel-preset-expo` + React Compiler enabled, then runs the real `buildWidgetTree` on all 3 widgets (stats 47 nodes, sticky note/empty, notes list/empty) with zero `_c(` calls.
+  - `app.json` versionCode bumped 4 -> 5. JS fix is OTA-able, but the installed vc3/vc4 embedded bundles lack `index.js`, so a fresh APK is the reliable fix (also carries widget preview images + icon/splash).
+
 ## Workflow Preferences (user)
 - User communicates in **Roman Urdu** — reply concisely in Roman Urdu.
 - Do not ask for confirmation mid-task; finish the task, then report.

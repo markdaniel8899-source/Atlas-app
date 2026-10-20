@@ -9,7 +9,8 @@ if (Platform.OS === "android") {
   try {
     const handler = require("./src/lib/widgets/widget-task-handler");
     handler.registerAtlasWidgetTaskHandler();
-  } catch {
+  } catch (error) {
     // Binary without the widget native module (older APK, Expo Go) - skipped.
+    console.warn("[atlas-widget] task handler not registered", error);
   }
 }

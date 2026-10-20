@@ -1,3 +1,5 @@
+"use no memo";
+
 import { FlexWidget, TextWidget } from "react-native-android-widget";
 import type { WidgetNote } from "./notes-widget-data";
 
@@ -59,7 +61,14 @@ export function AtlasStickyWidget({ note }: { note: WidgetNote | null }) {
       </FlexWidget>
 
       {note ? (
-        <>
+        <FlexWidget
+          style={{
+            width: "match_parent",
+            flex: 1,
+            flexDirection: "column",
+            justifyContent: "space-between",
+          }}
+        >
           <FlexWidget
             style={{
               width: "match_parent",
@@ -133,7 +142,7 @@ export function AtlasStickyWidget({ note }: { note: WidgetNote | null }) {
               />
             </FlexWidget>
           </FlexWidget>
-        </>
+        </FlexWidget>
       ) : (
         <FlexWidget
           style={{
