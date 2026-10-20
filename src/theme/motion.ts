@@ -1,7 +1,7 @@
 import { ease } from "./theme";
 
 export const MOTION = {
-  page: 240,
+  page: 250,
   drawerOpen: 240,
   drawerClose: 200,
   sheet: 240,

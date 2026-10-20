@@ -365,20 +365,41 @@ export default function QuizScreen() {
             </View>
           ) : null}
           {unlocked.length > 0 ? (
-            <FadeIn style={styles.achievementBanner}>
-              <View style={styles.achievementIcon}>
-                <Trophy size={18} color="#fcd34d" />
-              </View>
-              <View style={styles.achievementTextWrap}>
-                <Text style={styles.achievementTitle}>
-                  Achievement{unlocked.length > 1 ? "s" : ""} unlocked
-                </Text>
-                <Text numberOfLines={1} style={styles.achievementBody}>
-                  {unlocked
-                    .map((code) => ACHIEVEMENT_TITLES[code] ?? code)
-                    .join(" · ")}
-                </Text>
-              </View>
+            <FadeIn style={styles.achievementWrap}>
+              <LinearGradient
+                colors={[
+                  "rgba(251,191,36,0.55)",
+                  "rgba(207,158,255,0.42)",
+                  "rgba(255,255,255,0.10)",
+                ]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.achievementBorder}
+              >
+                <View style={styles.achievementBanner}>
+                  <LinearGradient
+                    colors={[
+                      "rgba(251,191,36,0.22)",
+                      "rgba(207,158,255,0.14)",
+                    ]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.achievementIcon}
+                  >
+                    <Trophy size={17} color="#f6d77a" />
+                  </LinearGradient>
+                  <View style={styles.achievementTextWrap}>
+                    <Text style={styles.achievementTitle}>
+                      Achievement{unlocked.length > 1 ? "s" : ""} unlocked
+                    </Text>
+                    <Text numberOfLines={1} style={styles.achievementBody}>
+                      {unlocked
+                        .map((code) => ACHIEVEMENT_TITLES[code] ?? code)
+                        .join(" · ")}
+                    </Text>
+                  </View>
+                </View>
+              </LinearGradient>
             </FadeIn>
           ) : null}
           <FadeIn delay={60}>
@@ -695,45 +716,50 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semibold,
     color: colors.primaryText,
   },
+  achievementWrap: {
+    borderRadius: 18,
+    shadowColor: "rgba(251,191,36,0.55)",
+    shadowOpacity: 0.16,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  achievementBorder: {
+    borderRadius: 18,
+    padding: 1,
+  },
   achievementBanner: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "rgba(251,191,36,0.30)",
-    backgroundColor: "rgba(251,191,36,0.07)",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    shadowColor: "rgba(251,191,36,1)",
-    shadowOpacity: 0.35,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 6,
+    borderRadius: 17,
+    backgroundColor: "rgba(12,11,20,0.94)",
+    paddingHorizontal: 14,
+    paddingVertical: 13,
   },
   achievementIcon: {
     width: 36,
     height: 36,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(251,191,36,0.40)",
-    backgroundColor: "rgba(251,191,36,0.10)",
+    borderColor: "rgba(251,191,36,0.24)",
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
   },
   achievementTextWrap: {
     flex: 1,
     minWidth: 0,
   },
   achievementTitle: {
-    fontSize: 14,
-    fontFamily: fonts.medium,
+    fontSize: 13.5,
+    fontFamily: fonts.semibold,
+    letterSpacing: -0.2,
     color: colors.white,
   },
   achievementBody: {
-    marginTop: 2,
-    fontSize: 12,
+    marginTop: 3,
+    fontSize: 11.5,
     fontFamily: fonts.regular,
-    color: colors.w50,
+    color: "rgba(255,255,255,0.52)",
   },
 });

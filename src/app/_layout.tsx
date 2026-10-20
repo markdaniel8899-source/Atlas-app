@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { StyleSheet, useWindowDimensions, View } from "react-native";
-import { Tabs, usePathname } from "expo-router";
+import { StyleSheet, View } from "react-native";
+import { Tabs } from "expo-router";
 import Head from "expo-router/head";
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
@@ -71,9 +71,6 @@ const PRELOAD_STAGE_SETS: Set<string>[] = (() => {
 })();
 
 export default function RootLayout() {
-  const { width: pageWidth } = useWindowDimensions();
-  const pathname = usePathname();
-  const activeRoute = pathname.split("/").filter(Boolean).pop() ?? "index";
   const [loaded, error] = useFonts({
     Geist_400Regular,
     Geist_500Medium,
@@ -160,36 +157,22 @@ export default function RootLayout() {
             // Keep every mounted scene attached: switching tabs is an instant
             // swap instead of a native detach/attach + layout pass.
             detachInactiveScreens={false}
-            screenOptions={({ route }) => {
-              const incoming = route.name === activeRoute;
-              return {
-                headerShown: false,
-                sceneStyle: { backgroundColor: "transparent" },
-                animation: "shift",
-                sceneStyleInterpolator: ({ current }) => ({
-                  sceneStyle: {
-                    transform: [
-                      {
-                        translateX: current.progress.interpolate({
-                          inputRange: [-1, 0, 1],
-                          outputRange: incoming
-                            ? [pageWidth, 0, pageWidth]
-                            : [-pageWidth, 0, -pageWidth],
-                        }),
-                      },
-                    ],
-                  },
-                }),
-                transitionSpec: {
-                  animation: "timing",
-                  config: {
-                    duration: MOTION.page,
-                    easing: MOTION.easing,
-                  },
+            screenOptions={({ route }) => ({
+              headerShown: false,
+              sceneStyle: { backgroundColor: "transparent" },
+              // Native bottom-tabs shift only. No custom interpolator: the
+              // drawer close is the visible transition, then the section
+              // swaps natively over the shared mesh.
+              animation: "shift",
+              transitionSpec: {
+                animation: "timing",
+                config: {
+                  duration: MOTION.page,
+                  easing: MOTION.easing,
                 },
-                lazy: !preloadedRoutes?.has(route.name),
-              };
-            }}
+              },
+              lazy: !preloadedRoutes?.has(route.name),
+            })}
           />
           <GlobalDrawer />
           <SplashOverlay />

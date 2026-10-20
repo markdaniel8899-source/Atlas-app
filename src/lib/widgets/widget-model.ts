@@ -46,8 +46,8 @@ export function formatFocus(seconds: number): string {
 }
 
 export function barHeight(seconds: number, max: number): number {
-  if (seconds <= 0 || max <= 0) return 5;
-  return 7 + Math.round(Math.min(1, seconds / max) * 23);
+  if (seconds <= 0 || max <= 0) return 4;
+  return 5 + Math.round(Math.min(1, seconds / max) * 17);
 }
 
 export function formatXp(xp: number): string {

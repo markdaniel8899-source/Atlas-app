@@ -56,16 +56,6 @@
               "resizeMode": "horizontal|vertical"
             },
             {
-              "name": "AtlasStickyWidget",
-              "label": "ATLAS - Sticky Note",
-              "minWidth": "180dp",
-              "minHeight": "180dp",
-              "description": "Your most recent note with one-tap next and open.",
-              "previewImage": "./assets/widget-preview-sticky.png",
-              "updatePeriodMillis": 0,
-              "resizeMode": "horizontal|vertical"
-            },
-            {
               "name": "AtlasNotesWidget",
               "label": "ATLAS - Quick Notes",
               "minWidth": "250dp",
