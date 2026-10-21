@@ -2,7 +2,7 @@
   "expo": {
     "name": "ATLAS",
     "slug": "atlas-mobile",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "atlas",
@@ -13,7 +13,7 @@
     },
     "android": {
       "package": "com.atlas.mobile",
-      "versionCode": 6,
+      "versionCode": 7,
       "allowBackup": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
