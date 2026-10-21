@@ -27,6 +27,7 @@ import { hydrateProfileCache } from "../lib/profile-cache";
 import { isHeavyTaskRunning } from "../lib/heavy-task";
 import { getCachedAuthUser, resolveSession, subscribeAuth } from "../lib/auth";
 import { refreshAiBaseUrl } from "../lib/api-config";
+import "../lib/sentry";
 import { colors } from "../theme/theme";
 
 void SplashScreen.preventAutoHideAsync().catch(() => {});

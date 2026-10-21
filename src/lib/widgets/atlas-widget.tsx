@@ -8,19 +8,19 @@ const LILAC = "#cf9eff";
 const LILAC_SOFT = "#d9c2ff";
 const LILAC_DEEP = "#8b5cf6";
 const WHITE = "#ffffff";
-const MUTED = "rgba(255, 255, 255, 0.60)";
-const FAINT = "rgba(255, 255, 255, 0.38)";
-const TRACK = "rgba(255, 255, 255, 0.14)";
-const GLASS_BORDER = "rgba(255, 255, 255, 0.10)";
-const HAIRLINE = "rgba(255, 255, 255, 0.07)";
-const CHIP_BG = "rgba(207, 158, 255, 0.12)";
-const CHIP_BORDER = "rgba(207, 158, 255, 0.26)";
+const MUTED = "rgba(255, 255, 255, 0.55)";
+const FAINT = "rgba(255, 255, 255, 0.35)";
+const TRACK = "rgba(255, 255, 255, 0.08)";
+const GLASS_BORDER = "rgba(255, 255, 255, 0.06)";
+const HAIRLINE = "rgba(255, 255, 255, 0.05)";
+const CHIP_BG = "rgba(207, 158, 255, 0.08)";
+const CHIP_BORDER = "rgba(207, 158, 255, 0.18)";
 
 const WEEK_LENGTH = 7;
 
 /**
- * Compact ATLAS stats card: streak, today's focus, a slim 7-day chart and the
- * strongest badges, all inside one dark glass panel.
+ * Premium ATLAS stats card: streak, today's focus, a slim 7-day chart and the
+ * strongest badges, all inside one elegant dark glass panel.
  */
 export function AtlasWidget({ data }: { data: AtlasWidgetData }) {
   const week: WidgetWeekDay[] = data.week.slice(-WEEK_LENGTH);
@@ -40,13 +40,13 @@ export function AtlasWidget({ data }: { data: AtlasWidgetData }) {
         height: "match_parent",
         flexDirection: "column",
         justifyContent: "space-between",
-        padding: 13,
-        borderRadius: 22,
+        padding: 16,
+        borderRadius: 26,
         borderWidth: 1,
         borderColor: GLASS_BORDER,
         backgroundGradient: {
-          from: "#211b36",
-          to: "#09080f",
+          from: "#1b1440",
+          to: "#0a0817",
           orientation: "TL_BR",
         },
       }}
@@ -62,9 +62,9 @@ export function AtlasWidget({ data }: { data: AtlasWidgetData }) {
         <TextWidget
           text="ATLAS"
           style={{
-            fontSize: 11.5,
+            fontSize: 12,
             fontFamily: "CreateFuture",
-            letterSpacing: 1.2,
+            letterSpacing: 1.5,
             color: LILAC,
           }}
         />
@@ -72,8 +72,8 @@ export function AtlasWidget({ data }: { data: AtlasWidgetData }) {
           style={{
             backgroundColor: CHIP_BG,
             borderRadius: 999,
-            paddingHorizontal: 8,
-            paddingVertical: 3,
+            paddingHorizontal: 10,
+            paddingVertical: 4,
             borderWidth: 1,
             borderColor: CHIP_BORDER,
           }}
@@ -84,7 +84,7 @@ export function AtlasWidget({ data }: { data: AtlasWidgetData }) {
               fontSize: 9,
               fontWeight: "700",
               color: LILAC,
-              letterSpacing: 0.4,
+              letterSpacing: 0.5,
             }}
             maxLines={1}
           />
@@ -97,25 +97,25 @@ export function AtlasWidget({ data }: { data: AtlasWidgetData }) {
           flexDirection: "row",
           alignItems: "flex-end",
           justifyContent: "space-between",
-          marginTop: 9,
+          marginTop: 12,
         }}
       >
         <FlexWidget
           style={{
             flexDirection: "row",
             alignItems: "flex-end",
-            flexGap: 5,
+            flexGap: 6,
           }}
         >
-          <TextWidget text="🔥" style={{ fontSize: 20, color: WHITE }} />
+          <TextWidget text="🔥" style={{ fontSize: 22, color: WHITE }} />
           <TextWidget
             text={`${data.streak}`}
-            style={{ fontSize: 31, fontWeight: "bold", color: WHITE }}
+            style={{ fontSize: 36, fontWeight: "800", color: WHITE, lineHeight: 36 }}
             maxLines={1}
           />
           <TextWidget
             text={streakCaption}
-            style={{ fontSize: 10.5, color: MUTED, marginBottom: 3 }}
+            style={{ fontSize: 11, color: MUTED, marginBottom: 4 }}
             maxLines={1}
           />
         </FlexWidget>
@@ -129,20 +129,20 @@ export function AtlasWidget({ data }: { data: AtlasWidgetData }) {
           <TextWidget
             text="FOCUS TODAY"
             style={{
-              fontSize: 8,
+              fontSize: 7.5,
               fontWeight: "600",
               color: FAINT,
-              letterSpacing: 1.3,
+              letterSpacing: 1.4,
             }}
             maxLines={1}
           />
           <TextWidget
             text={formatFocus(data.todaySeconds)}
             style={{
-              fontSize: 16.5,
-              fontWeight: "bold",
+              fontSize: 18,
+              fontWeight: "700",
               color: WHITE,
-              marginTop: 2,
+              marginTop: 3,
             }}
             maxLines={1}
           />
@@ -155,8 +155,8 @@ export function AtlasWidget({ data }: { data: AtlasWidgetData }) {
             width: "match_parent",
             flexDirection: "row",
             alignItems: "flex-end",
-            flexGap: 6,
-            marginTop: 9,
+            flexGap: 5,
+            marginTop: 12,
           }}
         >
           {week.map((day, index) => {
@@ -170,8 +170,8 @@ export function AtlasWidget({ data }: { data: AtlasWidgetData }) {
                   style={{
                     width: "match_parent",
                     height: barHeight(day.seconds, maxSeconds),
-                    borderRadius: 4,
-                    marginBottom: 3,
+                    borderRadius: 3,
+                    marginBottom: 4,
                     ...(isToday
                       ? {
                           backgroundGradient: {
@@ -183,7 +183,7 @@ export function AtlasWidget({ data }: { data: AtlasWidgetData }) {
                       : {
                           backgroundColor:
                             day.seconds > 0
-                              ? "rgba(207, 158, 255, 0.30)"
+                              ? "rgba(207, 158, 255, 0.28)"
                               : TRACK,
                         }),
                   }}
@@ -192,10 +192,11 @@ export function AtlasWidget({ data }: { data: AtlasWidgetData }) {
                   text={day.label}
                   style={{
                     width: "match_parent",
-                    fontSize: 8,
+                    fontSize: 7.5,
                     fontWeight: isToday ? "700" : "500",
                     textAlign: "center",
                     color: isToday ? LILAC : FAINT,
+                    letterSpacing: 0.3,
                   }}
                   maxLines={1}
                 />
@@ -208,18 +209,19 @@ export function AtlasWidget({ data }: { data: AtlasWidgetData }) {
       <FlexWidget
         style={{
           width: "match_parent",
-          marginTop: 9,
-          paddingTop: 8,
-          borderTopWidth: 1,
+          marginTop: 12,
+          paddingTop: 10,
+          borderTopWidth: 0.5,
           borderTopColor: HAIRLINE,
         }}
       >
         <TextWidget
           text={badgeLine}
           style={{
-            fontSize: 9.5,
+            fontSize: 9,
             fontWeight: "600",
             color: LILAC_SOFT,
+            letterSpacing: 0.2,
           }}
           maxLines={1}
           truncate="END"

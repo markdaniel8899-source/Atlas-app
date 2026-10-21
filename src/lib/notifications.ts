@@ -10,6 +10,10 @@ const STREAK_PENDING_KEY = "atlas.notif.streak.id";
 const STREAK_HOUR = 21;
 const STREAK_FALLBACK_HOUR = 23;
 
+// Custom notification sound file (place at assets/sounds/notification.mp3)
+// Falls back to system default if file is missing or on unsupported platforms.
+const CUSTOM_SOUND = "notification.mp3";
+
 let cachedModule: NotificationsModule | null = null;
 let moduleUnavailable = false;
 let configured = false;
@@ -34,8 +38,9 @@ function getNotifications(): NotificationsModule | null {
 }
 
 /**
- * Foreground presentation stays silent - while the app is open the
- * session-complete card is the UI; this alert is for backgrounded use.
+ * Configures the notification handler and Android channel.
+ * Foreground presentation plays the custom sound so alerts feel responsive
+ * even when the app is open.
  */
 export function initNotifications(): void {
   const N = getNotifications();
@@ -44,10 +49,10 @@ export function initNotifications(): void {
   try {
     N.setNotificationHandler({
       handleNotification: async () => ({
-        shouldShowBanner: false,
-        shouldShowList: false,
-        shouldPlaySound: false,
-        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
       }),
     });
     if (Platform.OS === "android") {
@@ -56,6 +61,8 @@ export function initNotifications(): void {
         importance: N.AndroidImportance.HIGH,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: "#cf9eff",
+        sound: CUSTOM_SOUND,
+        enableVibrate: true,
       }).catch(() => undefined);
     }
   } catch {
@@ -82,6 +89,54 @@ async function ensurePermission(): Promise<boolean> {
 }
 
 /**
+ * Schedules a local notification with the custom sound.
+ * Falls back to default sound if the custom sound file is unavailable.
+ */
+async function scheduleNotificationWithSound(
+  title: string,
+  body: string,
+  trigger: Parameters<NotificationsModule["scheduleNotificationAsync"]>[0]["trigger"],
+  channelId: string = CHANNEL_ID,
+): Promise<string | null> {
+  const N = getNotifications();
+  if (!N) return null;
+  initNotifications();
+  try {
+    if (!(await ensurePermission())) return null;
+    const id = await N.scheduleNotificationAsync({
+      content: {
+        title,
+        body,
+        sound: CUSTOM_SOUND,
+      },
+      trigger: {
+        ...trigger,
+        channelId,
+      },
+    });
+    return id;
+  } catch {
+    // If custom sound fails, retry with default sound
+    try {
+      const id = await N.scheduleNotificationAsync({
+        content: {
+          title,
+          body,
+          sound: "default",
+        },
+        trigger: {
+          ...trigger,
+          channelId,
+        },
+      });
+      return id;
+    } catch {
+      return null;
+    }
+  }
+}
+
+/**
  * Schedules the end-of-session alert for the current focus run. Replaces
  * any previous one so exactly one alert is ever pending.
  */
@@ -93,23 +148,16 @@ export async function scheduleSessionEndNotification(
   initNotifications();
   await cancelSessionEndNotification();
   if (endsAtMs - Date.now() < 5_000) return;
-  try {
-    if (!(await ensurePermission())) return;
-    const id = await N.scheduleNotificationAsync({
-      content: {
-        title: "Session complete",
-        body: "Your focus session has ended. Open ATLAS to bank your XP.",
-        sound: "default",
-      },
-      trigger: {
-        type: N.SchedulableTriggerInputTypes.DATE,
-        date: new Date(endsAtMs),
-        channelId: CHANNEL_ID,
-      },
-    });
+  const id = await scheduleNotificationWithSound(
+    "Session complete",
+    "Your focus session has ended. Open ATLAS to bank your XP.",
+    {
+      type: N.SchedulableTriggerInputTypes.DATE,
+      date: new Date(endsAtMs),
+    },
+  );
+  if (id) {
     void AsyncStorage.setItem(PENDING_KEY, id).catch(() => undefined);
-  } catch {
-    // Scheduling is best-effort - the timer itself is unaffected.
   }
 }
 
@@ -158,22 +206,16 @@ export async function syncStreakReminder(
   let fireAt = todayAt(STREAK_HOUR);
   if (fireAt - nowMs < 60_000) fireAt = todayAt(STREAK_FALLBACK_HOUR);
   if (fireAt - nowMs < 60_000) return; // Too late tonight - tomorrow's sync re-arms.
-  try {
-    const id = await N.scheduleNotificationAsync({
-      content: {
-        title: "Keep your streak alive 🔥",
-        body: `No focus session logged today yet. Study before midnight to protect your ${input.streak}-day streak.`,
-        sound: "default",
-      },
-      trigger: {
-        type: N.SchedulableTriggerInputTypes.DATE,
-        date: new Date(fireAt),
-        channelId: CHANNEL_ID,
-      },
-    });
+  const id = await scheduleNotificationWithSound(
+    "Keep your streak alive 🔥",
+    `No focus session logged today yet. Study before midnight to protect your ${input.streak}-day streak.`,
+    {
+      type: N.SchedulableTriggerInputTypes.DATE,
+      date: new Date(fireAt),
+    },
+  );
+  if (id) {
     void AsyncStorage.setItem(STREAK_PENDING_KEY, id).catch(() => undefined);
-  } catch {
-    // Scheduling is best-effort - the streak itself is unaffected.
   }
 }
 
@@ -200,20 +242,33 @@ export async function sendTestNotification(): Promise<boolean> {
   initNotifications();
   try {
     if (!(await ensurePermission())) return false;
-    await N.scheduleNotificationAsync({
-      content: {
-        title: "ATLAS test alert",
-        body: "Notifications are working. Session-end and streak reminders will arrive like this.",
-        sound: "default",
-      },
-      trigger: {
+    const id = await scheduleNotificationWithSound(
+      "ATLAS test alert",
+      "Notifications are working. Session-end and streak reminders will arrive like this.",
+      {
         type: N.SchedulableTriggerInputTypes.DATE,
         date: new Date(Date.now() + 10_000),
-        channelId: CHANNEL_ID,
       },
-    });
-    return true;
+    );
+    return id !== null;
   } catch {
     return false;
   }
+}
+
+/**
+ * Example: Schedule a notification when a note is shared or friend request received.
+ * Usage:
+ *   await scheduleCustomNotification(
+ *     "Note shared",
+ *     "Alex shared a note with you: 'React Native Tips'",
+ *     { type: N.SchedulableTriggerInputTypes.DATE, date: new Date(Date.now() + 1000) }
+ *   );
+ */
+export async function scheduleCustomNotification(
+  title: string,
+  body: string,
+  trigger: Parameters<NotificationsModule["scheduleNotificationAsync"]>[0]["trigger"],
+): Promise<string | null> {
+  return scheduleNotificationWithSound(title, body, trigger);
 }
