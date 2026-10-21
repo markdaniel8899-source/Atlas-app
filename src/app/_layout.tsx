@@ -93,6 +93,11 @@ export default function RootLayout() {
   const [sessionKey, setSessionKey] = useState(
     () => getCachedAuthUser()?.id ?? "anon",
   );
+  // Warm starts already know the local user; a cold start waits for the
+  // first session read before the branded splash can hand off.
+  const [sessionSettled, setSessionSettled] = useState(
+    () => getCachedAuthUser() !== null,
+  );
   // Sections are mounted in the background shortly after boot (behind the
   // splash hand-off) so the first visit to a tab never pays a mount + fetch
   // cost mid-transition. Staged so no single commit freezes the JS thread.
@@ -104,6 +109,18 @@ export default function RootLayout() {
       void SplashScreen.hideAsync().catch(() => {});
     }
   }, [loaded, error]);
+
+  useEffect(() => {
+    let active = true;
+    void resolveSession()
+      .catch(() => undefined)
+      .finally(() => {
+        if (active) setSessionSettled(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(
     () =>
@@ -189,7 +206,7 @@ export default function RootLayout() {
             />
           </ThemeProvider>
           <GlobalDrawer />
-          <SplashOverlay />
+          <SplashOverlay ready={sessionSettled || Boolean(error)} />
           <StatusBar style="light" />
         </TimerProvider>
       </View>

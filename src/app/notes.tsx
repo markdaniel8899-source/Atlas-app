@@ -1,4 +1,5 @@
 import {
+  memo,
   useCallback,
   useEffect,
   useMemo,
@@ -11,8 +12,10 @@ import {
   Alert,
   Animated,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
+  SectionList,
   StyleSheet,
   Text,
   TextInput,
@@ -193,6 +196,44 @@ function CourseSwitcher({
   );
 }
 
+interface NoteSection {
+  subject: string;
+  data: Note[];
+}
+
+const NoteRow = memo(function NoteRow({
+  note,
+  active,
+  onPress,
+}: {
+  note: Note;
+  active: boolean;
+  onPress: (id: string) => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Open note ${note.title || "Untitled note"}`}
+      onPress={() => onPress(note.id)}
+      style={[styles.noteItem, active && styles.noteItemActive]}
+    >
+      <Text numberOfLines={1} style={styles.noteItemTitle}>
+        {note.title || "Untitled note"}
+      </Text>
+      <Text style={styles.noteItemDate}>
+        {new Date(note.updatedAt).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+        })}
+      </Text>
+    </Pressable>
+  );
+});
+
+function NoteSeparator() {
+  return <View style={styles.noteSeparator} />;
+}
+
 export default function NotesScreen() {
   const { courses, loading: coursesLoading } = useCourses();
   const router = useRouter();
@@ -227,6 +268,9 @@ export default function NotesScreen() {
   const prevPendingRef = useRef(0);
   const composeHandledRef = useRef(false);
   const pendingHtmlRef = useRef<string | null>(null);
+  const titleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingTitleRef = useRef<{ id: string; title: string } | null>(null);
+  const flushPendingRef = useRef<() => void>(() => {});
 
   const rawCourseId = Array.isArray(params.courseId)
     ? params.courseId[0]
@@ -398,6 +442,13 @@ export default function NotesScreen() {
     return Array.from(groups.entries());
   }, [notes, selectedCourseId]);
 
+  const sections = useMemo<NoteSection[]>(() => {
+    if (groupedNotes) {
+      return groupedNotes.map(([subject, data]) => ({ subject, data }));
+    }
+    return notes.length > 0 ? [{ subject: "", data: notes }] : [];
+  }, [groupedNotes, notes]);
+
   useEffect(() => {
     activeRef.current = activeId;
     const note = notes.find((item) => item.id === activeId);
@@ -468,8 +519,33 @@ export default function NotesScreen() {
     }, 600);
   };
 
+  const handleTitleChange = (next: string) => {
+    const id = activeRef.current;
+    setTitle(next);
+    if (!id) return;
+    pendingTitleRef.current = { id, title: next };
+    if (titleTimerRef.current) clearTimeout(titleTimerRef.current);
+    titleTimerRef.current = setTimeout(() => {
+      titleTimerRef.current = null;
+      const pending = pendingTitleRef.current;
+      pendingTitleRef.current = null;
+      if (pending) persist(pending.id, { title: pending.title });
+    }, 500);
+  };
+
+  /** Force the debounced title edit into the offline queue. */
+  const flushPendingTitle = () => {
+    if (titleTimerRef.current) {
+      clearTimeout(titleTimerRef.current);
+      titleTimerRef.current = null;
+    }
+    const pending = pendingTitleRef.current;
+    pendingTitleRef.current = null;
+    if (pending) persist(pending.id, { title: pending.title });
+  };
+
   /** Force the debounced body edit into the offline queue. */
-  const flushPendingEdit = () => {
+  const flushPendingBody = () => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
@@ -480,7 +556,32 @@ export default function NotesScreen() {
     if (html != null && id) persist(id, { html });
   };
 
+  const flushPendingEdits = () => {
+    flushPendingTitle();
+    flushPendingBody();
+  };
+  flushPendingRef.current = flushPendingEdits;
+
+  // Leaving the tab (or unmounting) must not drop the last keystrokes.
+  useFocusEffect(
+    useCallback(() => {
+      return () => flushPendingRef.current();
+    }, []),
+  );
+  useEffect(
+    () => () => {
+      flushPendingRef.current();
+    },
+    [],
+  );
+
+  const selectNote = useCallback((id: string) => {
+    flushPendingRef.current();
+    setActiveId(id);
+  }, []);
+
   const addNote = useCallback(async () => {
+    flushPendingRef.current();
     // In a course view the note is owned by the course (and linked to its
     // first topic for subject grouping), so it stays in that course's scope.
     const courseId = selectedCourse?.id ?? null;
@@ -531,6 +632,18 @@ export default function NotesScreen() {
   }, [rawCompose, loading, coursesLoading, addNote, router]);
 
   const removeNote = (id: string) => {
+    if (activeId === id) {
+      if (titleTimerRef.current) {
+        clearTimeout(titleTimerRef.current);
+        titleTimerRef.current = null;
+      }
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      pendingTitleRef.current = null;
+      pendingHtmlRef.current = null;
+    }
     const next = notes.filter((note) => note.id !== id);
     setNotes(next);
     if (activeId === id) setActiveId(next[0]?.id ?? null);
@@ -551,7 +664,7 @@ export default function NotesScreen() {
     if (!(await ensureOnline("Sharing a note needs an internet connection."))) {
       return;
     }
-    flushPendingEdit();
+    flushPendingEdits();
     if (isNoteQueued(note.id)) {
       await flushNotesQueue();
       if (isNoteQueued(note.id)) {
@@ -563,29 +676,6 @@ export default function NotesScreen() {
       }
     }
     setShareTarget({ id: note.id, title: title.trim() || note.title });
-  };
-
-  const renderNoteItem = (note: Note) => {
-    const isActive = note.id === activeId;
-    return (
-      <Pressable
-        key={note.id}
-        accessibilityRole="button"
-        accessibilityLabel={`Open note ${note.title || "Untitled note"}`}
-        onPress={() => setActiveId(note.id)}
-        style={[styles.noteItem, isActive && styles.noteItemActive]}
-      >
-        <Text numberOfLines={1} style={styles.noteItemTitle}>
-          {note.title || "Untitled note"}
-        </Text>
-        <Text style={styles.noteItemDate}>
-          {new Date(note.updatedAt).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-          })}
-        </Text>
-      </Pressable>
-    );
   };
 
   return (
@@ -621,45 +711,56 @@ export default function NotesScreen() {
       </View>
 
       <Card padded={false} style={styles.listCard}>
-        <ScrollView
-          style={styles.listScroll}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          nestedScrollEnabled
-        >
-          {loading ? (
+        {loading ? (
+          <View style={styles.listContent}>
             <Text style={styles.listMessage}>Loading notes…</Text>
-          ) : notes.length === 0 ? (
-            <View style={styles.listEmpty}>
-              <Text style={styles.listMessage}>
+          </View>
+        ) : notes.length === 0 ? (
+          <View style={[styles.listContent, styles.listEmpty]}>
+            <Text style={styles.listMessage}>
+              {selectedCourse
+                ? "No notes in this course yet."
+                : "No notes yet."}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => void addNote()}
+            >
+              <Text style={styles.listEmptyLink}>
                 {selectedCourse
-                  ? "No notes in this course yet."
-                  : "No notes yet."}
+                  ? "Write one in this course"
+                  : "Write the first one"}
               </Text>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => void addNote()}
-              >
-                <Text style={styles.listEmptyLink}>
-                  {selectedCourse
-                    ? "Write one in this course"
-                    : "Write the first one"}
-                </Text>
-              </Pressable>
-            </View>
-          ) : groupedNotes ? (
-            <View style={styles.groupList}>
-              {groupedNotes.map(([subject, list]) => (
-                <View key={subject}>
-                  <Text style={styles.groupLabel}>{subject}</Text>
-                  <View style={styles.noteList}>{list.map(renderNoteItem)}</View>
-                </View>
-              ))}
-            </View>
-          ) : (
-            <View style={styles.noteList}>{notes.map(renderNoteItem)}</View>
-          )}
-        </ScrollView>
+            </Pressable>
+          </View>
+        ) : (
+          <SectionList
+            sections={sections}
+            keyExtractor={(note) => note.id}
+            renderItem={({ item }) => (
+              <NoteRow
+                note={item}
+                active={item.id === activeId}
+                onPress={selectNote}
+              />
+            )}
+            renderSectionHeader={({ section }) =>
+              section.subject ? (
+                <Text style={styles.groupLabel}>{section.subject}</Text>
+              ) : null
+            }
+            ItemSeparatorComponent={NoteSeparator}
+            style={styles.listScroll}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            stickySectionHeadersEnabled={false}
+            nestedScrollEnabled
+            initialNumToRender={12}
+            maxToRenderPerBatch={10}
+            windowSize={7}
+            removeClippedSubviews={Platform.OS === "android"}
+          />
+        )}
       </Card>
 
       <Card padded={false} style={styles.editorCard}>
@@ -718,10 +819,8 @@ export default function NotesScreen() {
               <TextInput
                 keyboardAppearance="dark"
                 value={title}
-                onChangeText={(next) => {
-                  setTitle(next);
-                  persist(active.id, { title: next });
-                }}
+                onChangeText={handleTitleChange}
+                onBlur={flushPendingTitle}
                 placeholder="Untitled note"
                 placeholderTextColor="rgba(255,255,255,0.2)"
                 maxLength={160}
@@ -945,9 +1044,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     color: colors.star,
   },
-  groupList: {
-    gap: 12,
-  },
   groupLabel: {
     paddingHorizontal: 14,
     paddingTop: 8,
@@ -958,8 +1054,8 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     color: colors.w35,
   },
-  noteList: {
-    gap: 6,
+  noteSeparator: {
+    height: 6,
   },
   noteItem: {
     borderRadius: 12,

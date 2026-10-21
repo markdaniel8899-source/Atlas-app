@@ -8,7 +8,7 @@ import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { SelectMenu } from "../components/ui/select-menu";
 import type { SelectOption } from "../components/ui/select-menu";
-import { useTimer } from "../context/timer-context";
+import { useTimer, useTimerClock } from "../context/timer-context";
 import { useCourses } from "../hooks/use-courses";
 import { getCachedAuthUser } from "../lib/auth";
 import { loadSessions } from "../lib/timer";
@@ -75,7 +75,8 @@ function FlashLine({ text }: { text: string }) {
 
 export default function TimerScreen() {
   const timer = useTimer();
-  const { state, globalTotal, courseTotal, progress, activeCourse } = timer;
+  const { state, activeCourse } = timer;
+  const { globalTotal, courseTotal, progress } = useTimerClock();
   const { courses } = useCourses();
   const [sessions, setSessions] = useState<StudySession[]>([]);
 

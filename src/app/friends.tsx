@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
-  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -20,8 +19,8 @@ import {
   Zap,
 } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { BlurView } from "expo-blur";
-import { useBlurTargetRef } from "../components/blur-target";
+import { Image } from "expo-image";
+import { useFocusEffect } from "expo-router";
 import { ScreenHeading, ScreenShell } from "../components/screen-shell";
 import { readCache, writeCache } from "../lib/data-cache";
 import {
@@ -69,6 +68,9 @@ function MemberAvatar({
           <Image
             source={{ uri }}
             style={{ width: size, height: size, borderRadius: size / 2 }}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            recyclingKey={uri}
           />
         ) : (
           <LinearGradient
@@ -140,22 +142,15 @@ function ProgressBar({ percent, gradient }: { percent: number; gradient: readonl
   );
 }
 
-function FriendCard({ member }: { member: SquadMember }) {
+const FriendCard = memo(function FriendCard({
+  member,
+}: {
+  member: SquadMember;
+}) {
   const rank = getRankFromXP(member.xp);
-  const blurTarget = useBlurTargetRef();
 
   return (
     <View style={styles.friendCardShell}>
-      <BlurView
-        intensity={22}
-        tint="dark"
-        blurMethod="dimezisBlurViewSdk31Plus"
-        blurTarget={blurTarget ?? undefined}
-        style={StyleSheet.absoluteFill}
-        pointerEvents="none"
-      />
-      <View style={styles.friendCardTint} pointerEvents="none" />
-
       <View style={styles.friendCard}>
         <View style={styles.friendTop}>
           <MemberAvatar member={member} size={64} dot />
@@ -214,7 +209,7 @@ function FriendCard({ member }: { member: SquadMember }) {
       </View>
     </View>
   );
-}
+});
 
 function RequestRow({
   member,
@@ -310,6 +305,7 @@ export default function FriendsScreen() {
   const [inviting, setInviting] = useState(false);
 
   const requestRef = useRef(0);
+  const firstFocus = useRef(true);
 
   const load = useCallback(async () => {
     const seq = ++requestRef.current;
@@ -329,6 +325,18 @@ export default function FriendsScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Tabs stay mounted: pull fresh presence after the section has settled.
+  useFocusEffect(
+    useCallback(() => {
+      if (firstFocus.current) {
+        firstFocus.current = false;
+        return;
+      }
+      const timer = setTimeout(() => void load(), 300);
+      return () => clearTimeout(timer);
+    }, [load]),
+  );
 
   useFocusedEvent(PROFILE_CHANGED_EVENT, () => void load());
 
@@ -752,16 +760,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.w10,
-    backgroundColor: "rgba(255,255,255,0.02)",
+    backgroundColor: "rgba(255,255,255,0.055)",
     overflow: "hidden",
-  },
-  friendCardTint: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(255,255,255,0.035)",
   },
   friendCard: {
     padding: 16,

@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import type { ReactNode } from "react";
 import { useActiveCourses } from "../hooks/use-courses";
@@ -44,15 +45,6 @@ function sessionEndsAt(state: TimerState): number | null {
 
 export interface TimerContextValue {
   state: TimerState;
-  /**
-   * Lifetime focus seconds (local base + pending live time). This is the
-   * hero HH:MM:SS counter - it never restarts from zero.
-   */
-  globalTotal: number;
-  /** Lifetime focus seconds for the selected course (0 when none). */
-  courseTotal: number;
-  /** Progress toward the current target, 0..1. */
-  progress: number;
   /** Course the session belongs to (title shown as "Focusing on: ..."). */
   activeCourse: Course | null;
   flash: string | null;
@@ -73,6 +65,66 @@ export interface TimerContextValue {
 }
 
 const TimerContext = createContext<TimerContextValue | null>(null);
+
+export interface TimerClock {
+  /** Live seconds since the session started (pending, unflushed time). */
+  elapsedSeconds: number;
+  /**
+   * Lifetime focus seconds (local base + pending live time). This is the
+   * hero HH:MM:SS counter - it never restarts from zero.
+   */
+  globalTotal: number;
+  /** Lifetime focus seconds for the selected course (0 when none). */
+  courseTotal: number;
+  /** Progress toward the current target, 0..1. */
+  progress: number;
+}
+
+const INITIAL_CLOCK: TimerClock = {
+  elapsedSeconds: 0,
+  globalTotal: 0,
+  courseTotal: 0,
+  progress: 0,
+};
+
+let clockSnapshot = INITIAL_CLOCK;
+const clockListeners = new Set<() => void>();
+
+function publishClock(next: TimerClock) {
+  if (
+    next.elapsedSeconds === clockSnapshot.elapsedSeconds &&
+    next.globalTotal === clockSnapshot.globalTotal &&
+    next.courseTotal === clockSnapshot.courseTotal &&
+    next.progress === clockSnapshot.progress
+  ) {
+    return;
+  }
+  clockSnapshot = next;
+  for (const listener of clockListeners) listener();
+}
+
+function subscribeClock(listener: () => void): () => void {
+  clockListeners.add(listener);
+  return () => {
+    clockListeners.delete(listener);
+  };
+}
+
+function getClockSnapshot(): TimerClock {
+  return clockSnapshot;
+}
+
+/**
+ * Live clock values live outside the shared context so only the screens that
+ * display the timer re-render once per second.
+ */
+export function useTimerClock(): TimerClock {
+  return useSyncExternalStore(
+    subscribeClock,
+    getClockSnapshot,
+    getClockSnapshot,
+  );
+}
 
 export function useTimer(): TimerContextValue {
   const value = useContext(TimerContext);
@@ -244,12 +296,24 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     }
   }, [state]);
 
-  // Single 1Hz tick for every consumer while the timer runs.
+  // Single 1Hz tick while the timer runs. It drives the completion check and
+  // the external clock store; the shared context value stays tick-free.
   useEffect(() => {
     if (state.mode !== "running") return;
     const id = setInterval(() => setTick((t) => t + 1), 1000);
     return () => clearInterval(id);
   }, [state.mode]);
+
+  useEffect(() => {
+    const elapsed = elapsedMs(state);
+    const pending = Math.max(0, elapsed - state.flushedMs) / 1000;
+    publishClock({
+      elapsedSeconds: Math.floor(pending),
+      globalTotal: globalBase + pending,
+      courseTotal: state.courseId != null ? courseBase + pending : 0,
+      progress: Math.min(1, elapsed / (state.targetMin * 60_000)),
+    });
+  }, [state, tick, globalBase, courseBase]);
 
   const showFlash = useCallback((message: string) => {
     setFlash(message);
@@ -414,14 +478,9 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     [courses, state.courseId],
   );
 
-  const value: TimerContextValue = useMemo(() => {
-    const elapsed = elapsedMs(state);
-    const pending = Math.max(0, elapsed - state.flushedMs) / 1000;
-    return {
+  const value: TimerContextValue = useMemo(
+    () => ({
       state,
-      globalTotal: globalBase + pending,
-      courseTotal: state.courseId != null ? courseBase + pending : 0,
-      progress: Math.min(1, elapsed / (state.targetMin * 60_000)),
       activeCourse,
       flash,
       historyVersion,
@@ -432,25 +491,21 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       startQuick,
       showCompletionCard,
       dismissCompletionCard,
-    };
-    // Recomputes elapsed/globalTotal every second while the timer runs.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    state,
-    tick,
-    globalBase,
-    courseBase,
-    activeCourse,
-    flash,
-    historyVersion,
-    toggle,
-    stop,
-    setTarget,
-    selectCourse,
-    startQuick,
-    showCompletionCard,
-    dismissCompletionCard,
-  ]);
+    }),
+    [
+      state,
+      activeCourse,
+      flash,
+      historyVersion,
+      toggle,
+      stop,
+      setTarget,
+      selectCourse,
+      startQuick,
+      showCompletionCard,
+      dismissCompletionCard,
+    ],
+  );
 
   return (
     <TimerContext.Provider value={value}>{children}</TimerContext.Provider>

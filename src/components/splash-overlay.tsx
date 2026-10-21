@@ -1,35 +1,44 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Easing, Image, StyleSheet } from "react-native";
 
 const LOCKUP = require("../../assets/splash-lockup.png");
 
-const HOLD_MS = 650;
+const MAX_HOLD_MS = 650;
 const EXIT_MS = 450;
 
 /**
  * Branded launch splash drawn above the navigator. It shows the exact same
  * lockup as the native splash (same image width, same flat base color), so
- * the native splash fades into it without any visible step; after a short
- * hold the whole scene fades out to reveal the app - no gradient, no zoom.
+ * the native splash fades into it without any visible step. It leaves as soon
+ * as fonts and the first session resolution are ready - never later than
+ * 650 ms - then fades out to reveal the app (no gradient, no zoom).
  */
-export function SplashOverlay() {
+export function SplashOverlay({ ready }: { ready: boolean }) {
   const [done, setDone] = useState(false);
   const exit = useRef(new Animated.Value(0)).current;
+  const exiting = useRef(false);
+
+  const startExit = useCallback(() => {
+    if (exiting.current) return;
+    exiting.current = true;
+    Animated.timing(exit, {
+      toValue: 1,
+      duration: EXIT_MS,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) setDone(true);
+    });
+  }, [exit]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      Animated.timing(exit, {
-        toValue: 1,
-        duration: EXIT_MS,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (finished) setDone(true);
-      });
-    }, HOLD_MS);
-
+    if (ready) {
+      startExit();
+      return;
+    }
+    const timer = setTimeout(startExit, MAX_HOLD_MS);
     return () => clearTimeout(timer);
-  }, [exit]);
+  }, [ready, startExit]);
 
   if (done) return null;
 

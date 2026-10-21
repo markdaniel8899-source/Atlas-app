@@ -3,7 +3,9 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
+  FlatList,
   Image,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -12,7 +14,11 @@ import {
 import { useFocusEffect } from "expo-router";
 import { Flame, Medal, Trophy, WifiOff, Zap } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { ScreenHeading, ScreenShell } from "../components/screen-shell";
+import {
+  ScreenFooter,
+  ScreenHeading,
+  ScreenShell,
+} from "../components/screen-shell";
 import { RankBadge } from "../components/gamification/rank-badge";
 import { readCache, writeCache } from "../lib/data-cache";
 import { getRankFromXP } from "../lib/gamification";
@@ -33,7 +39,6 @@ const PODIUM_STYLE: Record<
     weeklyColor: string;
     gradient: readonly [string, string, ...string[]];
     shine: string;
-    shineDuration: number;
   }
 > = {
   1: {
@@ -48,7 +53,6 @@ const PODIUM_STYLE: Record<
       "rgba(234,179,8,0.04)",
     ],
     shine: "rgba(255,255,255,0.20)",
-    shineDuration: 2500,
   },
   2: {
     icon: "🥈",
@@ -62,7 +66,6 @@ const PODIUM_STYLE: Record<
       "rgba(212,212,216,0.10)",
     ],
     shine: "rgba(255,255,255,0.40)",
-    shineDuration: 3000,
   },
   3: {
     icon: "🥉",
@@ -76,33 +79,17 @@ const PODIUM_STYLE: Record<
       "rgba(232,121,249,0.10)",
     ],
     shine: "rgba(233,213,255,0.30)",
-    shineDuration: 3500,
   },
 };
 
 /** Sweeping reflection band inside the podium cards. */
 function PodiumShine({
   tint,
-  duration,
+  anim,
 }: {
   tint: string;
-  duration: number;
+  anim: Animated.Value;
 }) {
-  const anim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.timing(anim, {
-        toValue: 1,
-        duration,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      }),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [anim, duration]);
-
   return (
     <Animated.View
       pointerEvents="none"
@@ -182,11 +169,13 @@ function RankChip({
 const LeaderRow = memo(function LeaderRow({
   entry,
   place,
+  shine,
 }: {
   entry: LeaderboardEntry;
-  place: number;
+  place: number | null;
+  shine: Animated.Value;
 }) {
-  const podium = PODIUM_STYLE[place];
+  const podium = place != null ? PODIUM_STYLE[place] : undefined;
 
   if (podium) {
     return (
@@ -199,7 +188,7 @@ const LeaderRow = memo(function LeaderRow({
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
-        <PodiumShine tint={podium.shine} duration={podium.shineDuration} />
+        <PodiumShine tint={podium.shine} anim={shine} />
 
         <View style={styles.positionCol}>
           <Text style={styles.podiumIcon}>{podium.icon}</Text>
@@ -251,7 +240,7 @@ const LeaderRow = memo(function LeaderRow({
   return (
     <View style={[styles.rowCard, entry.isYou && styles.rowCardYou]}>
       <View style={styles.positionCol}>
-        <Text style={styles.rowNumber}>{place}</Text>
+        <Text style={styles.rowNumber}>{place ?? "-"}</Text>
       </View>
 
       <Avatar entry={entry} size={48} />
@@ -293,6 +282,8 @@ const LeaderRow = memo(function LeaderRow({
 });
 
 const CACHE_KEY = "leaderboard.weekly";
+const YOU_CACHE_KEY = "leaderboard.weekly.you";
+const RANK_CACHE_KEY = "leaderboard.weekly.rank";
 
 /**
  * The board is refetched on every focus, but the payload is usually
@@ -330,7 +321,14 @@ export default function LeaderboardScreen() {
   );
   const [failed, setFailed] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [you, setYou] = useState<LeaderboardEntry | null>(
+    () => readCache<LeaderboardEntry>(YOU_CACHE_KEY) ?? null,
+  );
+  const [yourRank, setYourRank] = useState<number | null>(
+    () => readCache<number>(RANK_CACHE_KEY) ?? null,
+  );
   const firstFocus = useRef(true);
+  const shine = useRef(new Animated.Value(0)).current;
 
   // Tabs stay mounted, so re-pull the board (silently, cache stays visible)
   // every time this tab is focused after the first mount.
@@ -347,6 +345,26 @@ export default function LeaderboardScreen() {
     }, []),
   );
 
+  // One shared sweep for all three podium cards, and only while this tab is
+  // focused. No per-card 2.5-3.5s infinite loops.
+  useFocusEffect(
+    useCallback(() => {
+      shine.stopAnimation();
+      shine.setValue(0);
+      const animation = Animated.timing(shine, {
+        toValue: 1,
+        duration: 1600,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      });
+      animation.start();
+      return () => {
+        animation.stop();
+        shine.stopAnimation();
+      };
+    }, [shine]),
+  );
+
   useEffect(() => {
     let cancelled = false;
     if (readCache<LeaderboardEntry[]>(CACHE_KEY) === null) setLoading(true);
@@ -360,6 +378,10 @@ export default function LeaderboardScreen() {
             setEntries(result.entries);
             writeCache(CACHE_KEY, result.entries);
           }
+          setYou(result.you);
+          setYourRank(result.yourRank);
+          writeCache(YOU_CACHE_KEY, result.you);
+          writeCache(RANK_CACHE_KEY, result.yourRank);
         }
         setFailed(!result.ok);
       })
@@ -378,19 +400,22 @@ export default function LeaderboardScreen() {
     })();
   };
 
-  const you = entries.find((entry) => entry.isYou);
-  const myRankIndex = entries.findIndex((entry) => entry.isYou);
-  const myRank = myRankIndex >= 0 ? myRankIndex + 1 : null;
+  const youEntry = you ?? entries.find((entry) => entry.isYou) ?? null;
+  const myRank =
+    yourRank ??
+    (() => {
+      const index = entries.findIndex((entry) => entry.isYou);
+      return index >= 0 ? index + 1 : null;
+    })();
+  const pinnedYou = youEntry && !entries.some((entry) => entry.isYou)
+    ? youEntry
+    : null;
+  const podiumEntries = entries.slice(0, 3);
+  const rankedEntries = entries.slice(3);
 
-  return (
-    <ScreenShell title="Leaderboard">
-      <ScreenHeading
-        eyebrow="This week"
-        title="Leaderboard."
-        subtitle="Ranked by weekly XP · resets every Monday 00:00 UTC"
-      />
-
-      {(myRank !== null || you) && (
+  const renderHeader = () => (
+    <View style={styles.listHeader}>
+      {(myRank !== null || youEntry) && (
         <View style={styles.rankChipsRow}>
           {myRank !== null ? (
             <View style={styles.rankChipBig}>
@@ -398,17 +423,48 @@ export default function LeaderboardScreen() {
               <Text style={styles.rankChipBigText}>Your rank #{myRank}</Text>
             </View>
           ) : null}
-          {you ? (
+          {youEntry ? (
             <View style={styles.xpChipBig}>
               <Zap size={16} color="rgba(147,197,253,0.8)" />
               <Text style={styles.xpChipValue}>
-                {you.weeklyXp.toLocaleString()}
+                {youEntry.weeklyXp.toLocaleString()}
               </Text>
               <Text style={styles.xpChipLabel}>XP this week</Text>
             </View>
           ) : null}
         </View>
       )}
+
+      {pinnedYou ? (
+        <LeaderRow entry={pinnedYou} place={myRank} shine={shine} />
+      ) : null}
+
+      {podiumEntries.map((entry, index) => (
+        <LeaderRow
+          key={entry.id}
+          entry={entry}
+          place={index + 1}
+          shine={shine}
+        />
+      ))}
+    </View>
+  );
+
+  const renderRow = ({
+    item,
+    index,
+  }: {
+    item: LeaderboardEntry;
+    index: number;
+  }) => <LeaderRow entry={item} place={index + 4} shine={shine} />;
+
+  return (
+    <ScreenShell title="Leaderboard" scrollable={false} hideFooter>
+      <ScreenHeading
+        eyebrow="This week"
+        title="Leaderboard."
+        subtitle="Ranked by weekly XP · resets every Monday 00:00 UTC"
+      />
 
       {loading ? (
         <View style={styles.loadingRow}>
@@ -444,11 +500,20 @@ export default function LeaderboardScreen() {
           </Text>
         </View>
       ) : (
-        <View style={styles.list}>
-          {entries.map((entry, index) => (
-            <LeaderRow key={entry.id} entry={entry} place={index + 1} />
-          ))}
-        </View>
+        <FlatList
+          data={rankedEntries}
+          keyExtractor={(entry) => entry.id}
+          renderItem={renderRow}
+          ListHeaderComponent={renderHeader}
+          ListFooterComponent={ScreenFooter}
+          style={styles.list}
+          contentContainerStyle={styles.listContent}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          removeClippedSubviews={Platform.OS === "android"}
+          showsVerticalScrollIndicator={false}
+        />
       )}
     </ScreenShell>
   );
@@ -550,6 +615,12 @@ const styles = StyleSheet.create({
     color: colors.lilac,
   },
   list: {
+    flex: 1,
+  },
+  listContent: {
+    gap: 12,
+  },
+  listHeader: {
     gap: 12,
   },
   podiumCard: {

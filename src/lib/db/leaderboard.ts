@@ -55,11 +55,16 @@ export interface WeeklyLeaderboardResult {
   /** False when the fetch failed (offline / server error) - not an empty board. */
   ok: boolean;
   entries: LeaderboardEntry[];
+  /** The signed-in learner, even when they are outside the fetched top N. */
+  you: LeaderboardEntry | null;
+  /** Server-derived position (count of higher weekly XP + 1). */
+  yourRank: number | null;
 }
 
 /**
  * Global weekly board: everyone ordered by weekly XP (Monday reset).
- * The signed-in learner is always present, even outside the top window.
+ * Top N rows only; the signed-in learner is returned separately with their
+ * true rank instead of being appended as a fake last row.
  */
 export async function fetchWeeklyLeaderboard(
   limit = 50,
@@ -73,19 +78,46 @@ export async function fetchWeeklyLeaderboard(
     .order("xp", { ascending: false })
     .limit(limit);
 
-  if (error || !Array.isArray(data)) return { ok: false, entries: [] };
+  if (error || !Array.isArray(data)) {
+    return { ok: false, entries: [], you: null, yourRank: null };
+  }
 
   const rows = data as unknown as ProfileRow[];
   const entries = rows.map((row) => toEntry(row, row.id === me?.id));
 
-  if (me && !entries.some((entry) => entry.id === me.id)) {
-    const { data: mine } = await supabase
+  let mine = me ? rows.find((row) => row.id === me.id) ?? null : null;
+  if (me && !mine) {
+    const { data: myRow } = await supabase
       .from("profiles")
       .select(COLUMNS)
       .eq("id", me.id)
       .maybeSingle();
-    if (mine) entries.push(toEntry(mine as unknown as ProfileRow, true));
+    mine = (myRow as unknown as ProfileRow | null) ?? null;
   }
 
-  return { ok: true, entries };
+  let yourRank: number | null = null;
+  if (me && mine) {
+    const weeklyXp = Number(mine.weekly_xp) || 0;
+    const totalXp = Number(mine.xp) || 0;
+    const { count, error: rankError } = await supabase
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .or(
+        `weekly_xp.gt.${weeklyXp},and(weekly_xp.eq.${weeklyXp},xp.gt.${totalXp})`,
+      );
+    if (!rankError && typeof count === "number") {
+      yourRank = count + 1;
+    } else {
+      // Best available fallback: position inside the fetched top N.
+      const index = entries.findIndex((entry) => entry.isYou);
+      yourRank = index >= 0 ? index + 1 : null;
+    }
+  }
+
+  return {
+    ok: true,
+    entries,
+    you: mine ? toEntry(mine, true) : null,
+    yourRank,
+  };
 }

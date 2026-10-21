@@ -20,7 +20,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
-import { useTimer } from "../../context/timer-context";
+import { useTimer, useTimerClock } from "../../context/timer-context";
 import { MOTION } from "../../theme/motion";
 import { colors, ease, fonts } from "../../theme/theme";
 
@@ -218,7 +218,8 @@ function QuickStartDialog({
 export function FocusTimerWidget() {
   const timer = useTimer();
   const router = useRouter();
-  const { state, globalTotal, progress, activeCourse, flash } = timer;
+  const { state, activeCourse, flash } = timer;
+  const { globalTotal, progress } = useTimerClock();
   const [quickOpen, setQuickOpen] = useState(false);
   const quickCloseRef = useRef<(() => void) | null>(null);
   const [preset, setPreset] = useState(state.targetMin);

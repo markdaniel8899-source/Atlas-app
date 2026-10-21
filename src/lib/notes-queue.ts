@@ -48,6 +48,7 @@ let snapshot: NotesQueueSnapshot = { pending: 0, tempIds: [], syncing: false };
 let flushing = false;
 let hydrated = false;
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
 let retryTimer: ReturnType<typeof setInterval> | null = null;
 const listeners = new Set<() => void>();
 const swapHandlers = new Set<(tempId: string, realId: string) => void>();
@@ -102,11 +103,16 @@ function emit() {
   for (const listener of listeners) listener();
 }
 
+/** Coalesce a typing/edit burst into one AsyncStorage write. */
 function persistOps() {
-  void AsyncStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify([...ops.values()]),
-  ).catch(() => undefined);
+  if (persistTimer) clearTimeout(persistTimer);
+  persistTimer = setTimeout(() => {
+    persistTimer = null;
+    void AsyncStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify([...ops.values()]),
+    ).catch(() => undefined);
+  }, 300);
 }
 
 function ensureRetryTimer() {

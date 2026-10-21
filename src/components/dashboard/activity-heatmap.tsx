@@ -123,6 +123,7 @@ export function ActivityHeatmap({ days, weeks = 53 }: ActivityHeatmapProps) {
   );
   const hours = Math.round((totalSeconds / 3600) * 10) / 10;
   const scrollRef = useRef<ScrollView>(null);
+  const scrolledToToday = useRef(false);
 
   return (
     <Card>
@@ -167,9 +168,11 @@ export function ActivityHeatmap({ days, weeks = 53 }: ActivityHeatmapProps) {
               horizontal
               showsHorizontalScrollIndicator={false}
               style={styles.gridScroll}
-              onContentSizeChange={() =>
-                scrollRef.current?.scrollToEnd({ animated: false })
-              }
+              onContentSizeChange={() => {
+                if (scrolledToToday.current) return;
+                scrolledToToday.current = true;
+                scrollRef.current?.scrollToEnd({ animated: false });
+              }}
             >
               <View>
                 <View style={styles.monthsRow}>

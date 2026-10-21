@@ -33,6 +33,11 @@ interface ScreenShellProps {
   publicPage?: boolean;
   /** Scroll to the bottom whenever the keyboard opens (form pages). */
   scrollOnKeyboard?: boolean;
+  /**
+   * Let the children own vertical scrolling (long virtualized lists). The
+   * screen body becomes a plain flex view instead of a ScrollView.
+   */
+  scrollable?: boolean;
 }
 
 /**
@@ -45,6 +50,7 @@ export function ScreenShell({
   hideFooter = false,
   publicPage = false,
   scrollOnKeyboard = false,
+  scrollable = true,
 }: ScreenShellProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -104,52 +110,45 @@ export function ScreenShell({
     };
   }, [router, publicPage]);
 
+  const footer = !hideFooter ? <ScreenFooter /> : null;
+
   return (
     <View style={styles.root}>
-      <ScrollView
-        ref={scrollRef}
-        style={styles.scroll}
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingTop: insets.top + HEADER_HEIGHT + 32,
-            paddingBottom: insets.bottom + 32 + keyboardHeight,
-          },
-        ]}
-        showsVerticalScrollIndicator={false}
-        contentInsetAdjustmentBehavior="never"
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.sections}>{children}</View>
-
-        {!hideFooter && (
-          <View style={styles.footerWrap}>
-            <View style={styles.footer}>
-              <Pressable
-                accessibilityRole="link"
-                accessibilityLabel="Privacy Policy"
-                onPress={() => router.navigate("/privacy" as Href)}
-              >
-                <Text style={styles.footerLink}>Privacy Policy</Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="link"
-                accessibilityLabel="Terms of Service"
-                onPress={() => router.navigate("/terms" as Href)}
-              >
-                <Text style={styles.footerLink}>Terms of Service</Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="link"
-                accessibilityLabel="Contact Us"
-                onPress={() => router.navigate("/contact" as Href)}
-              >
-                <Text style={styles.footerLink}>Contact Us</Text>
-              </Pressable>
-            </View>
+      {scrollable ? (
+        <ScrollView
+          ref={scrollRef}
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.content,
+            {
+              paddingTop: insets.top + HEADER_HEIGHT + 32,
+              paddingBottom: insets.bottom + 32 + keyboardHeight,
+            },
+          ]}
+          showsVerticalScrollIndicator={false}
+          contentInsetAdjustmentBehavior="never"
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.sections}>{children}</View>
+          {footer}
+        </ScrollView>
+      ) : (
+        <View
+          style={[
+            styles.content,
+            styles.contentStatic,
+            {
+              paddingTop: insets.top + HEADER_HEIGHT + 32,
+              paddingBottom: insets.bottom + 32,
+            },
+          ]}
+        >
+          <View style={[styles.sections, styles.sectionsStatic]}>
+            {children}
           </View>
-        )}
-      </ScrollView>
+          {footer}
+        </View>
+      )}
 
       {checked && (
         <>
@@ -172,6 +171,39 @@ export function ScreenShell({
           <SessionCompleteCard />
         </>
       )}
+    </View>
+  );
+}
+
+/** Privacy/Terms links, reusable as a virtualized list footer. */
+export function ScreenFooter() {
+  const router = useRouter();
+
+  return (
+    <View style={styles.footerWrap}>
+      <View style={styles.footer}>
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel="Privacy Policy"
+          onPress={() => router.navigate("/privacy" as Href)}
+        >
+          <Text style={styles.footerLink}>Privacy Policy</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel="Terms of Service"
+          onPress={() => router.navigate("/terms" as Href)}
+        >
+          <Text style={styles.footerLink}>Terms of Service</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel="Contact Us"
+          onPress={() => router.navigate("/contact" as Href)}
+        >
+          <Text style={styles.footerLink}>Contact Us</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -206,8 +238,14 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 16,
   },
+  contentStatic: {
+    flex: 1,
+  },
   sections: {
     gap: 20,
+  },
+  sectionsStatic: {
+    flex: 1,
   },
   eyebrow: {
     fontSize: 10,
