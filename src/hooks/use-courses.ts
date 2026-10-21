@@ -3,6 +3,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { readCache, writeCache } from "../lib/data-cache";
 import { fetchCourses } from "../lib/db/courses";
 import { COURSES_CHANGED_EVENT, FOCUS_CHANGED_EVENT, listen } from "../lib/events";
+import { useFocusedEvent } from "./use-focused-event";
 import type { Course } from "../lib/db/types";
 
 export interface CoursesState {
@@ -14,12 +15,7 @@ export interface CoursesState {
 
 const CACHE_KEY = "courses";
 
-/**
- * The shared course+topics list. Every mounted instance auto-reloads when a
- * course, topic or focus counter changes anywhere in the app. Seeded from the
- * in-memory cache so remounts paint instantly while fresh rows load.
- */
-export function useCourses(): CoursesState {
+function useCoursesData(): CoursesState {
   const [courses, setCourses] = useState<Course[]>(
     () => readCache<Course[]>(CACHE_KEY) ?? [],
   );
@@ -47,6 +43,29 @@ export function useCourses(): CoursesState {
     void reload();
   }, [reload]);
 
+  return { courses, setCourses, loading, reload };
+}
+
+/**
+ * Course list for mounted screens. Refreshes on change only while the screen
+ * is focused; hidden tabs do one refresh when they come back.
+ */
+export function useCourses(): CoursesState {
+  const state = useCoursesData();
+  const { reload } = state;
+  useFocusedEvent(COURSES_CHANGED_EVENT, () => void reload());
+  useFocusedEvent(FOCUS_CHANGED_EVENT, () => void reload());
+  return state;
+}
+
+/**
+ * Course list for providers that run outside a screen (the timer lives at the
+ * root and must stay current even while the user is on another tab).
+ */
+export function useActiveCourses(): CoursesState {
+  const state = useCoursesData();
+  const { reload } = state;
+
   useEffect(() => {
     const refresh = () => void reload();
     const unwatchCourses = listen(COURSES_CHANGED_EVENT, refresh);
@@ -57,5 +76,5 @@ export function useCourses(): CoursesState {
     };
   }, [reload]);
 
-  return { courses, setCourses, loading, reload };
+  return state;
 }

@@ -8,8 +8,8 @@ import {
   COURSES_CHANGED_EVENT,
   FOCUS_CHANGED_EVENT,
   PROFILE_CHANGED_EVENT,
-  listen,
 } from "../lib/events";
+import { useFocusedEvent } from "./use-focused-event";
 import { fetchProfile } from "../lib/db/profile";
 import { getCachedProfile } from "../lib/profile-cache";
 import { syncStreakReminder } from "../lib/notifications";
@@ -123,19 +123,11 @@ export function useDashboard(): DashboardState {
     reload();
   }, [reload]);
 
-  // Re-read profile / focus course / heatmap whenever a session, course,
-  // topic or XP change happens anywhere in the app.
-  useEffect(() => {
-    const refresh = () => reload();
-    const a = listen(PROFILE_CHANGED_EVENT, refresh);
-    const b = listen(COURSES_CHANGED_EVENT, refresh);
-    const c = listen(FOCUS_CHANGED_EVENT, refresh);
-    return () => {
-      a();
-      b();
-      c();
-    };
-  }, [reload]);
+  // Re-read profile / focus course / heatmap when this screen is visible and
+  // something changed. Hidden tabs keep one pending refresh for their focus.
+  useFocusedEvent(PROFILE_CHANGED_EVENT, reload);
+  useFocusedEvent(COURSES_CHANGED_EVENT, reload);
+  useFocusedEvent(FOCUS_CHANGED_EVENT, reload);
 
   return { ...data, loading, reload };
 }

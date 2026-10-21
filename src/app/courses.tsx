@@ -43,8 +43,8 @@ import type { RoadmapCourseProgress } from "../lib/db/roadmaps";
 import {
   FOCUS_CHANGED_EVENT,
   ROADMAPS_CHANGED_EVENT,
-  listen,
 } from "../lib/events";
+import { useFocusedEvent } from "../hooks/use-focused-event";
 import { colors, fonts } from "../theme/theme";
 
 const STATUS_TEXT: Record<CourseStatus, string> = {
@@ -375,13 +375,10 @@ export default function CoursesScreen() {
 
   useEffect(() => {
     void refresh();
-    const unwatchRoadmaps = listen(ROADMAPS_CHANGED_EVENT, refresh);
-    const unwatchFocus = listen(FOCUS_CHANGED_EVENT, refresh);
-    return () => {
-      unwatchRoadmaps();
-      unwatchFocus();
-    };
   }, [refresh]);
+
+  useFocusedEvent(ROADMAPS_CHANGED_EVENT, refresh);
+  useFocusedEvent(FOCUS_CHANGED_EVENT, refresh);
 
   const submitCourse = async () => {
     if (busy) return;

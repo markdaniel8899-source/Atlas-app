@@ -33,7 +33,8 @@ import {
 import type { SquadMember, SquadStatus } from "../lib/db/squad";
 import { pngAvatarUrl } from "../lib/dicebear";
 import { getRankFromXP } from "../lib/gamification";
-import { PROFILE_CHANGED_EVENT, listen } from "../lib/events";
+import { PROFILE_CHANGED_EVENT } from "../lib/events";
+import { useFocusedEvent } from "../hooks/use-focused-event";
 import { ensureOnline } from "../lib/net";
 import { colors, ease, fonts } from "../theme/theme";
 
@@ -327,10 +328,9 @@ export default function FriendsScreen() {
 
   useEffect(() => {
     void load();
-    const refresh = () => void load();
-    const unsubscribe = listen(PROFILE_CHANGED_EVENT, refresh);
-    return unsubscribe;
   }, [load]);
+
+  useFocusedEvent(PROFILE_CHANGED_EVENT, () => void load());
 
   const friends = useMemo(
     () => members.filter((m) => m.relationship === "friend"),

@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 import type { ReactNode } from "react";
-import { useCourses } from "../hooks/use-courses";
+import { useActiveCourses } from "../hooks/use-courses";
 import { resolveSession, subscribeAuth } from "../lib/auth";
 import { commitFocus, flushFocus } from "../lib/db/focus";
 import { getFocusSeconds } from "../lib/db/courses";
@@ -88,7 +88,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   const [historyVersion, setHistoryVersion] = useState(0);
   const [tick, setTick] = useState(0);
   const [showCompletionCard, setShowCompletionCard] = useState(false);
-  const { courses } = useCourses();
+  const { courses } = useActiveCourses();
 
   // Actions always read/mutate this synchronously, so double-taps or an
   // auto-complete racing a manual stop can never flush the same delta twice.

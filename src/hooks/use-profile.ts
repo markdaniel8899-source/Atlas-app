@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { resolveSession } from "../lib/auth";
 import { fetchProfile } from "../lib/db/profile";
-import { PROFILE_CHANGED_EVENT, listen } from "../lib/events";
+import { PROFILE_CHANGED_EVENT } from "../lib/events";
+import { useFocusedEvent } from "./use-focused-event";
 import {
   PROFILE_CACHE_FRESH_MS,
   getCachedProfile,
@@ -19,6 +20,7 @@ export function useProfile(): Profile | null {
   const [profile, setProfile] = useState<Profile | null>(() =>
     getCachedProfile(),
   );
+  const reloadRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     let active = true;
@@ -33,6 +35,8 @@ export function useProfile(): Profile | null {
       if (active && row) setProfile(row);
     };
 
+    reloadRef.current = () => void load();
+
     void (async () => {
       await hydrateProfileCache();
       if (!active) return;
@@ -45,12 +49,12 @@ export function useProfile(): Profile | null {
       await load();
     })();
 
-    const unsubscribe = listen(PROFILE_CHANGED_EVENT, () => void load());
     return () => {
       active = false;
-      unsubscribe();
     };
   }, []);
+
+  useFocusedEvent(PROFILE_CHANGED_EVENT, () => reloadRef.current());
 
   return profile;
 }

@@ -37,7 +37,8 @@ import { AiError, generateRoadmapOutline, generateRoadmapPhase } from "../lib/ai
 import { useCourses } from "../hooks/use-courses";
 import { readCache, writeCache } from "../lib/data-cache";
 import { fetchCourses } from "../lib/db/courses";
-import { ROADMAPS_CHANGED_EVENT, listen } from "../lib/events";
+import { ROADMAPS_CHANGED_EVENT } from "../lib/events";
+import { useFocusedEvent } from "../hooks/use-focused-event";
 import { ensureOnline } from "../lib/net";
 import {
   appendRoadmapPhase,
@@ -265,34 +266,33 @@ export default function RoadmapScreen() {
   // deleted roadmap. Re-read it whenever roadmaps change elsewhere; our own
   // write notifications are skipped while busy so an in-flight generation or
   // node toggle is never overwritten by a stale fetch.
-  useEffect(() => {
-    const refresh = () => {
-      if (busyRef.current) return;
-      void (async () => {
-        try {
-          const rows = await fetchCourses();
-          setCourses(rows);
-          const courseGone =
-            roadmapCourseId != null &&
-            !rows.some((course) => course.id === roadmapCourseId);
-          if (courseGone) {
-            // The scoped course no longer exists: drop ?courseId= so the
-            // switcher and the fetch effect fall back to remaining roadmaps.
-            router.setParams({ courseId: "" });
-            return;
-          }
-          const next = await fetchLatestRoadmap(roadmapCourseId);
-          setGraph(next);
-          writeCache(`roadmap:${roadmapCourseId ?? "latest"}`, next);
-        } catch {
-          // Transient network error - keep the current view.
+  const refresh = useCallback(() => {
+    if (busyRef.current) return;
+    void (async () => {
+      try {
+        const rows = await fetchCourses();
+        setCourses(rows);
+        const courseGone =
+          roadmapCourseId != null &&
+          !rows.some((course) => course.id === roadmapCourseId);
+        if (courseGone) {
+          // The scoped course no longer exists: drop ?courseId= so the
+          // switcher and the fetch effect fall back to remaining roadmaps.
+          router.setParams({ courseId: "" });
+          return;
         }
-      })();
-    };
-    // Course/topic rows themselves are refreshed by every useCourses
-    // instance on COURSES_CHANGED - this listener only re-reads the graph.
-    return listen(ROADMAPS_CHANGED_EVENT, refresh);
+        const next = await fetchLatestRoadmap(roadmapCourseId);
+        setGraph(next);
+        writeCache(`roadmap:${roadmapCourseId ?? "latest"}`, next);
+      } catch {
+        // Transient network error - keep the current view.
+      }
+    })();
   }, [roadmapCourseId, router, setCourses]);
+
+  // Course/topic rows themselves are refreshed by useCourses on COURSES_CHANGED;
+  // this only re-reads the graph, and only while the roadmap tab is visible.
+  useFocusedEvent(ROADMAPS_CHANGED_EVENT, refresh);
 
   const generate = useCallback(
     async (input: RoadmapRequestInput) => {
