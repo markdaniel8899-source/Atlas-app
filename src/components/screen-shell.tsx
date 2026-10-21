@@ -15,6 +15,7 @@ import type { Href } from "expo-router";
 import { AppHeader, HEADER_HEIGHT } from "./app-header";
 import { OfflineBanner } from "./offline-banner";
 import { SessionCompleteCard } from "./session-complete-card";
+import { useKeyboardHeight } from "../hooks/use-keyboard-height";
 import { useProfile } from "../hooks/use-profile";
 import { getCachedAuthUser, resolveSession } from "../lib/auth";
 import { closeDrawer, isDrawerOpen, openDrawer } from "../lib/drawer-store";
@@ -54,7 +55,7 @@ export function ScreenShell({
   const [checked, setChecked] = useState(
     publicPage || getCachedAuthUser() !== null,
   );
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const keyboardHeight = useKeyboardHeight();
   const scrollRef = useRef<ScrollView | null>(null);
 
   // Android hardware back, scoped to the focused tab: close the drawer if
@@ -80,22 +81,12 @@ export function ScreenShell({
   // Keep form fields reachable while typing: pad the scroll content by the
   // live keyboard height (edge-to-edge Android does not resize the window).
   useEffect(() => {
-    const show = Keyboard.addListener("keyboardDidShow", (event) => {
-      setKeyboardHeight(event.endCoordinates.height);
-      if (scrollOnKeyboard) {
-        setTimeout(() => {
-          scrollRef.current?.scrollToEnd({ animated: true });
-        }, 250);
-      }
-    });
-    const hide = Keyboard.addListener("keyboardDidHide", () =>
-      setKeyboardHeight(0),
-    );
-    return () => {
-      show.remove();
-      hide.remove();
-    };
-  }, [scrollOnKeyboard]);
+    if (!scrollOnKeyboard || keyboardHeight === 0) return;
+    const id = setTimeout(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }, 250);
+    return () => clearTimeout(id);
+  }, [keyboardHeight, scrollOnKeyboard]);
 
   useEffect(() => {
     let active = true;

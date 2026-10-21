@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { BookOpen, Plus, Save, X } from "lucide-react-native";
 import { addTopic, removeTopic, updateCourse } from "../../lib/db/courses";
+import { useKeyboardHeight } from "../../hooks/use-keyboard-height";
 import type { Course, CourseTopic } from "../../lib/db/types";
 import { ThemedInput } from "../ui/themed-input";
 import { colors, fonts } from "../../theme/theme";
@@ -35,6 +36,7 @@ export function CourseEditorModal({
   const [topicTitle, setTopicTitle] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const keyboardHeight = useKeyboardHeight();
 
   useEffect(() => {
     if (!course) return;
@@ -130,9 +132,13 @@ export function CourseEditorModal({
           >
             <ScrollView
               style={styles.scroll}
-              contentContainerStyle={styles.content}
+              contentContainerStyle={[
+                styles.content,
+                { paddingBottom: 24 + keyboardHeight },
+              ]}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
             >
               <View style={styles.header}>
                 <View style={styles.headerLeft}>

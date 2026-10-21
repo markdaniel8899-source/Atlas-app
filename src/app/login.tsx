@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
+import { useKeyboardHeight } from "../hooks/use-keyboard-height";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   ArrowLeft,
@@ -67,6 +68,7 @@ const ERROR_ICON = "rgba(252,165,165,0.7)";
 export default function LoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const keyboardHeight = useKeyboardHeight();
   const { width: winWidth, height: winHeight } = useWindowDimensions();
   const bgSize = useRef({ width: 0, height: 0 });
   bgSize.current = {
@@ -108,8 +110,15 @@ export default function LoginScreen() {
 
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
+  const scrollRef = useRef<ScrollView | null>(null);
   const entrance = useRef(new Animated.Value(0)).current;
   const formAnim = useRef(new Animated.Value(1)).current;
+
+  const scrollFormIntoView = useCallback(() => {
+    setTimeout(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }, 200);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -392,6 +401,15 @@ export default function LoginScreen() {
     mode === "login" || mode === "signup" || mode === "forgot";
   const passwordVisible = mode === "login" || mode === "signup";
 
+  // With the keyboard open, keep the lowest auth controls reachable. The
+  // content padding alone still lets a long form scroll; this also brings the
+  // password / OTP / submit cluster into view on small screens.
+  useEffect(() => {
+    if (keyboardHeight > 0 && (focused === "password" || otpVisible)) {
+      scrollFormIntoView();
+    }
+  }, [focused, keyboardHeight, otpVisible, scrollFormIntoView]);
+
   const submitLabel = (() => {
     if (busy) {
       switch (mode) {
@@ -430,15 +448,17 @@ export default function LoginScreen() {
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
           <ScrollView
+            ref={scrollRef}
             style={styles.flex}
             contentContainerStyle={[
               styles.content,
               {
                 paddingTop: insets.top + 24,
-                paddingBottom: insets.bottom + 24,
+                paddingBottom: insets.bottom + 24 + keyboardHeight,
               },
             ]}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             showsVerticalScrollIndicator={false}
             contentInsetAdjustmentBehavior="never"
           >
@@ -571,8 +591,14 @@ export default function LoginScreen() {
                           keyboardType="email-address"
                           autoComplete="email"
                           textContentType="emailAddress"
-                          returnKeyType="next"
-                          onSubmitEditing={() => passwordRef.current?.focus()}
+                          returnKeyType={passwordVisible ? "next" : "go"}
+                          onSubmitEditing={() => {
+                            if (passwordVisible) {
+                              passwordRef.current?.focus();
+                            } else {
+                              void onSubmit();
+                            }
+                          }}
                           style={styles.input}
                         />
                       </Field>
