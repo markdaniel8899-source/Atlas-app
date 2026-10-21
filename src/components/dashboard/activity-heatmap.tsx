@@ -5,6 +5,7 @@ import { Card } from "../ui/card";
 import { summariseHeatmap } from "../../lib/db/activity";
 import type { HeatmapDay } from "../../lib/db/types";
 import { colors, fonts } from "../../theme/theme";
+import { localDayKey } from "../../lib/day";
 
 interface ActivityHeatmapProps {
   days: HeatmapDay[];
@@ -71,26 +72,24 @@ function buildColumns(days: HeatmapDay[], weeks: number): GridColumn[] {
     lookup.set(String(day.day).slice(0, 10), day);
   }
 
-  const now = new Date();
-  const today = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-  );
+  const todayKey = localDayKey();
+  const today = new Date(); // local today for date math
   const lastSunday = new Date(today);
-  lastSunday.setUTCDate(today.getUTCDate() - today.getUTCDay());
+  lastSunday.setDate(today.getDate() - today.getDay());
   const first = new Date(lastSunday);
-  first.setUTCDate(lastSunday.getUTCDate() - (weeks - 1) * 7);
+  first.setDate(lastSunday.getDate() - (weeks - 1) * 7);
 
   const columns: GridColumn[] = [];
   let previousMonth = -1;
 
   for (let week = 0; week < weeks; week += 1) {
     const columnStart = new Date(first);
-    columnStart.setUTCDate(first.getUTCDate() + week * 7);
+    columnStart.setDate(first.getDate() + week * 7);
 
     const cells: GridCell[] = [];
     for (let dow = 0; dow < 7; dow += 1) {
       const date = new Date(columnStart);
-      date.setUTCDate(columnStart.getUTCDate() + dow);
+      date.setDate(columnStart.getDate() + dow);
       const key = date.toISOString().slice(0, 10);
       const record = lookup.get(key);
       const seconds = record ? Number(record.total_seconds) || 0 : 0;
@@ -100,11 +99,11 @@ function buildColumns(days: HeatmapDay[], weeks: number): GridColumn[] {
         seconds,
         sessions: record ? Number(record.session_count) || 0 : 0,
         level: levelFor(seconds),
-        future: date.getTime() > today.getTime(),
+        future: localDayKey(date) > todayKey,
       });
     }
 
-    const month = columnStart.getUTCMonth();
+    const month = columnStart.getMonth();
     const monthLabel =
       previousMonth === -1 || month !== previousMonth ? MONTHS[month] : null;
     previousMonth = month;

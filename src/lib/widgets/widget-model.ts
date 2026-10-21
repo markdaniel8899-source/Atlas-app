@@ -3,19 +3,12 @@ import type { HeatmapDay, Profile } from "../db/types";
 import type { Note } from "../notes";
 import type { AtlasWidgetData, WidgetWeekDay } from "./atlas-widget-data";
 import type { NotesWidgetData, WidgetNote } from "./notes-widget-data";
+import { localDayKey } from "../day";
 
 const WEEKDAY_LETTERS = ["S", "M", "T", "W", "T", "F", "S"];
 const DAY_MS = 86_400_000;
 export const MAX_NOTES = 5;
 const SNIPPET_LENGTH = 90;
-
-/** UTC day key - the same convention the activity heatmap uses. */
-export function utcDayKey(date: Date): string {
-  const year = date.getUTCFullYear();
-  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(date.getUTCDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
 
 /** Last 7 heatmap days (oldest first, today last) for the chart row. */
 export function buildWeek(
@@ -29,9 +22,10 @@ export function buildWeek(
   const week: WidgetWeekDay[] = [];
   for (let offset = 6; offset >= 0; offset -= 1) {
     const date = new Date(now - offset * DAY_MS);
+    const key = localDayKey(date);
     week.push({
-      label: WEEKDAY_LETTERS[date.getUTCDay()],
-      seconds: lookup.get(utcDayKey(date)) ?? 0,
+      label: WEEKDAY_LETTERS[date.getDay()],
+      seconds: lookup.get(key) ?? 0,
     });
   }
   return { week, todaySeconds: week[week.length - 1]?.seconds ?? 0 };

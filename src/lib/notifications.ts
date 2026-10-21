@@ -1,5 +1,6 @@
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { localDayKey, utcDayKey } from "./day";
 
 type NotificationsModule = typeof import("expo-notifications");
 
@@ -122,22 +123,6 @@ export async function cancelSessionEndNotification(): Promise<void> {
     // Already delivered or already gone - nothing left to clean up.
   }
   void AsyncStorage.removeItem(PENDING_KEY).catch(() => undefined);
-}
-
-/** Local (not UTC) day key matching profiles.last_active_date. */
-function localDayKey(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-/** Server-side day key in case last_active_date was written in UTC. */
-function utcDayKey(date: Date): string {
-  const year = date.getUTCFullYear();
-  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(date.getUTCDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
 }
 
 function todayAt(hour: number): number {
