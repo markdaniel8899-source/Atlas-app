@@ -186,6 +186,7 @@ export default function RoadmapScreen() {
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [showBuilder, setShowBuilder] = useState(false);
   const [confetti, setConfetti] = useState(0);
+  const confettiTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Live chunked-generation status, e.g. "AI is designing Phase 2...". */
   const [generating, setGenerating] = useState<{
     number: number;
@@ -200,6 +201,13 @@ export default function RoadmapScreen() {
   /** True while this page is writing roadmaps, so its own change
    *  notifications never trigger a refetch that would clobber local state. */
   const busyRef = useRef(false);
+
+  useEffect(
+    () => () => {
+      if (confettiTimer.current) clearTimeout(confettiTimer.current);
+    },
+    [],
+  );
 
   // /roadmap?courseId=<id> opens the roadmap linked to that course.
   const roadmapCourseId = useMemo(() => {
@@ -288,15 +296,17 @@ export default function RoadmapScreen() {
 
   const generate = useCallback(
     async (input: RoadmapRequestInput) => {
+      if (busyRef.current) return;
+      busyRef.current = true;
       if (
         !(await ensureOnline(
           "Roadmaps are generated online - reconnect to start one.",
         ))
       ) {
+        busyRef.current = false;
         return;
       }
       setBusy(true);
-      busyRef.current = true;
       setError(null);
       setGenerating(null);
       try {
@@ -438,19 +448,11 @@ export default function RoadmapScreen() {
 
   const toggleNode = useCallback(
     async (node: GraphNode) => {
-      if (!graph) return;
+      if (!graph || busyRef.current) return;
 
       const completing = node.status !== "completed";
       const stamp = completing ? new Date().toISOString() : null;
       const previous = graph.nodes;
-
-      if (completing) {
-        void awardLevelXp(xpFor(node));
-        if (node.type === "boss") {
-          setConfetti((value) => value + 1);
-          setTimeout(() => setConfetti(0), 2400);
-        }
-      }
 
       const applied = previous.map((item) =>
         item.key === node.key
@@ -463,7 +465,6 @@ export default function RoadmapScreen() {
       );
 
       const next = withDerivedStatuses({ ...graph, nodes: applied });
-      setGraph(next);
 
       const previousByKey = new Map(previous.map((item) => [item.key, item]));
       const updates: {
@@ -483,15 +484,60 @@ export default function RoadmapScreen() {
         });
       }
 
-      if (updates.length > 0) {
-        setNodeBusy(true);
-        busyRef.current = true;
-        await updateNodeStatuses(updates).catch(() => false);
+      if (updates.length === 0) {
+        setGraph(next);
+        return;
+      }
+
+      busyRef.current = true;
+      setNodeBusy(true);
+      setError(null);
+      setGraph(next);
+
+      try {
+        const saved = await updateNodeStatuses(updates).catch(() => null);
+        if (!saved || !saved.ok) {
+          if (saved && saved.applied > 0) {
+            setError(
+              "Some progress could not be saved. Check your connection and try again.",
+            );
+          } else {
+            setGraph(graph);
+            setError(
+              "Could not save your progress. Check your connection and try again.",
+            );
+          }
+          return;
+        }
+
         if (graph.courseId) {
-          await syncRoadmapProgressToCourse(graph.courseId, next.nodes).catch(
+          const synced = await syncRoadmapProgressToCourse(
+            graph.courseId,
+            next.nodes,
+          ).catch(() => false);
+          if (!synced) {
+            setError(
+              "Progress saved, but the linked course could not be updated.",
+            );
+          }
+        }
+
+        if (completing && node.id && saved.completedIds.includes(node.id)) {
+          const xpSaved = await awardLevelXp(node.id, xpFor(node)).catch(
             () => false,
           );
+          if (!xpSaved) {
+            setError(
+              "Level completed, but its XP could not be awarded. Try again later.",
+            );
+          }
+          if (node.type === "boss") {
+            setConfetti((value) => value + 1);
+            if (confettiTimer.current) clearTimeout(confettiTimer.current);
+            confettiTimer.current = setTimeout(() => setConfetti(0), 2400);
+          }
         }
+      } finally {
         busyRef.current = false;
         setNodeBusy(false);
       }

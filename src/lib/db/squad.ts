@@ -46,6 +46,11 @@ export interface InviteResult {
   message: string;
 }
 
+export interface InviteAction {
+  ok: boolean;
+  message?: string;
+}
+
 const AVATARS: [string, string][] = [
   ["#3d4f9e", "#7b8ee8"],
   ["#2f6f6a", "#5fbdb2"],
@@ -180,26 +185,58 @@ export async function fetchSquad(): Promise<SquadLoadResult> {
   };
 }
 
-export async function acceptInvite(friendshipId: number): Promise<void> {
+export async function acceptInvite(
+  friendshipId: number,
+): Promise<InviteAction> {
   const me = await resolveSession();
-  if (!me) return;
+  if (!me) {
+    return { ok: false, message: "Your session expired. Sign in again." };
+  }
   // Only the addressee may accept an incoming request.
-  await supabase
+  const { data, error } = await supabase
     .from("friendships")
     .update({ status: "accepted" })
     .eq("id", friendshipId)
-    .eq("addressee_id", me.id);
+    .eq("addressee_id", me.id)
+    .select("id");
+
+  if (error) {
+    return {
+      ok: false,
+      message: "Could not accept the request. Check your connection.",
+    };
+  }
+  if (!Array.isArray(data) || data.length === 0) {
+    return { ok: false, message: "That request is no longer available." };
+  }
+  return { ok: true };
 }
 
-export async function declineInvite(friendshipId: number): Promise<void> {
+export async function declineInvite(
+  friendshipId: number,
+): Promise<InviteAction> {
   const me = await resolveSession();
-  if (!me) return;
+  if (!me) {
+    return { ok: false, message: "Your session expired. Sign in again." };
+  }
   // Either side may remove the relationship.
-  await supabase
+  const { data, error } = await supabase
     .from("friendships")
     .delete()
     .eq("id", friendshipId)
-    .or(`requester_id.eq.${me.id},addressee_id.eq.${me.id}`);
+    .or(`requester_id.eq.${me.id},addressee_id.eq.${me.id}`)
+    .select("id");
+
+  if (error) {
+    return {
+      ok: false,
+      message: "Could not remove the request. Check your connection.",
+    };
+  }
+  if (!Array.isArray(data) || data.length === 0) {
+    return { ok: false, message: "That request is no longer available." };
+  }
+  return { ok: true };
 }
 
 export async function inviteFriend(email: string): Promise<InviteResult> {
@@ -214,7 +251,11 @@ export async function inviteFriend(email: string): Promise<InviteResult> {
     });
 
     if (error) {
-      return { ok: false, message: error.message };
+      return {
+        ok: false,
+        message:
+          "We couldn't send that request. Check the email and try again.",
+      };
     }
 
     const payload = data as InviteResult | null;
@@ -222,8 +263,10 @@ export async function inviteFriend(email: string): Promise<InviteResult> {
       return { ok: false, message: "Invite could not be sent." };
     }
     return payload;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Network error.";
-    return { ok: false, message };
+  } catch {
+    return {
+      ok: false,
+      message: "No internet connection. Check your network and try again.",
+    };
   }
 }

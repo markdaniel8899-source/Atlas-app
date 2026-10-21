@@ -19,6 +19,7 @@ interface QuizResultsProps {
   summary: QuizSummary;
   attempts: QuizAttempt[];
   topic: string;
+  xpStatus: "saving" | "saved" | "failed";
   onRetry: () => void;
   onNewQuiz: () => void;
 }
@@ -34,11 +35,18 @@ export function QuizResults({
   summary,
   attempts,
   topic,
+  xpStatus,
   onRetry,
   onNewQuiz,
 }: QuizResultsProps) {
   const circumference = 2 * Math.PI * 56;
   const offset = circumference * (1 - summary.percent / 100);
+  const xpLabel =
+    xpStatus === "saved"
+      ? `${summary.xp} XP earned`
+      : xpStatus === "saving"
+        ? `${summary.xp} XP pending`
+        : `${summary.xp} XP not recorded`;
 
   return (
     <View style={styles.wrap}>
@@ -89,7 +97,7 @@ export function QuizResults({
             <View style={styles.pillRow}>
               <View style={styles.xpPill}>
                 <Sparkles size={14} color={colors.lilac} />
-                <Text style={styles.xpPillText}>{summary.xp} XP earned</Text>
+                <Text style={styles.xpPillText}>{xpLabel}</Text>
               </View>
               <View style={styles.questionsPill}>
                 <Trophy size={14} color={colors.w50} />

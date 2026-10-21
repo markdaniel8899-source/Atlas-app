@@ -12,6 +12,7 @@ import {
 import type { GenerateInput, QuizAnswer, QuizAttempt } from "./quiz";
 
 export type QuizPhase = "setup" | "loading" | "running" | "done";
+export type QuizSaveState = "idle" | "saving" | "saved" | "failed";
 
 export interface QuizSessionState {
   phase: QuizPhase;
@@ -25,6 +26,10 @@ export interface QuizSessionState {
   unlocked: string[];
   /** Set when the finished quiz could not be written to history. */
   syncNote: string | null;
+  /** Whether the finished result reached the server. */
+  saveState: QuizSaveState;
+  /** True when XP/streak was accepted by the fallback RPC. */
+  xpRecorded: boolean;
 }
 
 export const OFFLINE_MESSAGE =
@@ -64,6 +69,8 @@ const INITIAL: QuizSessionState = {
   error: null,
   unlocked: [],
   syncNote: null,
+  saveState: "idle",
+  xpRecorded: false,
 };
 
 /**
@@ -75,7 +82,29 @@ let state: QuizSessionState = INITIAL;
 let snapshot: QuizSessionState = state;
 /** Bumped on reset so in-flight requests cannot repopulate another account. */
 let epoch = 0;
+/** Guards the finished-quiz save against double taps / retries. */
+let finishing = false;
 const listeners = new Set<() => void>();
+
+const SAVE_FAILED_NOTE =
+  "Your result couldn't be saved. Tap retry to record it.";
+const XP_ONLY_NOTE =
+  "XP was awarded, but the session history couldn't be saved.";
+
+function savedState(
+  saved: Awaited<ReturnType<typeof saveQuizSession>>,
+): Pick<QuizSessionState, "unlocked" | "syncNote" | "saveState" | "xpRecorded"> {
+  return {
+    unlocked: saved.codes,
+    xpRecorded: saved.xpRecorded,
+    saveState: saved.ok ? "saved" : "failed",
+    syncNote: saved.recorded
+      ? null
+      : saved.xpRecorded
+        ? XP_ONLY_NOTE
+        : SAVE_FAILED_NOTE,
+  };
+}
 
 function emit() {
   snapshot = { ...state };
@@ -166,26 +195,40 @@ export async function submitQuizAnswer() {
 
 export async function quizGoNext() {
   const { attempts, index } = state;
+  if (finishing) return;
   const run = epoch;
   if (index >= attempts.length - 1) {
     const result = summarize(attempts);
-    const saved = await saveQuizSession({
-      topic: state.topic,
-      kind: "mixed",
-      correct: result.correct,
-      total: result.total,
-      xp: result.xp,
-    });
-    if (run !== epoch) return;
+    const topic = state.topic;
+    finishing = true;
     state = {
       ...state,
-      unlocked: saved.codes,
-      syncNote: saved.recorded
-        ? null
-        : "Your result couldn't be saved to history (connection issue). XP may arrive late.",
       phase: "done",
+      error: null,
+      unlocked: [],
+      syncNote: null,
+      saveState: "saving",
+      xpRecorded: false,
     };
     emit();
+    try {
+      const saved = await saveQuizSession({
+        topic,
+        kind: "mixed",
+        correct: result.correct,
+        total: result.total,
+        xp: result.xp,
+      });
+      if (run !== epoch || state.phase !== "done") return;
+      state = { ...state, ...savedState(saved) };
+      emit();
+    } catch {
+      if (run !== epoch || state.phase !== "done") return;
+      state = { ...state, saveState: "failed", syncNote: SAVE_FAILED_NOTE };
+      emit();
+    } finally {
+      if (run === epoch) finishing = false;
+    }
     return;
   }
   const next = index + 1;
@@ -197,6 +240,37 @@ export async function quizGoNext() {
     error: null,
   };
   emit();
+}
+
+/** Re-run the finished quiz's save after a connection failure. */
+export async function retryQuizSave() {
+  if (finishing || state.phase !== "done" || state.saveState !== "failed") {
+    return;
+  }
+  const result = summarize(state.attempts);
+  const topic = state.topic;
+  const run = epoch;
+  finishing = true;
+  state = { ...state, syncNote: null, saveState: "saving" };
+  emit();
+  try {
+    const saved = await saveQuizSession({
+      topic,
+      kind: "mixed",
+      correct: result.correct,
+      total: result.total,
+      xp: result.xp,
+    });
+    if (run !== epoch || state.phase !== "done") return;
+    state = { ...state, ...savedState(saved) };
+    emit();
+  } catch {
+    if (run !== epoch || state.phase !== "done") return;
+    state = { ...state, saveState: "failed", syncNote: SAVE_FAILED_NOTE };
+    emit();
+  } finally {
+    if (run === epoch) finishing = false;
+  }
 }
 
 export function quizGoBack() {
@@ -238,6 +312,7 @@ export function quizRetake() {
 
 export function resetQuizStore() {
   epoch += 1;
+  finishing = false;
   state = INITIAL;
   emit();
 }

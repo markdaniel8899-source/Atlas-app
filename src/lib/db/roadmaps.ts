@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { resolveSession } from "../auth";
 import { notifyProfileChanged, notifyRoadmapsChanged } from "../events";
 import { supabase } from "../supabase";
@@ -457,31 +458,128 @@ export async function appendRoadmapPhase(
   return chunk.map((node, index) => ({ ...node, id: ids[index] }));
 }
 
+export interface NodeStatusUpdateResult {
+  ok: boolean;
+  /** Nodes that actually changed from not-completed to completed. */
+  completedIds: string[];
+  /** Number of rows the database actually changed. */
+  applied: number;
+}
+
 export async function updateNodeStatuses(
   updates: { id: string; status: NodeStatus; completedAt: string | null }[],
-): Promise<boolean> {
-  if (updates.length === 0) return true;
+): Promise<NodeStatusUpdateResult> {
+  if (updates.length === 0) {
+    return { ok: true, completedIds: [], applied: 0 };
+  }
+
+  const user = await resolveSession();
+  if (!user) {
+    return { ok: false, completedIds: [], applied: 0 };
+  }
+
+  // roadmap_nodes has no user_id column, so ownership is proven through the
+  // parent roadmap before any write.
+  const ids = Array.from(new Set(updates.map((update) => update.id)));
+  const { data: nodeRows, error: nodeError } = await supabase
+    .from("roadmap_nodes")
+    .select("id, roadmap_id")
+    .in("id", ids);
+  if (nodeError || !Array.isArray(nodeRows) || nodeRows.length !== ids.length) {
+    return { ok: false, completedIds: [], applied: 0 };
+  }
+
+  const rows = nodeRows as unknown as { id: string; roadmap_id: string }[];
+  const roadmapIds = Array.from(new Set(rows.map((row) => row.roadmap_id)));
+  const { data: ownedRows, error: ownedError } = await supabase
+    .from("roadmaps")
+    .select("id")
+    .eq("user_id", user.id)
+    .in("id", roadmapIds);
+  if (
+    ownedError ||
+    !Array.isArray(ownedRows) ||
+    ownedRows.length !== roadmapIds.length
+  ) {
+    return { ok: false, completedIds: [], applied: 0 };
+  }
 
   const results = await Promise.all(
-    updates.map((update) =>
-      supabase
+    updates.map(async (update) => {
+      let query = supabase
         .from("roadmap_nodes")
         .update({ status: update.status, completed_at: update.completedAt })
-        .eq("id", update.id),
-    ),
+        .eq("id", update.id);
+      if (update.status === "completed") {
+        query = query.neq("status", "completed");
+      }
+      const { data, error } = await query.select("id");
+      const affected = !error && Array.isArray(data) && data.length > 0;
+      return {
+        id: update.id,
+        error,
+        affected,
+        completed: affected && update.status === "completed",
+      };
+    }),
   );
 
   const ok = results.every((result) => !result.error);
   if (ok) notifyRoadmapsChanged();
-  return ok;
+  return {
+    ok,
+    completedIds: results
+      .filter((result) => result.completed)
+      .map((result) => result.id),
+    applied: results.filter((result) => result.affected).length,
+  };
 }
 
-/** XP for finishing a level (50 regular / 200 boss), stored via activity RPC. */
-export async function awardLevelXp(xp: number): Promise<boolean> {
-  if (xp <= 0) return false;
+const AWARDED_LEVELS_PREFIX = "atlas.roadmap.awarded-levels.";
+
+async function readAwardedLevels(userId: string): Promise<Set<string>> {
+  try {
+    const raw = await AsyncStorage.getItem(`${AWARDED_LEVELS_PREFIX}${userId}`);
+    const parsed = raw ? (JSON.parse(raw) as unknown) : null;
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(
+      parsed.filter((value): value is string => typeof value === "string"),
+    );
+  } catch {
+    return new Set();
+  }
+}
+
+/**
+ * XP for finishing a level (50 regular / 200 boss), stored via activity RPC.
+ * Each node is credited at most once per account, even if the level is
+ * unchecked and completed again later.
+ */
+export async function awardLevelXp(
+  nodeId: string,
+  xp: number,
+): Promise<boolean> {
+  if (!nodeId || xp <= 0) return false;
+  const user = await resolveSession();
+  if (!user) return false;
+
+  const awarded = await readAwardedLevels(user.id);
+  if (awarded.has(nodeId)) return true;
+
   const { error } = await supabase.rpc("record_activity", { p_xp: xp });
-  if (!error) notifyProfileChanged();
-  return !error;
+  if (error) return false;
+
+  notifyProfileChanged();
+  awarded.add(nodeId);
+  try {
+    await AsyncStorage.setItem(
+      `${AWARDED_LEVELS_PREFIX}${user.id}`,
+      JSON.stringify(Array.from(awarded).slice(-1000)),
+    );
+  } catch {
+    // XP is already awarded; the local ledger is best effort.
+  }
+  return true;
 }
 
 /**

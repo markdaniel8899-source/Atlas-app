@@ -37,6 +37,7 @@ import {
   quizGoNext,
   quizRetake,
   quizStartOver,
+  retryQuizSave,
   setQuizAnswer,
   submitQuizAnswer,
   subscribeQuizSession,
@@ -107,6 +108,8 @@ export default function QuizScreen() {
     error,
     unlocked,
     syncNote,
+    saveState,
+    xpRecorded,
   } = useSyncExternalStore(subscribeQuizSession, getQuizSessionSnapshot);
 
   const question = attempts[index]?.question ?? null;
@@ -362,6 +365,19 @@ export default function QuizScreen() {
             <View accessibilityRole="alert" style={styles.syncNote}>
               <AlertTriangle size={14} color={colors.w50} />
               <Text style={styles.syncNoteText}>{syncNote}</Text>
+              {saveState === "failed" ? (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => void retryQuizSave()}
+                  style={({ pressed }) => [
+                    styles.retrySave,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <RefreshCw size={12} color={colors.w80} />
+                  <Text style={styles.retrySaveText}>Retry save</Text>
+                </Pressable>
+              ) : null}
             </View>
           ) : null}
           {unlocked.length > 0 ? (
@@ -407,6 +423,13 @@ export default function QuizScreen() {
               summary={summary}
               attempts={attempts}
               topic={topic}
+              xpStatus={
+                saveState === "saving"
+                  ? "saving"
+                  : xpRecorded
+                    ? "saved"
+                    : "failed"
+              }
               onRetry={quizRetake}
               onNewQuiz={quizStartOver}
             />
@@ -437,6 +460,22 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontFamily: fonts.regular,
     color: colors.w50,
+  },
+  retrySave: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.w10,
+    backgroundColor: colors.w04,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  retrySaveText: {
+    fontSize: 11,
+    fontFamily: fonts.medium,
+    color: colors.w80,
   },
   loadingCard: {
     alignItems: "center",

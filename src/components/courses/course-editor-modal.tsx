@@ -93,8 +93,10 @@ export function CourseEditorModal({
     const removed = await removeTopic(course.id, topic.id);
     setBusy(false);
 
-    if (!removed) {
-      setError("Could not remove the topic. Check your connection.");
+    if (!removed.ok) {
+      setError(
+        removed.message ?? "Could not remove the topic. Check your connection.",
+      );
       return;
     }
     setTopics((prev) => prev.filter((item) => item.id !== topic.id));

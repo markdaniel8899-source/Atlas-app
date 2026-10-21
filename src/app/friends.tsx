@@ -349,15 +349,23 @@ export default function FriendsScreen() {
   const respond = async (member: SquadMember, accept: boolean) => {
     if (busyId !== null) return;
     setBusyId(member.friendshipId);
-    if (accept) {
-      await acceptInvite(member.friendshipId);
-      setFlash(`${member.displayName} is now your friend.`);
-    } else {
-      await declineInvite(member.friendshipId);
-      setFlash("Request removed.");
-    }
-    setBusyId(null);
     setError(null);
+    setFlash(null);
+    const result = accept
+      ? await acceptInvite(member.friendshipId)
+      : await declineInvite(member.friendshipId);
+    setBusyId(null);
+    if (!result.ok) {
+      setError(
+        result.message ??
+          "Could not update the request. Check your connection.",
+      );
+      await load();
+      return;
+    }
+    setFlash(
+      accept ? `${member.displayName} is now your friend.` : "Request removed.",
+    );
     await load();
   };
 

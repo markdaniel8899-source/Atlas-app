@@ -410,7 +410,16 @@ export default function CoursesScreen() {
   const submitTopic = async (courseId: number) => {
     if (busy || !topicTitle.trim()) return;
     setBusy(true);
-    await createTopic(courseId, topicTitle);
+    setError(null);
+    const created = await createTopic(courseId, topicTitle);
+    if (!created.ok) {
+      setBusy(false);
+      setError(
+        created.message ??
+          "Could not add the topic. Check your connection and try again.",
+      );
+      return;
+    }
     setTopicTitle("");
     setTopicFor(null);
     setBusy(false);
@@ -421,6 +430,7 @@ export default function CoursesScreen() {
     const next: CourseStatus =
       topic.status === "completed" ? "not_started" : "completed";
 
+    setError(null);
     setCourses((prev) =>
       prev.map((row) =>
         row.id !== course.id
@@ -443,7 +453,31 @@ export default function CoursesScreen() {
       ),
     );
 
-    await setTopicStatus(course.id, topic.id, next);
+    const result = await setTopicStatus(course.id, topic.id, next);
+    if (!result.ok) {
+      setCourses((prev) =>
+        prev.map((row) =>
+          row.id !== course.id
+            ? row
+            : {
+                ...row,
+                topics: row.topics.map((item) =>
+                  item.id === topic.id
+                    ? {
+                        ...item,
+                        status: topic.status,
+                        completed_at: topic.completed_at,
+                      }
+                    : item,
+                ),
+              },
+        ),
+      );
+      setError(
+        result.message ?? "Could not update the topic. Check your connection.",
+      );
+      return;
+    }
     await reload();
   };
 

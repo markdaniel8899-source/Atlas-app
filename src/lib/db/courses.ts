@@ -335,23 +335,38 @@ export async function deleteCourse(courseId: number): Promise<boolean> {
   return true;
 }
 
+/** Result of a topic write. */
+export interface TopicWriteResult {
+  ok: boolean;
+  message?: string;
+}
+
+export interface CreateTopicResult extends TopicWriteResult {
+  topic?: CourseTopic;
+}
+
 /** Append a topic to a course (alias of createTopic). */
 export async function addTopic(
   courseId: number,
   title: string,
 ): Promise<CourseTopic | null> {
-  return createTopic(courseId, title);
+  const result = await createTopic(courseId, title);
+  return result.ok && result.topic ? result.topic : null;
 }
 
 export async function createTopic(
   courseId: number,
   title: string,
-): Promise<CourseTopic | null> {
+): Promise<CreateTopicResult> {
   const user = await resolveSession();
-  if (!user) return null;
+  if (!user) {
+    return { ok: false, message: "Your session expired. Sign in again." };
+  }
 
   const trimmed = title.trim();
-  if (!trimmed) return null;
+  if (!trimmed) {
+    return { ok: false, message: "Give the topic a title." };
+  }
 
   const position = await nextPosition("course_topics", {
     course_id: courseId,
@@ -371,14 +386,14 @@ export async function createTopic(
     )
     .maybeSingle();
 
-  if (error || !data) return null;
+  if (error || !data) {
+    return {
+      ok: false,
+      message: "Could not add the topic. Check your connection and try again.",
+    };
+  }
   notifyCoursesChanged();
-  return normaliseTopic(data as unknown as TopicRow);
-}
-
-export interface CourseRef {
-  id: number;
-  title: string;
+  return { ok: true, topic: normaliseTopic(data as unknown as TopicRow) };
 }
 
 /** Create a course row (status not_started) and notify listeners. */
@@ -412,6 +427,11 @@ export async function createCourse(
   const course = normaliseCourse(data as unknown as CourseRow);
   notifyCoursesChanged();
   return course;
+}
+
+export interface CourseRef {
+  id: number;
+  title: string;
 }
 
 /**
@@ -498,15 +518,22 @@ export async function syncTopicStatuses(
   return true;
 }
 
+export interface TopicStatusResult {
+  ok: boolean;
+  message?: string;
+}
+
 export async function setTopicStatus(
   courseId: number,
   topicId: number,
   status: CourseStatus,
-): Promise<void> {
+): Promise<TopicStatusResult> {
   const user = await resolveSession();
-  if (!user) return;
+  if (!user) {
+    return { ok: false, message: "Your session expired. Sign in again." };
+  }
 
-  await supabase
+  const { data, error } = await supabase
     .from("course_topics")
     .update({
       status,
@@ -515,32 +542,55 @@ export async function setTopicStatus(
     })
     .eq("id", topicId)
     .eq("course_id", courseId)
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .select("id");
+
+  if (error) {
+    return {
+      ok: false,
+      message: "Could not update the topic. Check your connection.",
+    };
+  }
+  if (!Array.isArray(data) || data.length === 0) {
+    return { ok: false, message: "That topic is no longer available." };
+  }
 
   await recomputeCourseProgress(courseId);
   notifyCoursesChanged();
+  return { ok: true };
 }
 
 /** Remove one topic and recompute the course progress. */
 export async function removeTopic(
   courseId: number,
   topicId: number,
-): Promise<boolean> {
+): Promise<TopicWriteResult> {
   const user = await resolveSession();
-  if (!user) return false;
+  if (!user) {
+    return { ok: false, message: "Your session expired. Sign in again." };
+  }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("course_topics")
     .delete()
     .eq("id", topicId)
     .eq("course_id", courseId)
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .select("id");
 
-  if (error) return false;
+  if (error) {
+    return {
+      ok: false,
+      message: "Could not remove the topic. Check your connection.",
+    };
+  }
+  if (!Array.isArray(data) || data.length === 0) {
+    return { ok: false, message: "That topic is no longer available." };
+  }
 
   await recomputeCourseProgress(courseId);
   notifyCoursesChanged();
-  return true;
+  return { ok: true };
 }
 
 async function recomputeCourseProgress(courseId: number): Promise<void> {

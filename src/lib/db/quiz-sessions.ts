@@ -14,6 +14,10 @@ export interface QuizSessionSaveResult {
   codes: string[];
   /** False when the full session log could not be written (offline etc.). */
   recorded: boolean;
+  /** True when XP/streak was accepted by the fallback RPC. */
+  xpRecorded: boolean;
+  /** True when the session was recorded or XP was awarded. */
+  ok: boolean;
 }
 
 /**
@@ -42,6 +46,8 @@ export async function saveQuizSession(
       return {
         codes: Array.isArray(unlocked) ? (unlocked as string[]) : [],
         recorded: true,
+        xpRecorded: true,
+        ok: true,
       };
     }
   } catch {
@@ -49,9 +55,19 @@ export async function saveQuizSession(
   }
 
   // Degraded path: at least keep XP/streak moving if the session RPC failed.
+  let xpRecorded = false;
   if (input.xp > 0) {
-    await supabase.rpc("record_activity", { p_xp: input.xp });
-    notifyProfileChanged();
+    try {
+      const { error } = await supabase.rpc("record_activity", {
+        p_xp: input.xp,
+      });
+      if (!error) {
+        xpRecorded = true;
+        notifyProfileChanged();
+      }
+    } catch {
+      xpRecorded = false;
+    }
   }
-  return { codes: [], recorded: false };
+  return { codes: [], recorded: false, xpRecorded, ok: xpRecorded };
 }
