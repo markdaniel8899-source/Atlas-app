@@ -129,7 +129,9 @@ export function ActivityHeatmap({ days, weeks = 53 }: ActivityHeatmapProps) {
     <Card>
       <View style={styles.headerRow}>
         <View>
-          <Text style={styles.eyebrow}>Activity</Text>
+          <Text maxFontSizeMultiplier={1.3} style={styles.eyebrow}>
+            Activity
+          </Text>
           <Text style={styles.title}>Last {weeks} weeks</Text>
         </View>
         <Text style={styles.caption}>
@@ -157,7 +159,14 @@ export function ActivityHeatmap({ days, weeks = 53 }: ActivityHeatmapProps) {
                   dow < 6 ? { marginBottom: GAP } : null,
                 ]}
               >
-                {label ? <Text style={styles.dayLabel}>{label}</Text> : null}
+                {label ? (
+                  <Text
+                    maxFontSizeMultiplier={1.1}
+                    style={styles.dayLabel}
+                  >
+                    {label}
+                  </Text>
+                ) : null}
               </View>
             ))}
           </View>
@@ -180,6 +189,7 @@ export function ActivityHeatmap({ days, weeks = 53 }: ActivityHeatmapProps) {
                     column.monthLabel ? (
                       <Text
                         key={column.key}
+                        maxFontSizeMultiplier={1.1}
                         style={[
                           styles.monthLabel,
                           { left: index * (CELL + GAP) },
@@ -235,7 +245,9 @@ export function ActivityHeatmap({ days, weeks = 53 }: ActivityHeatmapProps) {
         </View>
 
         <View style={styles.legend}>
-          <Text style={styles.legendText}>Less</Text>
+          <Text maxFontSizeMultiplier={1.2} style={styles.legendText}>
+            Less
+          </Text>
           {LEVEL_COLORS.map((color, level) => (
             <View
               key={level}
@@ -246,7 +258,12 @@ export function ActivityHeatmap({ days, weeks = 53 }: ActivityHeatmapProps) {
               ]}
             />
           ))}
-          <Text style={[styles.legendText, styles.legendMore]}>More</Text>
+          <Text
+            maxFontSizeMultiplier={1.2}
+            style={[styles.legendText, styles.legendMore]}
+          >
+            More
+          </Text>
         </View>
       </View>
     </Card>
@@ -263,9 +280,9 @@ const styles = StyleSheet.create({
     rowGap: 8,
   },
   eyebrow: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.medium,
-    letterSpacing: 3.2,
+    letterSpacing: 2.8,
     textTransform: "uppercase",
     color: colors.star70,
   },
@@ -308,7 +325,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     top: 0,
-    fontSize: 10,
+    fontSize: 11,
     lineHeight: 12,
     fontFamily: fonts.regular,
     color: colors.w30,
@@ -335,7 +352,7 @@ const styles = StyleSheet.create({
   monthLabel: {
     position: "absolute",
     top: 0,
-    fontSize: 10,
+    fontSize: 11,
     lineHeight: 12,
     fontFamily: fonts.regular,
     color: colors.w35,
@@ -365,7 +382,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   legendText: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.regular,
     color: colors.w35,
   },

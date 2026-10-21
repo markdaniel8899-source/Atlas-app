@@ -15,6 +15,7 @@ import { RankBadge } from "../gamification/rank-badge";
 import { RankProgressionModal } from "../gamification/rank-progression-modal";
 import { getRankFromXP } from "../../lib/gamification";
 import type { Profile } from "../../lib/db/types";
+import { useReducedMotion } from "../../hooks/use-reduced-motion";
 import { colors, ease, fonts } from "../../theme/theme";
 
 interface PlayerStatsProps {
@@ -24,7 +25,12 @@ interface PlayerStatsProps {
 
 function LoadingCard() {
   const pulse = useRef(new Animated.Value(1)).current;
+  const reduceMotion = useReducedMotion();
   useEffect(() => {
+    if (reduceMotion) {
+      pulse.setValue(1);
+      return;
+    }
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, {
@@ -43,7 +49,7 @@ function LoadingCard() {
     );
     loop.start();
     return () => loop.stop();
-  }, [pulse]);
+  }, [pulse, reduceMotion]);
 
   return (
     <Card>
@@ -63,9 +69,14 @@ export function PlayerStats({ profile, loading }: PlayerStatsProps) {
   const streak = profile?.streak ?? 0;
   const [rankModalOpen, setRankModalOpen] = useState(false);
   const bar = useRef(new Animated.Value(0)).current;
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     if (loading) return;
+    if (reduceMotion) {
+      bar.setValue(1);
+      return;
+    }
     bar.setValue(0);
     Animated.timing(bar, {
       toValue: 1,
@@ -74,7 +85,7 @@ export function PlayerStats({ profile, loading }: PlayerStatsProps) {
       easing: ease,
       useNativeDriver: true,
     }).start();
-  }, [loading, bar]);
+  }, [loading, bar, reduceMotion]);
 
   if (loading) return <LoadingCard />;
 
@@ -196,8 +207,9 @@ const styles = StyleSheet.create({
   topRow: {
     flexDirection: "row",
     alignItems: "center",
-    columnGap: 40,
-    flexWrap: "nowrap",
+    columnGap: 24,
+    rowGap: 12,
+    flexWrap: "wrap",
   },
   cell: {
     flexDirection: "row",
@@ -221,9 +233,9 @@ const styles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
   },
   micro: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.medium,
-    letterSpacing: 2.2,
+    letterSpacing: 1.8,
     textTransform: "uppercase",
     color: colors.w35,
   },
@@ -289,6 +301,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    flexWrap: "wrap",
+    rowGap: 2,
     gap: 12,
   },
   footerLeft: {
@@ -298,18 +312,18 @@ const styles = StyleSheet.create({
     color: colors.w35,
   },
   footerRight: {
-    flexShrink: 0,
+    flexShrink: 1,
     fontSize: 11,
     fontFamily: fonts.regular,
     color: colors.w50,
   },
   skeletonRow: {
     flexDirection: "row",
-    gap: 32,
+    gap: 12,
   },
   skeletonTall: {
+    flex: 1,
     height: 44,
-    width: 144,
     borderRadius: 12,
     backgroundColor: colors.w06,
   },

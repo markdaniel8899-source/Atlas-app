@@ -182,6 +182,7 @@ export function RoadmapDetail({
           <View style={styles.header}>
             <View style={styles.headerText}>
               <Text
+                maxFontSizeMultiplier={1.3}
                 style={[styles.eyebrow, boss ? styles.eyebrowBoss : null]}
               >
                 {boss ? "Boss Battle" : `Level ${node.levelNumber}`}
@@ -259,7 +260,9 @@ export function RoadmapDetail({
             ) : null}
 
             <View>
-              <Text style={styles.sectionLabel}>Learning objectives</Text>
+              <Text maxFontSizeMultiplier={1.3} style={styles.sectionLabel}>
+                Learning objectives
+              </Text>
               <View style={styles.list}>
                 {objectives.map((objective, index) => (
                   <View key={`${objective}-${index}`} style={styles.objectiveRow}>
@@ -271,7 +274,7 @@ export function RoadmapDetail({
             </View>
 
             <View>
-              <Text style={styles.sectionLabel}>
+              <Text maxFontSizeMultiplier={1.3} style={styles.sectionLabel}>
                 {boss ? "Study material before the battle" : "Resources"}
               </Text>
               {node.resources.length === 0 ? (
@@ -306,7 +309,10 @@ export function RoadmapDetail({
                             {resource.title}
                           </Text>
                           <View style={styles.resourceMeta}>
-                            <Text style={styles.resourceType}>
+                            <Text
+                              maxFontSizeMultiplier={1.2}
+                              style={styles.resourceType}
+                            >
                               {resource.type}
                             </Text>
                             <ArrowUpRight size={12} color={colors.w35} />
@@ -323,7 +329,12 @@ export function RoadmapDetail({
                         >
                           {resource.title}
                         </Text>
-                        <Text style={styles.resourceType}>{resource.type}</Text>
+                        <Text
+                          maxFontSizeMultiplier={1.2}
+                          style={styles.resourceType}
+                        >
+                          {resource.type}
+                        </Text>
                       </View>
                     );
                   })}
@@ -334,7 +345,9 @@ export function RoadmapDetail({
             <View>
               <View style={styles.sectionLabelRow}>
                 <Lock size={12} color={colors.w40} />
-                <Text style={styles.sectionLabel}>Unlocks after</Text>
+                <Text maxFontSizeMultiplier={1.3} style={styles.sectionLabel}>
+                  Unlocks after
+                </Text>
               </View>
               {prerequisites.length === 0 ? (
                 <Text style={styles.emptyText}>
@@ -362,7 +375,10 @@ export function RoadmapDetail({
               <View>
                 <View style={styles.sectionLabelRow}>
                   <Flag size={12} color={colors.w40} />
-                  <Text style={styles.sectionLabel}>
+                  <Text
+                    maxFontSizeMultiplier={1.3}
+                    style={styles.sectionLabel}
+                  >
                     Phase {phase.number} milestones
                   </Text>
                 </View>
@@ -495,9 +511,9 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   eyebrow: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.medium,
-    letterSpacing: 3,
+    letterSpacing: 2.6,
     textTransform: "uppercase",
     color: colors.star70,
   },
@@ -520,8 +536,11 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   closeButton: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: 8,
-    padding: 8,
   },
   body: {
     flex: 1,
@@ -591,9 +610,9 @@ const styles = StyleSheet.create({
     color: colors.w60,
   },
   sectionLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.medium,
-    letterSpacing: 3,
+    letterSpacing: 2.6,
     textTransform: "uppercase",
     color: colors.w40,
   },
@@ -625,6 +644,7 @@ const styles = StyleSheet.create({
     color: colors.w45,
   },
   resourceRow: {
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
@@ -656,9 +676,9 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   resourceType: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.medium,
-    letterSpacing: 1.6,
+    letterSpacing: 1.4,
     textTransform: "uppercase",
     color: colors.w35,
   },

@@ -38,7 +38,7 @@ export function CodeInput({
         spellCheck={false}
         textAlignVertical="top"
         placeholder="Type your answer..."
-        placeholderTextColor="rgba(255,255,255,0.25)"
+        placeholderTextColor={colors.w30}
         style={[styles.field, { minHeight: height }, disabled && styles.disabled]}
       />
       <View style={styles.statusBar}>

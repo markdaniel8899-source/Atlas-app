@@ -203,7 +203,9 @@ export default function QuizScreen() {
 
           <FadeIn key={index} delay={40} style={styles.questionCard}>
             <Card style={styles.questionCardInner}>
-              <Text style={styles.topicEyebrow}>{topic}</Text>
+              <Text maxFontSizeMultiplier={1.3} style={styles.topicEyebrow}>
+                {topic}
+              </Text>
               <View style={styles.promptWrap}>
                 <RichText text={question.prompt} style={styles.prompt} />
               </View>
@@ -540,8 +542,10 @@ const styles = StyleSheet.create({
     color: "rgba(254,226,226,0.9)",
   },
   dismissButton: {
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 6,
     borderRadius: 999,
     borderWidth: 1,
@@ -608,9 +612,9 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   topicEyebrow: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.medium,
-    letterSpacing: 3,
+    letterSpacing: 2.6,
     textTransform: "uppercase",
     color: colors.star70,
   },
@@ -700,8 +704,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   previousButton: {
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 6,
     borderRadius: 999,
     borderWidth: 1,
@@ -721,6 +727,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   skipButton: {
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.w10,
@@ -734,8 +743,10 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.55)",
   },
   primaryButton: {
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 8,
     borderRadius: 999,
     backgroundColor: colors.white,

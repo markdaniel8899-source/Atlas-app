@@ -161,7 +161,12 @@ export function AvatarPickerModal({
                       <Image source={{ uri: url }} style={styles.cellImage} />
                       {isCurrent ? (
                         <View style={styles.currentTag}>
-                          <Text style={styles.currentTagText}>Current</Text>
+                          <Text
+                            maxFontSizeMultiplier={1.1}
+                            style={styles.currentTagText}
+                          >
+                            Current
+                          </Text>
                         </View>
                       ) : null}
                       {active ? (
@@ -276,8 +281,11 @@ const styles = StyleSheet.create({
     color: colors.w45,
   },
   closeButton: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: 8,
-    padding: 8,
   },
   bodyScroll: {
     flexShrink: 1,
@@ -292,6 +300,9 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   styleChip: {
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.w10,
@@ -347,7 +358,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   currentTagText: {
-    fontSize: 9,
+    fontSize: 11,
     fontFamily: fonts.medium,
     letterSpacing: 0.8,
     textTransform: "uppercase",
@@ -377,7 +388,9 @@ const styles = StyleSheet.create({
   shuffle: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 8,
+    minHeight: 44,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.w10,

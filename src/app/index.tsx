@@ -92,7 +92,9 @@ export default function DashboardScreen() {
       >
         <View style={styles.sections}>
           <View>
-            <Text style={styles.eyebrow}>{greeting()}</Text>
+            <Text maxFontSizeMultiplier={1.3} style={styles.eyebrow}>
+              {greeting()}
+            </Text>
             <View style={styles.headingWrap}>
               <RevealText
                 text={`${firstName}, here's your terrain.`}
@@ -162,9 +164,9 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   eyebrow: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.medium,
-    letterSpacing: 3.6,
+    letterSpacing: 3.1,
     textTransform: "uppercase",
     color: colors.star70,
   },

@@ -699,6 +699,7 @@ export default function NotesScreen() {
         />
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel="Create a note"
           onPress={() => void addNote()}
           style={({ pressed }) => [
             styles.newNoteButton,
@@ -724,7 +725,9 @@ export default function NotesScreen() {
             </Text>
             <Pressable
               accessibilityRole="button"
+              accessibilityLabel="Create your first note"
               onPress={() => void addNote()}
+              hitSlop={12}
             >
               <Text style={styles.listEmptyLink}>
                 {selectedCourse
@@ -767,7 +770,13 @@ export default function NotesScreen() {
         {active ? (
           <>
             <View style={styles.editorHeader}>
-              <View style={styles.toolbar}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyboardShouldPersistTaps="always"
+                style={styles.toolbarScroll}
+                contentContainerStyle={styles.toolbar}
+              >
                 {TOOLS.map((tool) => {
                   const Icon = tool.icon;
                   return (
@@ -785,7 +794,7 @@ export default function NotesScreen() {
                     </Pressable>
                   );
                 })}
-              </View>
+              </ScrollView>
               <View style={styles.editorHeaderRight}>
                 <Animated.Text style={[styles.savedText, { opacity: savedAnim }]}>
                   Saved
@@ -822,7 +831,7 @@ export default function NotesScreen() {
                 onChangeText={handleTitleChange}
                 onBlur={flushPendingTitle}
                 placeholder="Untitled note"
-                placeholderTextColor="rgba(255,255,255,0.2)"
+                placeholderTextColor={colors.w30}
                 maxLength={160}
                 style={styles.titleInput}
               />
@@ -848,7 +857,12 @@ export default function NotesScreen() {
                 ? "Loading notes…"
                 : "Pick a note on the left, or start a fresh page."}
             </Text>
-            <Pressable accessibilityRole="button" onPress={() => void addNote()}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Create a new note"
+              onPress={() => void addNote()}
+              hitSlop={12}
+            >
               <Text style={styles.editorEmptyLink}>+ New note</Text>
             </Pressable>
           </View>
@@ -904,6 +918,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     maxWidth: 220,
+    minHeight: 44,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.w08,
@@ -949,9 +964,9 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
     marginTop: 8,
     marginBottom: 6,
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.medium,
-    letterSpacing: 2,
+    letterSpacing: 1.6,
     textTransform: "uppercase",
     color: colors.w40,
   },
@@ -1007,6 +1022,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    minHeight: 44,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.w08,
@@ -1048,9 +1064,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingTop: 8,
     paddingBottom: 4,
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.medium,
-    letterSpacing: 2.2,
+    letterSpacing: 1.8,
     textTransform: "uppercase",
     color: colors.w35,
   },
@@ -1087,21 +1103,30 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    flexWrap: "wrap",
     gap: 8,
     borderBottomWidth: 1,
     borderBottomColor: colors.w07,
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
+  toolbarScroll: {
+    flexGrow: 1,
+    flexShrink: 1,
+    minWidth: 0,
+  },
   toolbar: {
     flexDirection: "row",
     alignItems: "center",
     gap: 2,
-    flexShrink: 1,
   },
   toolButton: {
+    minWidth: 44,
+    minHeight: 44,
     borderRadius: 8,
     padding: 8,
+    alignItems: "center",
+    justifyContent: "center",
   },
   toolButtonPressed: {
     backgroundColor: colors.w07,

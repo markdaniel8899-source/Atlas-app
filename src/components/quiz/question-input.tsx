@@ -16,7 +16,11 @@ interface QuestionInputProps {
 }
 
 function Legend({ children }: { children: string }) {
-  return <Text style={styles.legend}>{children}</Text>;
+  return (
+    <Text maxFontSizeMultiplier={1.3} style={styles.legend}>
+      {children}
+    </Text>
+  );
 }
 
 export function QuestionInput({
@@ -107,7 +111,7 @@ export function QuestionInput({
               placeholder={
                 question.buggy_line ? String(question.buggy_line) : "1"
               }
-              placeholderTextColor="rgba(255,255,255,0.25)"
+              placeholderTextColor={colors.w30}
               style={[styles.lineInput, disabled && styles.disabled]}
             />
           </View>
@@ -152,9 +156,9 @@ export function QuestionInput({
 const styles = StyleSheet.create({
   legend: {
     marginBottom: 8,
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.medium,
-    letterSpacing: 2,
+    letterSpacing: 1.8,
     textTransform: "uppercase",
     color: colors.w40,
   },

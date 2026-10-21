@@ -28,12 +28,15 @@ export function ThemedInput({
         setFocused(false);
         onBlur?.(event);
       }}
-      style={[style, focused && styles.focused]}
+      style={[styles.input, style, focused && styles.focused]}
     />
   );
 }
 
 const styles = StyleSheet.create({
+  input: {
+    minHeight: 44,
+  },
   focused: {
     borderColor: "rgba(207,158,255,0.55)",
     backgroundColor: "rgba(207,158,255,0.06)",

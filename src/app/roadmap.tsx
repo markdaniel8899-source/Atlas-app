@@ -733,7 +733,7 @@ export default function RoadmapScreen() {
       ) : null}
 
       <View style={styles.summaryCard}>
-        <Text style={styles.summaryEyebrow}>
+        <Text maxFontSizeMultiplier={1.3} style={styles.summaryEyebrow}>
           {graph.courseTitle ? "Course roadmap" : "Learning path"}
         </Text>
         <Text style={styles.summaryTitle}>{roadmapDisplayTitle(graph)}</Text>
@@ -1141,9 +1141,9 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   summaryEyebrow: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.medium,
-    letterSpacing: 3.2,
+    letterSpacing: 2.8,
     textTransform: "uppercase",
     color: colors.star70,
   },

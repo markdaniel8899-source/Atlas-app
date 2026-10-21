@@ -173,7 +173,9 @@ export default function TimerScreen() {
           />
 
           <View style={styles.hero}>
-            <Text style={styles.eyebrow}>Total Focus Time</Text>
+            <Text maxFontSizeMultiplier={1.3} style={styles.eyebrow}>
+              Total Focus Time
+            </Text>
             <Text style={styles.heroTime}>{formatHMS(globalTotal)}</Text>
 
             <Text style={styles.focusingOn}>
@@ -304,7 +306,9 @@ export default function TimerScreen() {
       {/* Session history - deliberately small and at the bottom. */}
       <Card style={styles.historyCard}>
         <View style={styles.historyHeader}>
-          <Text style={styles.historyEyebrow}>Session History</Text>
+          <Text maxFontSizeMultiplier={1.3} style={styles.historyEyebrow}>
+            Session History
+          </Text>
           <Text style={styles.historyCount}>{sessions.length} logged</Text>
         </View>
 
@@ -353,9 +357,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   eyebrow: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.medium,
-    letterSpacing: 3.2,
+    letterSpacing: 2.8,
     textTransform: "uppercase",
     color: colors.star70,
   },
@@ -514,9 +518,9 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   historyEyebrow: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.medium,
-    letterSpacing: 3.2,
+    letterSpacing: 2.8,
     textTransform: "uppercase",
     color: colors.w45,
   },

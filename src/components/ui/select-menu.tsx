@@ -103,7 +103,9 @@ export function SelectMenu<T extends string>({
     <View>
       <View style={styles.labelRow}>
         {LabelIcon ? <LabelIcon size={12} color={colors.w40} /> : null}
-        <Text style={styles.label}>{label}</Text>
+        <Text maxFontSizeMultiplier={1.3} style={styles.label}>
+          {label}
+        </Text>
       </View>
 
       <Pressable
@@ -177,7 +179,9 @@ export function SelectMenu<T extends string>({
               },
             ]}
           >
-            <Text style={styles.sheetLabel}>{label}</Text>
+            <Text maxFontSizeMultiplier={1.3} style={styles.sheetLabel}>
+              {label}
+            </Text>
             {options.map((option) => {
               const Icon = option.icon;
               const active = option.value === value;
@@ -229,9 +233,9 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   label: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.medium,
-    letterSpacing: 2,
+    letterSpacing: 1.8,
     textTransform: "uppercase",
     color: colors.w40,
   },
@@ -309,13 +313,14 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
     marginTop: 8,
     marginBottom: 6,
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.medium,
-    letterSpacing: 2,
+    letterSpacing: 1.8,
     textTransform: "uppercase",
     color: colors.w40,
   },
   option: {
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,

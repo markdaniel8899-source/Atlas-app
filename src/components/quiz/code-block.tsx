@@ -26,7 +26,9 @@ export function CodeBlock({
         </View>
         {language ? (
           <View style={styles.langPill}>
-            <Text style={styles.langText}>{language.toUpperCase()}</Text>
+            <Text maxFontSizeMultiplier={1.2} style={styles.langText}>
+              {language.toUpperCase()}
+            </Text>
           </View>
         ) : null}
       </View>
@@ -85,9 +87,9 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   langText: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.regular,
-    letterSpacing: 1.8,
+    letterSpacing: 1.6,
     color: colors.w40,
   },
   scroll: {

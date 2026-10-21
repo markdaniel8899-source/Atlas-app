@@ -50,7 +50,11 @@ export function AppHeader({
             <Menu size={22} color={colors.w60} />
           )}
         </Pressable>
-        <Text style={styles.title} numberOfLines={1}>
+        <Text
+          style={styles.title}
+          numberOfLines={1}
+          maxFontSizeMultiplier={1.2}
+        >
           {title}
         </Text>
       </View>
@@ -144,8 +148,12 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   iconButton: {
+    minWidth: 44,
+    minHeight: 44,
     padding: 8,
     borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
   },
   pressed: {
     opacity: 0.7,
@@ -162,6 +170,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+    minHeight: 44,
   },
   avatar: {
     width: 40,

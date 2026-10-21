@@ -396,7 +396,9 @@ export function QuizSetup({
           <BookOpen size={18} color={colors.lilac} />
         </View>
         <View style={styles.cardHeaderText}>
-          <Text style={styles.cardEyebrow}>Assessment</Text>
+          <Text maxFontSizeMultiplier={1.3} style={styles.cardEyebrow}>
+            Assessment
+          </Text>
           <Text style={styles.cardTitle}>
             Choose what you want to be tested on
           </Text>
@@ -427,7 +429,7 @@ export function QuizSetup({
 
         {showTopicText ? (
           <View>
-            <Text style={styles.label}>
+            <Text maxFontSizeMultiplier={1.3} style={styles.label}>
               {course ? "Focus (optional)" : "Topic to quiz"}
             </Text>
             <ThemedInput
@@ -453,7 +455,9 @@ export function QuizSetup({
         ) : null}
 
         <View>
-          <Text style={styles.label}>Syllabus PDF (optional)</Text>
+          <Text maxFontSizeMultiplier={1.3} style={styles.label}>
+            Syllabus PDF (optional)
+          </Text>
           <View style={styles.pdfTile}>
             {pdfFile ? (
               <>
@@ -520,7 +524,9 @@ export function QuizSetup({
         />
 
         <View>
-          <Text style={styles.label}>Questions</Text>
+          <Text maxFontSizeMultiplier={1.3} style={styles.label}>
+            Questions
+          </Text>
           <View style={styles.countRow}>
             {COUNTS.map((value) => {
               const active = count === value;
@@ -642,9 +648,9 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   cardEyebrow: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.medium,
-    letterSpacing: 3.2,
+    letterSpacing: 2.8,
     textTransform: "uppercase",
     color: colors.star70,
   },
@@ -660,7 +666,7 @@ const styles = StyleSheet.create({
   },
   label: {
     marginBottom: 6,
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.medium,
     letterSpacing: 2,
     textTransform: "uppercase",
@@ -745,8 +751,8 @@ const styles = StyleSheet.create({
     color: colors.w40,
   },
   pdfRemove: {
-    width: 32,
-    height: 32,
+    width: 44,
+    height: 44,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.w10,
@@ -760,7 +766,9 @@ const styles = StyleSheet.create({
   },
   countButton: {
     flex: 1,
+    minHeight: 44,
     alignItems: "center",
+    justifyContent: "center",
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.w10,
@@ -809,8 +817,10 @@ const styles = StyleSheet.create({
     color: "rgba(254,226,226,0.9)",
   },
   retryButton: {
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 6,
     borderRadius: 999,
     borderWidth: 1,

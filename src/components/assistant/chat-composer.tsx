@@ -190,16 +190,16 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     marginBottom: 3,
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     borderRadius: RADIUS.inner,
     alignItems: "center",
     justifyContent: "center",
   },
   iconButtonHero: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     marginBottom: 1,
   },
   retryButton: {

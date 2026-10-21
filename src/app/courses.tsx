@@ -213,7 +213,8 @@ function CourseCard({
             return (
               <Pressable
                 key={topic.id}
-                accessibilityRole="button"
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: complete, disabled: busy }}
                 accessibilityLabel={
                   complete
                     ? `Mark ${topic.title} as not started`
@@ -646,6 +647,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    minHeight: 44,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.w08,
@@ -679,9 +681,9 @@ const styles = StyleSheet.create({
   },
   formLabel: {
     marginBottom: 6,
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.medium,
-    letterSpacing: 2,
+    letterSpacing: 1.6,
     textTransform: "uppercase",
     color: colors.w40,
   },
@@ -702,6 +704,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     alignSelf: "flex-start",
+    minHeight: 44,
     borderRadius: 12,
     backgroundColor: colors.white,
     paddingHorizontal: 28,
@@ -743,9 +746,9 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   emptyEyebrow: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.medium,
-    letterSpacing: 3.2,
+    letterSpacing: 2.6,
     textTransform: "uppercase",
     color: colors.star70,
   },
@@ -812,6 +815,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     maxWidth: "100%",
+    minHeight: 44,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: "rgba(168,85,247,0.35)",
@@ -834,6 +838,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+    minHeight: 44,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.w15,
@@ -850,6 +855,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+    minHeight: 44,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.star30,
@@ -887,6 +893,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     maxWidth: 180,
+    minHeight: 44,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.w10,
@@ -915,6 +922,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    flexWrap: "wrap",
+    rowGap: 8,
     gap: 12,
   },
   nextTopic: {
@@ -927,6 +936,8 @@ const styles = StyleSheet.create({
   cardActions: {
     flexDirection: "row",
     alignItems: "center",
+    flexWrap: "wrap",
+    rowGap: 8,
     gap: 8,
   },
   completeTag: {
@@ -949,11 +960,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.w08,
   },
   iconButton: {
+    minWidth: 44,
+    minHeight: 44,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.w10,
     backgroundColor: colors.w04,
     padding: 6,
+    alignItems: "center",
+    justifyContent: "center",
   },
   addTopicWrap: {
     marginTop: 16,
@@ -966,6 +981,7 @@ const styles = StyleSheet.create({
   addTopicInput: {
     flex: 1,
     minWidth: 0,
+    minHeight: 44,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: colors.w10,
@@ -977,6 +993,8 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   addTopicButton: {
+    minHeight: 44,
+    justifyContent: "center",
     borderRadius: 10,
     borderWidth: 1,
     borderColor: colors.w10,
@@ -990,12 +1008,17 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   addTopicCancel: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
     padding: 8,
   },
   addTopicLink: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+    minHeight: 44,
     alignSelf: "flex-start",
   },
   addTopicLinkText: {

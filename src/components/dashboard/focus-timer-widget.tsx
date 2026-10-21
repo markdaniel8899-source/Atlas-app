@@ -156,7 +156,9 @@ function QuickStartDialog({
       >
         <View style={styles.dialogHeader}>
           <View style={styles.dialogHeaderText}>
-            <Text style={styles.eyebrow}>Quick start</Text>
+            <Text maxFontSizeMultiplier={1.3} style={styles.eyebrow}>
+              Quick start
+            </Text>
             <Text style={styles.dialogTitle}>Pick a session length</Text>
           </View>
           <Pressable
@@ -189,6 +191,7 @@ function QuickStartDialog({
                   {min}
                 </Text>
                 <Text
+                  maxFontSizeMultiplier={1.2}
                   style={[
                     styles.presetLabel,
                     { color: selected ? colors.star : colors.w50 },
@@ -277,7 +280,9 @@ export function FocusTimerWidget() {
 
         {/* HERO: lifetime focus counter, same number as the timer page. */}
         <View style={styles.hero}>
-          <Text style={styles.eyebrow}>Total Focus Time</Text>
+          <Text maxFontSizeMultiplier={1.3} style={styles.eyebrow}>
+            Total Focus Time
+          </Text>
           <Text style={styles.heroTime}>{formatHMS(globalTotal)}</Text>
           <Text style={styles.focusingOn}>
             Focusing on:{" "}
@@ -314,12 +319,12 @@ export function FocusTimerWidget() {
             </View>
             <View style={styles.pillsRow}>
               <View style={styles.pillTarget}>
-                <Text style={styles.pillTargetText}>
+                <Text maxFontSizeMultiplier={1.2} style={styles.pillTargetText}>
                   {state.targetMin} min target
                 </Text>
               </View>
               <View style={styles.pillIdle}>
-                <Text style={styles.pillIdleText}>
+                <Text maxFontSizeMultiplier={1.2} style={styles.pillIdleText}>
                   {active ? `${Math.round(progress * 100)}%` : "Idle"}
                 </Text>
               </View>
@@ -442,9 +447,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   eyebrow: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.medium,
-    letterSpacing: 3.2,
+    letterSpacing: 2.8,
     textTransform: "uppercase",
     color: colors.star70,
   },
@@ -495,7 +500,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   pillTarget: {
-    height: 22,
+    minHeight: 22,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -512,7 +517,7 @@ const styles = StyleSheet.create({
     color: colors.star,
   },
   pillIdle: {
-    height: 22,
+    minHeight: 22,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -591,8 +596,8 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   dialogClose: {
-    width: 32,
-    height: 32,
+    width: 44,
+    height: 44,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.w10,
@@ -628,8 +633,8 @@ const styles = StyleSheet.create({
   },
   presetLabel: {
     marginTop: 2,
-    fontSize: 10,
-    letterSpacing: 2,
+    fontSize: 11,
+    letterSpacing: 1.8,
     textTransform: "uppercase",
     fontFamily: fonts.regular,
   },

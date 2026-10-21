@@ -221,6 +221,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   cancel: {
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.w10,
@@ -234,8 +237,10 @@ const styles = StyleSheet.create({
     color: colors.w70,
   },
   confirm: {
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 8,
     borderRadius: 999,
     backgroundColor: "rgba(239,68,68,0.9)",

@@ -148,7 +148,12 @@ export function CourseEditorModal({
                     <BookOpen size={16} color={colors.lilac} />
                   </View>
                   <View>
-                    <Text style={styles.eyebrow}>Manage course</Text>
+                    <Text
+                      maxFontSizeMultiplier={1.3}
+                      style={styles.eyebrow}
+                    >
+                      Manage course
+                    </Text>
                     <Text style={styles.title}>Edit course</Text>
                   </View>
                 </View>
@@ -166,7 +171,9 @@ export function CourseEditorModal({
 
               <View style={styles.form}>
                 <View>
-                  <Text style={styles.label}>Title</Text>
+                  <Text maxFontSizeMultiplier={1.3} style={styles.label}>
+                    Title
+                  </Text>
                   <ThemedInput
                     value={title}
                     onChangeText={setTitle}
@@ -177,7 +184,9 @@ export function CourseEditorModal({
                   />
                 </View>
                 <View>
-                  <Text style={styles.label}>Source</Text>
+                  <Text maxFontSizeMultiplier={1.3} style={styles.label}>
+                    Source
+                  </Text>
                   <ThemedInput
                     value={description}
                     onChangeText={setDescription}
@@ -189,13 +198,21 @@ export function CourseEditorModal({
                 </View>
 
                 <View style={styles.topicsBox}>
-                  <Text style={styles.topicsLabel}>
+                  <Text
+                    maxFontSizeMultiplier={1.3}
+                    style={styles.topicsLabel}
+                  >
                     Topics · {topics.length}
                   </Text>
 
                   <View style={styles.chipRow}>
                     {topics.length === 0 ? (
-                      <Text style={styles.noTopics}>No topics yet.</Text>
+                      <Text
+                        maxFontSizeMultiplier={1.3}
+                        style={styles.noTopics}
+                      >
+                        No topics yet.
+                      </Text>
                     ) : (
                       topics.map((topic) => (
                         <View key={topic.id} style={styles.chip}>
@@ -207,7 +224,7 @@ export function CourseEditorModal({
                             accessibilityLabel={`Remove topic ${topic.title}`}
                             onPress={() => void deleteTopic(topic)}
                             disabled={busy}
-                            hitSlop={4}
+                            hitSlop={12}
                             style={[styles.chipRemove, busy && styles.disabled]}
                           >
                             <X size={12} color={colors.w35} />
@@ -335,9 +352,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   eyebrow: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.medium,
-    letterSpacing: 3.2,
+    letterSpacing: 2.8,
     textTransform: "uppercase",
     color: colors.star70,
   },
@@ -349,8 +366,11 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   closeButton: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: 8,
-    padding: 8,
   },
   disabled: {
     opacity: 0.5,
@@ -361,7 +381,7 @@ const styles = StyleSheet.create({
   },
   label: {
     marginBottom: 6,
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.medium,
     letterSpacing: 2,
     textTransform: "uppercase",
@@ -386,7 +406,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   topicsLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.medium,
     letterSpacing: 2,
     textTransform: "uppercase",
@@ -441,8 +461,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   addButton: {
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 6,
     borderRadius: 8,
     borderWidth: 1,
@@ -471,6 +493,9 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
   cancelButton: {
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.w15,
@@ -484,8 +509,10 @@ const styles = StyleSheet.create({
     color: colors.w70,
   },
   saveButton: {
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 8,
     borderRadius: 999,
     backgroundColor: colors.white,

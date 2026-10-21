@@ -88,12 +88,16 @@ export function QuizResults({
             </Svg>
             <View style={styles.ringCenter} pointerEvents="none">
               <Text style={styles.ringPercent}>{summary.percent}%</Text>
-              <Text style={styles.ringLabel}>score</Text>
+              <Text maxFontSizeMultiplier={1.2} style={styles.ringLabel}>
+                score
+              </Text>
             </View>
           </View>
 
           <View style={styles.summaryText}>
-            <Text style={styles.eyebrow}>Quiz complete</Text>
+            <Text maxFontSizeMultiplier={1.3} style={styles.eyebrow}>
+              Quiz complete
+            </Text>
             <Text style={styles.headline}>
               {summary.correct} / {summary.total} correct
             </Text>
@@ -175,11 +179,15 @@ export function QuizResults({
                   <View style={styles.reviewMetaRow}>
                     <View style={styles.reviewKind}>
                       <KindIcon size={12} color={colors.star70} />
-                      <Text style={styles.reviewKindText}>
+                      <Text
+                        maxFontSizeMultiplier={1.2}
+                        style={styles.reviewKindText}
+                      >
                         Q{index + 1} · {KIND_LABEL[attempt.question.kind]}
                       </Text>
                     </View>
                     <Text
+                      maxFontSizeMultiplier={1.2}
                       style={[
                         styles.reviewStatus,
                         {
@@ -295,9 +303,9 @@ const styles = StyleSheet.create({
   },
   ringLabel: {
     marginTop: 4,
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.regular,
-    letterSpacing: 2.4,
+    letterSpacing: 2,
     textTransform: "uppercase",
     color: colors.w35,
   },
@@ -307,9 +315,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   eyebrow: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.medium,
-    letterSpacing: 3.2,
+    letterSpacing: 2.8,
     textTransform: "uppercase",
     color: colors.star70,
   },
@@ -378,7 +386,9 @@ const styles = StyleSheet.create({
   retakeButton: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 8,
+    minHeight: 44,
     borderRadius: 999,
     backgroundColor: colors.white,
     paddingHorizontal: 24,
@@ -395,6 +405,9 @@ const styles = StyleSheet.create({
     color: colors.primaryText,
   },
   newQuizButton: {
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.w08,
@@ -466,16 +479,16 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   reviewKindText: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.regular,
-    letterSpacing: 2,
+    letterSpacing: 1.8,
     textTransform: "uppercase",
     color: colors.w35,
   },
   reviewStatus: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.regular,
-    letterSpacing: 2,
+    letterSpacing: 1.8,
     textTransform: "uppercase",
   },
   reviewPrompt: {

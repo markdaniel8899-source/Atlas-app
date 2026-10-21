@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { Bot, UserRound } from "lucide-react-native";
 import type { Turn } from "../../lib/assistant";
+import { useReducedMotion } from "../../hooks/use-reduced-motion";
 import { MOTION } from "../../theme/motion";
 import { colors, ease, fonts } from "../../theme/theme";
 
@@ -19,15 +20,20 @@ interface ChatThreadProps {
 
 function FadeSlideIn({ children }: { children: ReactNode }) {
   const anim = useRef(new Animated.Value(0)).current;
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
+    if (reduceMotion) {
+      anim.setValue(1);
+      return;
+    }
     Animated.timing(anim, {
       toValue: 1,
       duration: MOTION.sheet,
       easing: MOTION.easing,
       useNativeDriver: true,
     }).start();
-  }, [anim]);
+  }, [anim, reduceMotion]);
 
   return (
     <Animated.View
@@ -50,8 +56,13 @@ function FadeSlideIn({ children }: { children: ReactNode }) {
 
 function TypingDot({ index }: { index: number }) {
   const anim = useRef(new Animated.Value(0)).current;
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
+    if (reduceMotion) {
+      anim.setValue(1);
+      return;
+    }
     const loop = Animated.loop(
       Animated.sequence([
         Animated.delay(index * 160),
@@ -72,7 +83,7 @@ function TypingDot({ index }: { index: number }) {
     );
     loop.start();
     return () => loop.stop();
-  }, [anim, index]);
+  }, [anim, index, reduceMotion]);
 
   return (
     <Animated.View
@@ -139,7 +150,9 @@ const TurnRow = memo(function TurnRow({ turn }: { turn: Turn }) {
             </Text>
           </View>
           {!mine && turn.model ? (
-            <Text style={styles.modelLabel}>ATLAS</Text>
+            <Text maxFontSizeMultiplier={1.3} style={styles.modelLabel}>
+              ATLAS
+            </Text>
           ) : null}
         </View>
       </View>
@@ -152,14 +165,15 @@ export const ChatThread = memo(function ChatThread({
   thinking,
 }: ChatThreadProps) {
   const scrollRef = useRef<ScrollView>(null);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     if (turns.length === 0) return;
     const timer = setTimeout(() => {
-      scrollRef.current?.scrollToEnd({ animated: true });
+      scrollRef.current?.scrollToEnd({ animated: !reduceMotion });
     }, 60);
     return () => clearTimeout(timer);
-  }, [turns.length, thinking]);
+  }, [turns.length, thinking, reduceMotion]);
 
   if (turns.length === 0) return null;
 
@@ -246,10 +260,10 @@ const styles = StyleSheet.create({
   },
   modelLabel: {
     marginTop: 6,
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.mono,
     letterSpacing: -0.2,
-    color: colors.w30,
+    color: colors.w50,
   },
   typingBubble: {
     flexDirection: "row",

@@ -139,7 +139,10 @@ const styles = StyleSheet.create({
     color: colors.w70,
   },
   close: {
-    margin: -4,
-    padding: 4,
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    margin: -10,
   },
 });

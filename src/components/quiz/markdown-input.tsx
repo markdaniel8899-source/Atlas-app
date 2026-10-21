@@ -108,7 +108,7 @@ export function MarkdownInput({
         selection={selection}
         onSelectionChange={(event) => setSelection(event.nativeEvent.selection)}
         placeholder="Type predicted output..."
-        placeholderTextColor="rgba(255,255,255,0.25)"
+        placeholderTextColor={colors.w30}
         style={[styles.field, { minHeight: height }, disabled && styles.disabled]}
       />
 
@@ -140,8 +140,11 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   toolButton: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: 4,
-    padding: 6,
   },
   toolButtonPressed: {
     backgroundColor: colors.w10,

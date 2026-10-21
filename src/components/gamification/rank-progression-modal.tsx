@@ -174,7 +174,11 @@ export function RankProgressionModal({
           >
             <View style={styles.numeralRow}>
               {NUMERALS.map((numeral) => (
-                <Text key={numeral} style={styles.numeral}>
+                <Text
+                  key={numeral}
+                  maxFontSizeMultiplier={1.2}
+                  style={styles.numeral}
+                >
                   {numeral}
                 </Text>
               ))}
@@ -184,6 +188,7 @@ export function RankProgressionModal({
               {RANK_TIER_KEYS.map((tierKey) => (
                 <View key={tierKey}>
                   <Text
+                    maxFontSizeMultiplier={1.2}
                     style={[styles.tierLabel, { color: TIERS[tierKey].text }]}
                   >
                     {TIERS[tierKey].label}
@@ -216,9 +221,17 @@ export function RankProgressionModal({
                               />
                             </View>
                             {isCurrent ? (
-                              <Text style={styles.youLabel}>You</Text>
+                              <Text
+                                maxFontSizeMultiplier={1.2}
+                                style={styles.youLabel}
+                              >
+                                You
+                              </Text>
                             ) : (
-                              <Text style={styles.xpLabel}>
+                              <Text
+                                maxFontSizeMultiplier={1.2}
+                                style={styles.xpLabel}
+                              >
                                 {fmtXP(rank.minXP)}
                               </Text>
                             )}
@@ -303,11 +316,14 @@ const styles = StyleSheet.create({
     color: colors.w50,
   },
   closeButton: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.w10,
     backgroundColor: colors.w04,
-    padding: 8,
   },
   closePressed: {
     borderColor: colors.w20,
@@ -326,18 +342,18 @@ const styles = StyleSheet.create({
   numeral: {
     flex: 1,
     textAlign: "center",
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.semibold,
-    letterSpacing: 2.5,
+    letterSpacing: 2.2,
     color: colors.w30,
   },
   tierList: {
     gap: 20,
   },
   tierLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.semibold,
-    letterSpacing: 2.8,
+    letterSpacing: 2.4,
     textTransform: "uppercase",
   },
   tierGrid: {
@@ -364,15 +380,15 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   xpLabel: {
-    fontSize: 9,
+    fontSize: 11,
     fontFamily: fonts.semibold,
     fontVariant: ["tabular-nums"],
-    color: colors.w35,
+    color: colors.w50,
   },
   youLabel: {
-    fontSize: 9,
+    fontSize: 11,
     fontFamily: fonts.semibold,
-    letterSpacing: 0.9,
+    letterSpacing: 0.7,
     textTransform: "uppercase",
     color: colors.lilac,
   },

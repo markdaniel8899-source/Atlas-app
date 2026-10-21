@@ -294,12 +294,13 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   headerSpacer: {
-    width: 40,
+    width: 44,
   },
   closeButton: {
-    width: 40,
+    width: 44,
+    height: 44,
     alignItems: "center",
-    padding: 10,
+    justifyContent: "center",
     borderRadius: 8,
   },
   navScroll: {

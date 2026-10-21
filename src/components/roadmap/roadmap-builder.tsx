@@ -209,7 +209,9 @@ export function RoadmapBuilder({
           <Compass size={20} color={colors.lilac} />
         </View>
         <View style={styles.headerText}>
-          <Text style={styles.eyebrow}>AI syllabus</Text>
+          <Text maxFontSizeMultiplier={1.3} style={styles.eyebrow}>
+            AI syllabus
+          </Text>
           <Text style={styles.headerTitle}>
             Tell ATLAS what you want to learn
           </Text>
@@ -220,7 +222,9 @@ export function RoadmapBuilder({
         <View>
           <View style={styles.labelRow}>
             <Target size={12} color={colors.w40} />
-            <Text style={styles.label}>Goal</Text>
+            <Text maxFontSizeMultiplier={1.3} style={styles.label}>
+              Goal
+            </Text>
           </View>
           <ThemedInput
             value={goal}
@@ -242,7 +246,9 @@ export function RoadmapBuilder({
         <View>
           <View style={styles.labelRow}>
             <Gauge size={12} color={colors.w40} />
-            <Text style={styles.label}>Current level</Text>
+            <Text maxFontSizeMultiplier={1.3} style={styles.label}>
+              Current level
+            </Text>
           </View>
           <View style={styles.segmentedRow}>
             {LEVELS.map((entry) => {
@@ -283,7 +289,9 @@ export function RoadmapBuilder({
         <View>
           <View style={styles.labelRow}>
             <Timer size={12} color={colors.w40} />
-            <Text style={styles.label}>Time commitment</Text>
+            <Text maxFontSizeMultiplier={1.3} style={styles.label}>
+              Time commitment
+            </Text>
           </View>
           <View style={styles.segmentedRow}>
             {COMMITMENTS.map((entry) => {
@@ -317,7 +325,12 @@ export function RoadmapBuilder({
                       {entry.label}
                     </Text>
                   </View>
-                  <Text style={styles.segmentHint}>{entry.hint}</Text>
+                  <Text
+                    maxFontSizeMultiplier={1.2}
+                    style={styles.segmentHint}
+                  >
+                    {entry.hint}
+                  </Text>
                 </Pressable>
               );
             })}
@@ -337,7 +350,12 @@ export function RoadmapBuilder({
         />
 
         <View style={styles.templatesBox}>
-          <Text style={styles.templatesLabel}>Or start from a template</Text>
+          <Text
+            maxFontSizeMultiplier={1.3}
+            style={styles.templatesLabel}
+          >
+            Or start from a template
+          </Text>
           <View style={styles.templateGrid}>
             {TEMPLATES.map((template) => {
               const Icon = template.icon;
@@ -452,9 +470,9 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   eyebrow: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.medium,
-    letterSpacing: 3,
+    letterSpacing: 2.6,
     textTransform: "uppercase",
     color: colors.star70,
   },
@@ -476,9 +494,9 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   label: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.medium,
-    letterSpacing: 2,
+    letterSpacing: 1.8,
     textTransform: "uppercase",
     color: colors.w40,
   },
@@ -522,6 +540,7 @@ const styles = StyleSheet.create({
   },
   segment: {
     flex: 1,
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -535,6 +554,7 @@ const styles = StyleSheet.create({
   },
   segmentStacked: {
     flex: 1,
+    minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
     gap: 3,
@@ -567,9 +587,9 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   segmentHint: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.regular,
-    color: colors.w35,
+    color: colors.w50,
   },
   templatesBox: {
     borderRadius: 16,
@@ -579,9 +599,9 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   templatesLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.medium,
-    letterSpacing: 2,
+    letterSpacing: 1.8,
     textTransform: "uppercase",
     color: colors.w35,
   },
@@ -594,6 +614,7 @@ const styles = StyleSheet.create({
   templateCard: {
     flexBasis: "48%",
     flexGrow: 1,
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,

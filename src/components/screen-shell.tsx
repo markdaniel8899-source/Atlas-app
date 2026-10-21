@@ -220,7 +220,9 @@ export function ScreenHeading({
 }) {
   return (
     <View>
-      <Text style={styles.eyebrow}>{eyebrow}</Text>
+      <Text maxFontSizeMultiplier={1.3} style={styles.eyebrow}>
+        {eyebrow}
+      </Text>
       <Text style={styles.heading}>{title}</Text>
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
     </View>
@@ -248,9 +250,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   eyebrow: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.medium,
-    letterSpacing: 3.6,
+    letterSpacing: 3.1,
     textTransform: "uppercase",
     color: colors.star70,
   },

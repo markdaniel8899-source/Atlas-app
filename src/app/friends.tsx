@@ -174,7 +174,10 @@ const FriendCard = memo(function FriendCard({
               { borderColor: rank.tier.border, backgroundColor: rank.tier.bg },
             ]}
           >
-            <Text style={[styles.friendRankText, { color: rank.tier.text }]}>
+            <Text
+              maxFontSizeMultiplier={1.2}
+              style={[styles.friendRankText, { color: rank.tier.text }]}
+            >
               {rank.name}
             </Text>
           </View>
@@ -464,6 +467,7 @@ export default function FriendsScreen() {
               {count > 0 ? (
                 <View style={[styles.tabCount, active && styles.tabCountActive]}>
                   <Text
+                    maxFontSizeMultiplier={1.2}
                     style={[
                       styles.tabCountText,
                       active && styles.tabCountTextActive,
@@ -516,7 +520,10 @@ export default function FriendsScreen() {
               <Text style={styles.sectionTitleStar}>INCOMING</Text>
               {incoming.length > 0 ? (
                 <View style={styles.sectionCountStar}>
-                  <Text style={styles.sectionCountStarText}>
+                  <Text
+                    maxFontSizeMultiplier={1.2}
+                    style={styles.sectionCountStarText}
+                  >
                     {incoming.length}
                   </Text>
                 </View>
@@ -548,7 +555,10 @@ export default function FriendsScreen() {
               <Text style={styles.sectionTitle}>SENT</Text>
               {outgoing.length > 0 ? (
                 <View style={styles.sectionCount}>
-                  <Text style={styles.sectionCountText}>
+                  <Text
+                    maxFontSizeMultiplier={1.2}
+                    style={styles.sectionCountText}
+                  >
                     {outgoing.length}
                   </Text>
                 </View>
@@ -640,7 +650,9 @@ const styles = StyleSheet.create({
   inviteButton: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 8,
+    minHeight: 44,
     borderRadius: 999,
     backgroundColor: colors.white,
     paddingHorizontal: 18,
@@ -670,6 +682,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
+    minHeight: 44,
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -697,7 +710,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.star30,
   },
   tabCountText: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.semibold,
     color: colors.w50,
   },
@@ -805,7 +818,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   friendRankText: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.semibold,
     letterSpacing: 0.4,
   },
@@ -900,7 +913,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   sectionCountStarText: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.semibold,
     color: colors.star,
   },
@@ -913,7 +926,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   sectionCountText: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.semibold,
     color: colors.w60,
   },
@@ -976,7 +989,9 @@ const styles = StyleSheet.create({
   acceptButton: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 6,
+    minHeight: 44,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "rgba(207,158,255,0.3)",
@@ -993,6 +1008,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+    minHeight: 44,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.w10,

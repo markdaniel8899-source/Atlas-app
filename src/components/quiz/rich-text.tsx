@@ -103,11 +103,11 @@ export const RichText = memo(function RichText({
 
 const styles = StyleSheet.create({
   sup: {
-    fontSize: 10,
+    fontSize: 11,
     lineHeight: 14,
   },
   sub: {
-    fontSize: 10,
+    fontSize: 11,
     lineHeight: 14,
   },
 });

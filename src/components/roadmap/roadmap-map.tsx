@@ -19,6 +19,7 @@ import Svg, {
 } from "react-native-svg";
 import { Check, Lock, Skull, Zap } from "lucide-react-native";
 import { useBlurTargetRef } from "../blur-target";
+import { useReducedMotion } from "../../hooks/use-reduced-motion";
 import type {
   GraphNode,
   LevelPoint,
@@ -128,9 +129,14 @@ const STATUS_CHIP: Record<NodeStatus, { bg: string; text: string }> = {
 /** Pulsing ring around the current (active) level. */
 function ActiveHalo({ size, active }: { size: number; active: boolean }) {
   const pulse = useRef(new Animated.Value(0)).current;
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     if (!active) return;
+    if (reduceMotion) {
+      pulse.setValue(0.5);
+      return;
+    }
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, {
@@ -149,7 +155,7 @@ function ActiveHalo({ size, active }: { size: number; active: boolean }) {
     );
     loop.start();
     return () => loop.stop();
-  }, [active, pulse]);
+  }, [active, pulse, reduceMotion]);
 
   return (
     <Animated.View
@@ -274,7 +280,9 @@ const MapNode = memo(function MapNode({
           strokeWidth={2.4}
         />
         {!isBoss ? (
-          <Text style={styles.levelNumber}>{node.levelNumber}</Text>
+          <Text maxFontSizeMultiplier={1.2} style={styles.levelNumber}>
+            {node.levelNumber}
+          </Text>
         ) : null}
       </View>
 
@@ -290,7 +298,9 @@ const MapNode = memo(function MapNode({
       >
         {isBoss ? (
           <View style={styles.bossBadge}>
-            <Text style={styles.bossBadgeText}>Boss Battle</Text>
+            <Text maxFontSizeMultiplier={1.2} style={styles.bossBadgeText}>
+              Boss Battle
+            </Text>
           </View>
         ) : null}
         <View style={styles.labelCard}>
@@ -299,13 +309,20 @@ const MapNode = memo(function MapNode({
           </Text>
           <View style={styles.metaRow}>
             <View style={styles.metaChip}>
-              <Text style={styles.metaChipText}>Lv {node.levelNumber}</Text>
+              <Text maxFontSizeMultiplier={1.2} style={styles.metaChipText}>
+                Lv {node.levelNumber}
+              </Text>
             </View>
             <View style={styles.metaChip}>
-              <Text style={styles.metaChipText}>{node.estimatedDays}d</Text>
+              <Text maxFontSizeMultiplier={1.2} style={styles.metaChipText}>
+                {node.estimatedDays}d
+              </Text>
             </View>
             <View style={[styles.statusChip, { backgroundColor: chip.bg }]}>
-              <Text style={[styles.statusChipText, { color: chip.text }]}>
+              <Text
+                maxFontSizeMultiplier={1.2}
+                style={[styles.statusChipText, { color: chip.text }]}
+              >
                 {STATUS_WORD[node.status]}
               </Text>
             </View>
@@ -477,6 +494,7 @@ export function RoadmapMap({ graph, selectedKey, onSelect }: RoadmapMapProps) {
                   ]}
                 >
                   <Text
+                    maxFontSizeMultiplier={1.2}
                     style={[
                       styles.dividerPhase,
                       divider.complete && styles.dividerPhaseComplete,
@@ -493,7 +511,11 @@ export function RoadmapMap({ graph, selectedKey, onSelect }: RoadmapMapProps) {
                     end={{ x: 1, y: 0 }}
                     style={styles.dividerLine}
                   />
-                  <Text numberOfLines={1} style={styles.dividerTitle}>
+                  <Text
+                    numberOfLines={1}
+                    maxFontSizeMultiplier={1.2}
+                    style={styles.dividerTitle}
+                  >
                     {divider.title}
                     {divider.complete ? " Complete!" : ""}
                   </Text>
@@ -504,6 +526,7 @@ export function RoadmapMap({ graph, selectedKey, onSelect }: RoadmapMapProps) {
                     ]}
                   >
                     <Text
+                      maxFontSizeMultiplier={1.2}
                       style={[
                         styles.dividerCountText,
                         divider.complete && styles.dividerCountTextComplete,
@@ -584,9 +607,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   dividerPhase: {
-    fontSize: 10.5,
+    fontSize: 11,
     fontFamily: fonts.semibold,
-    letterSpacing: 2.8,
+    letterSpacing: 2.4,
     textTransform: "uppercase",
     color: colors.lilac,
   },
@@ -690,7 +713,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
   },
   bossBadgeText: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.semibold,
     letterSpacing: 1.4,
     textTransform: "uppercase",

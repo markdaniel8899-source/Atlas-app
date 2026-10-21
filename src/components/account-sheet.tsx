@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import type { ComponentType } from "react";
 import {
   Animated,
-  Dimensions,
   Keyboard,
   Modal,
   Platform,
@@ -10,6 +9,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { BlurView } from "expo-blur";
@@ -40,10 +40,6 @@ import { colors, fonts } from "../theme/theme";
 
 const APP_ICON = require("../../assets/icon.png");
 
-// The sheet is bottom-anchored and shorter than the window, so translating by
-// the full window height guarantees it is completely off-screen when closed.
-const SHEET_HIDDEN_OFFSET = Dimensions.get("window").height;
-
 type InfoRoute = "/about" | "/help" | "/privacy" | "/terms" | "/contact";
 
 interface NavItem {
@@ -69,6 +65,7 @@ interface AccountSheetProps {
 
 export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const router = useRouter();
   const anim = useRef(new Animated.Value(0)).current;
   const [rendered, setRendered] = useState(open);
@@ -289,7 +286,7 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
                 {
                   translateY: anim.interpolate({
                     inputRange: [0, 1],
-                    outputRange: [SHEET_HIDDEN_OFFSET, 0],
+                    outputRange: [windowHeight, 0],
                   }),
                 },
               ],
@@ -387,14 +384,18 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   statChipText: {
-    fontSize: 10.5,
+    fontSize: 11,
     fontFamily: fonts.medium,
     color: colors.w60,
   },
   closeButton: {
+    minWidth: 44,
+    minHeight: 44,
     padding: 8,
     borderRadius: 8,
     alignSelf: "flex-start",
+    alignItems: "center",
+    justifyContent: "center",
   },
   scroll: {
     flexGrow: 0,
@@ -409,6 +410,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+    minHeight: 44,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.w07,
@@ -446,6 +448,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
+    minHeight: 44,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: "rgba(244,63,94,0.35)",

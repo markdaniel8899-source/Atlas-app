@@ -9,6 +9,7 @@ import { Card } from "../ui/card";
 import { Glow } from "../ui/glow";
 import { nextTopic } from "../../lib/db/courses";
 import type { FocusCourse } from "../../lib/db/types";
+import { useReducedMotion } from "../../hooks/use-reduced-motion";
 import { colors, ease, fonts } from "../../theme/theme";
 
 interface TodayFocusProps {
@@ -31,7 +32,12 @@ function courseStatusLabel(status: FocusCourse["status"]): string {
 
 function LoadingCard() {
   const pulse = useRef(new Animated.Value(1)).current;
+  const reduceMotion = useReducedMotion();
   useEffect(() => {
+    if (reduceMotion) {
+      pulse.setValue(1);
+      return;
+    }
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, {
@@ -50,7 +56,7 @@ function LoadingCard() {
     );
     loop.start();
     return () => loop.stop();
-  }, [pulse]);
+  }, [pulse, reduceMotion]);
 
   return (
     <Card>
@@ -69,9 +75,14 @@ export function TodayFocus({ focus, loading }: TodayFocusProps) {
     ? Math.max(0, Math.min(100, focus.progress_percentage))
     : 0;
   const bar = useRef(new Animated.Value(0)).current;
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     if (loading || !focus) return;
+    if (reduceMotion) {
+      bar.setValue(1);
+      return;
+    }
     bar.setValue(0);
     Animated.timing(bar, {
       toValue: 1,
@@ -80,7 +91,7 @@ export function TodayFocus({ focus, loading }: TodayFocusProps) {
       easing: ease,
       useNativeDriver: true,
     }).start();
-  }, [loading, focus, bar]);
+  }, [loading, focus, bar, reduceMotion]);
 
   if (loading) return <LoadingCard />;
 
@@ -230,6 +241,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     gap: 16,
     flexShrink: 1,
+    minWidth: 0,
   },
   compassBox: {
     width: 44,
@@ -243,11 +255,12 @@ const styles = StyleSheet.create({
   },
   textCol: {
     flexShrink: 1,
+    minWidth: 0,
   },
   eyebrow: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.medium,
-    letterSpacing: 3.2,
+    letterSpacing: 2.6,
     textTransform: "uppercase",
     color: colors.star70,
   },
@@ -269,6 +282,7 @@ const styles = StyleSheet.create({
   smallButton: {
     paddingHorizontal: 20,
     paddingVertical: 10,
+    minHeight: 44,
   },
   smallButtonText: {
     fontSize: 12,
@@ -307,6 +321,8 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
+    flexWrap: "wrap",
+    rowGap: 10,
     gap: 12,
   },
   progressBlock: {

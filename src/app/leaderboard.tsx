@@ -9,6 +9,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useFocusEffect } from "expo-router";
@@ -26,6 +27,7 @@ import { fetchWeeklyLeaderboard } from "../lib/db/leaderboard";
 import type { LeaderboardEntry } from "../lib/db/leaderboard";
 import { pngAvatarUrl } from "../lib/dicebear";
 import { ensureOnline } from "../lib/net";
+import { useReducedMotion } from "../hooks/use-reduced-motion";
 import { colors, fonts } from "../theme/theme";
 
 /** Premium glassy card configs for podium positions (1st, 2nd, 3rd). */
@@ -170,17 +172,23 @@ const LeaderRow = memo(function LeaderRow({
   entry,
   place,
   shine,
+  compact,
 }: {
   entry: LeaderboardEntry;
   place: number | null;
   shine: Animated.Value;
+  compact?: boolean;
 }) {
   const podium = place != null ? PODIUM_STYLE[place] : undefined;
 
   if (podium) {
     return (
       <View
-        style={[styles.podiumCard, { borderColor: podium.borderColor }]}
+        style={[
+          styles.podiumCard,
+          compact && styles.podiumCardCompact,
+          { borderColor: podium.borderColor },
+        ]}
       >
         <LinearGradient
           colors={podium.gradient}
@@ -190,14 +198,14 @@ const LeaderRow = memo(function LeaderRow({
         />
         <PodiumShine tint={podium.shine} anim={shine} />
 
-        <View style={styles.positionCol}>
+        <View style={[styles.positionCol, compact && styles.positionColCompact]}>
           <Text style={styles.podiumIcon}>{podium.icon}</Text>
           <Text style={[styles.podiumNumber, { color: podium.positionColor }]}>
             {place}
           </Text>
         </View>
 
-        <Avatar entry={entry} size={52} />
+        <Avatar entry={entry} size={compact ? 48 : 52} />
 
         <View style={styles.identity}>
           <View style={styles.nameRow}>
@@ -329,6 +337,9 @@ export default function LeaderboardScreen() {
   );
   const firstFocus = useRef(true);
   const shine = useRef(new Animated.Value(0)).current;
+  const { width } = useWindowDimensions();
+  const reduceMotion = useReducedMotion();
+  const compact = width < 360;
 
   // Tabs stay mounted, so re-pull the board (silently, cache stays visible)
   // every time this tab is focused after the first mount.
@@ -351,6 +362,7 @@ export default function LeaderboardScreen() {
     useCallback(() => {
       shine.stopAnimation();
       shine.setValue(0);
+      if (reduceMotion) return;
       const animation = Animated.timing(shine, {
         toValue: 1,
         duration: 1600,
@@ -362,7 +374,7 @@ export default function LeaderboardScreen() {
         animation.stop();
         shine.stopAnimation();
       };
-    }, [shine]),
+    }, [shine, reduceMotion]),
   );
 
   useEffect(() => {
@@ -436,7 +448,12 @@ export default function LeaderboardScreen() {
       )}
 
       {pinnedYou ? (
-        <LeaderRow entry={pinnedYou} place={myRank} shine={shine} />
+        <LeaderRow
+          entry={pinnedYou}
+          place={myRank}
+          shine={shine}
+          compact={compact}
+        />
       ) : null}
 
       {podiumEntries.map((entry, index) => (
@@ -445,6 +462,7 @@ export default function LeaderboardScreen() {
           entry={entry}
           place={index + 1}
           shine={shine}
+          compact={compact}
         />
       ))}
     </View>
@@ -599,6 +617,8 @@ const styles = StyleSheet.create({
   },
   retryButton: {
     marginTop: 16,
+    minHeight: 44,
+    justifyContent: "center",
     borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.lilac25,
@@ -633,6 +653,10 @@ const styles = StyleSheet.create({
     padding: 16,
     overflow: "hidden",
   },
+  podiumCardCompact: {
+    gap: 10,
+    padding: 12,
+  },
   shineBand: {
     position: "absolute",
     top: -20,
@@ -644,6 +668,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 2,
+  },
+  positionColCompact: {
+    width: 36,
   },
   podiumIcon: {
     fontSize: 18,
@@ -702,13 +729,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.w40,
     backgroundColor: colors.w15,
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
     paddingVertical: 1,
   },
   youChipText: {
-    fontSize: 9,
+    fontSize: 11,
     fontFamily: fonts.semibold,
-    letterSpacing: 1,
+    letterSpacing: 0.7,
     textTransform: "uppercase",
     color: colors.white,
   },
@@ -765,16 +792,16 @@ const styles = StyleSheet.create({
   },
   scoreLabel: {
     marginTop: 2,
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.medium,
-    letterSpacing: 1.8,
+    letterSpacing: 1.4,
     textTransform: "uppercase",
   },
   scoreLabelRegular: {
     marginTop: 2,
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: fonts.medium,
-    letterSpacing: 1.8,
+    letterSpacing: 1.4,
     textTransform: "uppercase",
     color: colors.w35,
   },

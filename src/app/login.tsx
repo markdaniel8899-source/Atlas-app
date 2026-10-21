@@ -623,7 +623,7 @@ export default function LoginScreen() {
                               showPw ? "Hide password" : "Show password"
                             }
                             onPress={() => setShowPw((value) => !value)}
-                            hitSlop={8}
+                            hitSlop={14}
                           >
                             {showPw ? (
                               <EyeOff size={17} color={colors.w35} />

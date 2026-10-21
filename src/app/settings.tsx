@@ -291,6 +291,7 @@ export default function SettingsScreen() {
               accessibilityLabel="Edit avatar"
               onPress={() => setAvatarPickerOpen(true)}
               disabled={loading}
+              hitSlop={8}
               style={[styles.avatarEditBadge, loading && styles.disabled]}
             >
               <Sparkles size={14} color={colors.w70} />
@@ -749,8 +750,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   editAvatarButton: {
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 6,
     borderRadius: 8,
     borderWidth: 1,
@@ -765,8 +768,10 @@ const styles = StyleSheet.create({
     color: colors.w80,
   },
   removeButton: {
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 6,
     borderRadius: 8,
     borderWidth: 1,
@@ -980,8 +985,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   courseAction: {
-    width: 34,
-    height: 34,
+    width: 44,
+    height: 44,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.w10,

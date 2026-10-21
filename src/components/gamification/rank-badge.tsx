@@ -10,6 +10,7 @@ import Svg, {
 } from "react-native-svg";
 import { TIERS } from "../../lib/gamification";
 import type { TierKey } from "../../lib/gamification";
+import { useReducedMotion } from "../../hooks/use-reduced-motion";
 
 interface RankBadgeProps {
   /** Which rank family the badge belongs to. */
@@ -91,6 +92,7 @@ export function RankBadge({ rank, tier, size = 48 }: RankBadgeProps) {
   const [iLight, iDark] = ICON[rank];
   const isConqueror = rank === "conqueror";
   const isFocused = useIsFocused();
+  const reduceMotion = useReducedMotion();
 
   // Chevron stack grows upward from a fixed base (additive evolution).
   const stack = [25, 19, 13];
@@ -153,7 +155,10 @@ export function RankBadge({ rank, tier, size = 48 }: RankBadgeProps) {
   // Conqueror pulse (Tailwind animate-pulse equivalent on opacity).
   const pulse = useRef(new Animated.Value(1)).current;
   useEffect(() => {
-    if (!isConqueror || !isFocused) return;
+    if (!isConqueror || !isFocused || reduceMotion) {
+      pulse.setValue(1);
+      return;
+    }
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, {
@@ -170,7 +175,7 @@ export function RankBadge({ rank, tier, size = 48 }: RankBadgeProps) {
     );
     loop.start();
     return () => loop.stop();
-  }, [isConqueror, isFocused, pulse]);
+  }, [isConqueror, isFocused, pulse, reduceMotion]);
 
   const svg = (
     <Svg width={size} height={size} viewBox="0 0 48 48" fill="none">

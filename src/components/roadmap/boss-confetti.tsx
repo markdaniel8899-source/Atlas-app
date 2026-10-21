@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import { Animated, Easing, StyleSheet, View } from "react-native";
+import { useReducedMotion } from "../../hooks/use-reduced-motion";
 
 const COLORS = [
   "#ff5fa2",
@@ -88,6 +89,7 @@ function ConfettiPiece({ piece }: { piece: Piece }) {
 
 /** One-shot confetti burst shown when a Boss Level is completed. */
 export function BossConfetti() {
+  const reduceMotion = useReducedMotion();
   const pieces = useMemo<Piece[]>(
     () =>
       Array.from({ length: COUNT }, (_, index) => {
@@ -105,6 +107,8 @@ export function BossConfetti() {
       }),
     [],
   );
+
+  if (reduceMotion) return null;
 
   return (
     <View pointerEvents="none" style={styles.root}>

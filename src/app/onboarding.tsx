@@ -7,6 +7,7 @@ import {
   FlatList,
   Image,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -27,14 +28,20 @@ import {
 } from "lucide-react-native";
 import { AuthGlow } from "../components/auth/auth-glow";
 import { markOnboardingSeen } from "../lib/onboarding";
+import { useReducedMotion } from "../hooks/use-reduced-motion";
 import { colors, fonts } from "../theme/theme";
 
 const FORM_ICON = require("../../assets/formicon.png");
 
 function useFloat(delay: number, distance: number, duration: number) {
   const anim = useRef(new Animated.Value(0)).current;
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
+    if (reduceMotion) {
+      anim.setValue(0);
+      return;
+    }
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(anim, {
@@ -54,7 +61,7 @@ function useFloat(delay: number, distance: number, duration: number) {
     );
     loop.start();
     return () => loop.stop();
-  }, [anim, delay, duration]);
+  }, [anim, delay, duration, reduceMotion]);
 
   return anim.interpolate({ inputRange: [0, 1], outputRange: [0, -distance] });
 }
@@ -86,8 +93,13 @@ function FloatChip({
 
 function FocusVisual({ areaHeight }: { areaHeight: number }) {
   const breathe = useRef(new Animated.Value(0)).current;
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
+    if (reduceMotion) {
+      breathe.setValue(0);
+      return;
+    }
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(breathe, {
@@ -106,7 +118,7 @@ function FocusVisual({ areaHeight }: { areaHeight: number }) {
     );
     loop.start();
     return () => loop.stop();
-  }, [breathe]);
+  }, [breathe, reduceMotion]);
 
   const ringScale = breathe.interpolate({
     inputRange: [0, 1],
@@ -186,15 +198,26 @@ function RoadmapVisual({ areaHeight }: { areaHeight: number }) {
 }
 
 function StudyVisual({ areaHeight }: { areaHeight: number }) {
+  const { width } = useWindowDimensions();
+  const compact = width < 360;
+
   return (
     <View style={[styles.visualArea, { height: areaHeight }]}>
-      <FloatChip delay={0} rotate="-7deg" style={styles.cardNote}>
+      <FloatChip
+        delay={0}
+        rotate="-7deg"
+        style={[styles.cardNote, compact && styles.cardNoteCompact]}
+      >
         <View style={[styles.bar, styles.barTitle]} />
         <View style={[styles.bar, styles.barLineWide]} />
         <View style={[styles.bar, styles.barLineMid]} />
         <View style={[styles.bar, styles.barLineShort]} />
       </FloatChip>
-      <FloatChip delay={360} rotate="3deg" style={styles.cardQuiz}>
+      <FloatChip
+        delay={360}
+        rotate="3deg"
+        style={[styles.cardQuiz, compact && styles.cardQuizCompact]}
+      >
         <View style={[styles.bar, styles.barTitleSmall]} />
         <View style={styles.optionRow}>
           <View style={styles.optionDot} />
@@ -207,7 +230,11 @@ function StudyVisual({ areaHeight }: { areaHeight: number }) {
           <View style={[styles.bar, styles.barLineWide]} />
         </View>
       </FloatChip>
-      <FloatChip delay={680} rotate="8deg" style={styles.cardAi}>
+      <FloatChip
+        delay={680}
+        rotate="8deg"
+        style={[styles.cardAi, compact && styles.cardAiCompact]}
+      >
         <Sparkles size={14} color={colors.lilac} />
         <View style={[styles.bar, styles.barLineMid]} />
       </FloatChip>
@@ -375,13 +402,23 @@ export default function OnboardingScreen() {
           setIndex(Math.round(event.nativeEvent.contentOffset.x / width))
         }
         renderItem={({ item }) => (
-          <View style={[styles.slide, { width, paddingTop: insets.top + 72 }]}>
-            {item.renderVisual(areaHeight)}
-            <View style={styles.slideText}>
-              <Text style={styles.eyebrow}>{item.eyebrow}</Text>
-              <Text style={styles.title}>{item.title}</Text>
-              <Text style={styles.subtitle}>{item.subtitle}</Text>
-            </View>
+          <View style={[styles.slide, { width }]}>
+            <ScrollView
+              style={styles.slideScroll}
+              contentContainerStyle={[
+                styles.slideContent,
+                { paddingTop: insets.top + 72 },
+              ]}
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+            >
+              {item.renderVisual(areaHeight)}
+              <View style={styles.slideText}>
+                <Text style={styles.eyebrow}>{item.eyebrow}</Text>
+                <Text style={styles.title}>{item.title}</Text>
+                <Text style={styles.subtitle}>{item.subtitle}</Text>
+              </View>
+            </ScrollView>
           </View>
         )}
       />
@@ -442,7 +479,11 @@ const styles = StyleSheet.create({
   },
   skip: {
     position: "absolute",
-    right: 20,
+    right: 16,
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
   },
   skipText: {
     fontSize: 14,
@@ -450,7 +491,16 @@ const styles = StyleSheet.create({
     color: colors.w60,
   },
   slide: {
+    flex: 1,
     alignItems: "center",
+  },
+  slideScroll: {
+    flex: 1,
+    width: "100%",
+  },
+  slideContent: {
+    alignItems: "center",
+    paddingBottom: 24,
   },
   visualArea: {
     width: "100%",
@@ -577,9 +627,9 @@ const styles = StyleSheet.create({
   },
   orbLabel: {
     marginTop: 2,
-    fontSize: 9,
+    fontSize: 11,
     fontFamily: fonts.medium,
-    letterSpacing: 3,
+    letterSpacing: 2.2,
     color: "rgba(255,255,255,0.75)",
   },
   chipFocusA: {
@@ -640,12 +690,12 @@ const styles = StyleSheet.create({
   },
   chipRoadA: {
     position: "absolute",
-    left: 16,
-    top: "30%",
+    left: 8,
+    top: "12%",
   },
   chipRoadB: {
     position: "absolute",
-    right: 18,
+    right: 8,
     bottom: "26%",
   },
   cardNote: {
@@ -680,6 +730,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 13,
     borderRadius: 18,
+  },
+  cardNoteCompact: {
+    left: 8,
+    width: 128,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 7,
+  },
+  cardQuizCompact: {
+    right: 8,
+    width: 142,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  cardAiCompact: {
+    left: 12,
+    width: 124,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
   },
   bar: {
     height: 7,
