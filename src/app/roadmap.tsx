@@ -37,7 +37,10 @@ import { AiError, generateRoadmapOutline, generateRoadmapPhase } from "../lib/ai
 import { useCourses } from "../hooks/use-courses";
 import { readCache, writeCache } from "../lib/data-cache";
 import { fetchCourses } from "../lib/db/courses";
-import { ROADMAPS_CHANGED_EVENT } from "../lib/events";
+import {
+  ROADMAPS_CHANGED_EVENT,
+  notifyRoadmapsChanged,
+} from "../lib/events";
 import { useFocusedEvent } from "../hooks/use-focused-event";
 import { ensureOnline } from "../lib/net";
 import {
@@ -184,6 +187,7 @@ export default function RoadmapScreen() {
   const [nodeBusy, setNodeBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const selectNode = useCallback((key: string) => setSelected(key), []);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [showBuilder, setShowBuilder] = useState(false);
   const [confetti, setConfetti] = useState(0);
@@ -381,6 +385,7 @@ export default function RoadmapScreen() {
             idMap,
             newNodes,
             previousLastKey,
+            { notify: false },
           );
           if (savedNodes) {
             const byKey = new Map(savedNodes.map((node) => [node.key, node]));
@@ -439,6 +444,7 @@ export default function RoadmapScreen() {
       } finally {
         setGenerating(null);
         await reloadCourses();
+        notifyRoadmapsChanged();
         busyRef.current = false;
         setBusy(false);
       }
@@ -874,7 +880,7 @@ export default function RoadmapScreen() {
       <RoadmapMap
         graph={graph}
         selectedKey={selectedNode}
-        onSelect={(key) => setSelected(key)}
+        onSelect={selectNode}
       />
 
       {generating ? (

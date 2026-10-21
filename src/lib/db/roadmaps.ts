@@ -387,6 +387,7 @@ export async function appendRoadmapPhase(
   idMap: Map<string, string>,
   chunk: GraphNode[],
   previousLastKey: string | null,
+  options?: { notify?: boolean },
 ): Promise<GraphNode[] | null> {
   const user = await resolveSession();
   if (!user || chunk.length === 0) return null;
@@ -453,7 +454,7 @@ export async function appendRoadmapPhase(
   }
 
   for (const [key, id] of chunkIds) idMap.set(key, id);
-  notifyRoadmapsChanged();
+  if (options?.notify !== false) notifyRoadmapsChanged();
 
   return chunk.map((node, index) => ({ ...node, id: ids[index] }));
 }

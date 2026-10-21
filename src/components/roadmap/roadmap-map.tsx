@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Easing,
@@ -19,6 +19,7 @@ import Svg, {
 import { Check, Lock, Skull, Zap } from "lucide-react-native";
 import { useBlurTargetRef } from "../blur-target";
 import type {
+  GraphNode,
   LevelPoint,
   NodeStatus,
   RoadmapGraph,
@@ -175,10 +176,146 @@ function ActiveHalo({ size }: { size: number }) {
   );
 }
 
+interface MapNodeProps {
+  node: GraphNode;
+  point: LevelPoint;
+  canvasWidth: number;
+  selected: boolean;
+  onSelect: (key: string) => void;
+}
+
+/**
+ * One level node + its card. Memoized so selecting a node or appending a new
+ * phase does not repaint every level on the map.
+ */
+const MapNode = memo(function MapNode({
+  node,
+  point,
+  canvasWidth,
+  selected,
+  onSelect,
+}: MapNodeProps) {
+  const isBoss = node.type === "boss";
+  const locked = node.status === "locked";
+  const completed = node.status === "completed";
+  const active = node.status === "active";
+  const size = point.size;
+  const title = isBoss
+    ? node.title.replace(/^boss battle:\s*/i, "") || node.title
+    : node.title;
+  // Labels ride toward the centre so they never sit on the path.
+  const labelSide: "left" | "right" =
+    point.cx < canvasWidth / 2 ? "right" : "left";
+  const spec = circleSpec(node.status, isBoss);
+  const Icon = isBoss ? Skull : completed ? Check : locked ? Lock : Zap;
+  const chip = STATUS_CHIP[node.status];
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      accessibilityLabel={`Level ${node.levelNumber} · ${node.title} · ${STATUS_WORD[node.status]}`}
+      onPress={() => onSelect(node.key)}
+      style={[
+        styles.node,
+        {
+          left: point.cx - size / 2,
+          top: point.cy - size / 2,
+          width: size,
+          height: size,
+        },
+      ]}
+    >
+      {active ? (
+        <View
+          pointerEvents="none"
+          style={[styles.underglow, isBoss && styles.underglowBoss]}
+        />
+      ) : null}
+
+      {active ? <ActiveHalo size={size} /> : null}
+
+      <View
+        style={[
+          styles.circle,
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            borderColor: spec.border,
+            opacity: spec.opacity,
+            transform: [{ scale: selected ? 1.08 : 1 }],
+          },
+          selected && styles.circleSelected,
+          spec.glowColor
+            ? {
+                shadowColor: spec.glowColor,
+                shadowOpacity: spec.glowOpacity,
+                shadowRadius: 12,
+                shadowOffset: { width: 0, height: 0 },
+                elevation: 6,
+              }
+            : null,
+        ]}
+      >
+        <LinearGradient
+          colors={spec.gradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[StyleSheet.absoluteFill, { borderRadius: size / 2 }]}
+        />
+        <Icon
+          size={isBoss ? 40 : 30}
+          color={locked && !isBoss ? "rgba(255,255,255,0.7)" : colors.white}
+          strokeWidth={2.4}
+        />
+        {!isBoss ? (
+          <Text style={styles.levelNumber}>{node.levelNumber}</Text>
+        ) : null}
+      </View>
+
+      {/* Glassmorphism level card beside the node. */}
+      <View
+        pointerEvents="none"
+        style={[
+          styles.labelWrap,
+          labelSide === "right"
+            ? { left: size + 18 }
+            : { right: size + 18 },
+        ]}
+      >
+        {isBoss ? (
+          <View style={styles.bossBadge}>
+            <Text style={styles.bossBadgeText}>Boss Battle</Text>
+          </View>
+        ) : null}
+        <View style={styles.labelCard}>
+          <Text numberOfLines={2} style={styles.labelTitle}>
+            {title}
+          </Text>
+          <View style={styles.metaRow}>
+            <View style={styles.metaChip}>
+              <Text style={styles.metaChipText}>Lv {node.levelNumber}</Text>
+            </View>
+            <View style={styles.metaChip}>
+              <Text style={styles.metaChipText}>{node.estimatedDays}d</Text>
+            </View>
+            <View style={[styles.statusChip, { backgroundColor: chip.bg }]}>
+              <Text style={[styles.statusChipText, { color: chip.text }]}>
+                {STATUS_WORD[node.status]}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </View>
+    </Pressable>
+  );
+});
+
 export function RoadmapMap({ graph, selectedKey, onSelect }: RoadmapMapProps) {
-  const ordered = useMemo(() => orderedNodes(graph.nodes), [graph]);
+  const ordered = useMemo(() => orderedNodes(graph.nodes), [graph.nodes]);
   const blurTarget = useBlurTargetRef();
-  const layout = useMemo(() => layoutLevels(graph), [graph]);
+  const layout = useMemo(() => layoutLevels(graph.nodes), [graph.nodes]);
   const trail = useMemo(() => {
     const out: LevelPoint[] = [];
     for (const node of ordered) {
@@ -378,139 +515,15 @@ export function RoadmapMap({ graph, selectedKey, onSelect }: RoadmapMapProps) {
             {ordered.map((node) => {
               const point = layout.points.get(node.key);
               if (!point) return null;
-
-              const isBoss = node.type === "boss";
-              const selected = node.key === selectedKey;
-              const locked = node.status === "locked";
-              const completed = node.status === "completed";
-              const active = node.status === "active";
-              const size = point.size;
-              const title = isBoss
-                ? node.title.replace(/^boss battle:\s*/i, "") || node.title
-                : node.title;
-              // Labels ride toward the centre so they never sit on the path.
-              const labelSide: "left" | "right" =
-                point.cx < layout.width / 2 ? "right" : "left";
-              const spec = circleSpec(node.status, isBoss);
-              const Icon = isBoss ? Skull : completed ? Check : locked ? Lock : Zap;
-              const chip = STATUS_CHIP[node.status];
-
               return (
-                <Pressable
+                <MapNode
                   key={node.key}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  accessibilityLabel={`Level ${node.levelNumber} · ${node.title} · ${STATUS_WORD[node.status]}`}
-                  onPress={() => onSelect(node.key)}
-                  style={[
-                    styles.node,
-                    {
-                      left: point.cx - size / 2,
-                      top: point.cy - size / 2,
-                      width: size,
-                      height: size,
-                    },
-                  ]}
-                >
-                  {active ? (
-                    <View
-                      pointerEvents="none"
-                      style={[
-                        styles.underglow,
-                        isBoss && styles.underglowBoss,
-                      ]}
-                    />
-                  ) : null}
-
-                  {active ? <ActiveHalo size={size} /> : null}
-
-                  <View
-                    style={[
-                      styles.circle,
-                      {
-                        width: size,
-                        height: size,
-                        borderRadius: size / 2,
-                        borderColor: spec.border,
-                        opacity: spec.opacity,
-                        transform: [{ scale: selected ? 1.08 : 1 }],
-                      },
-                      selected && styles.circleSelected,
-                      spec.glowColor
-                        ? {
-                            shadowColor: spec.glowColor,
-                            shadowOpacity: spec.glowOpacity,
-                            shadowRadius: 12,
-                            shadowOffset: { width: 0, height: 0 },
-                            elevation: 6,
-                          }
-                        : null,
-                    ]}
-                  >
-                    <LinearGradient
-                      colors={spec.gradient}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={[
-                        StyleSheet.absoluteFill,
-                        { borderRadius: size / 2 },
-                      ]}
-                    />
-                    <Icon
-                      size={isBoss ? 40 : 30}
-                      color={
-                        locked && !isBoss ? "rgba(255,255,255,0.7)" : colors.white
-                      }
-                      strokeWidth={2.4}
-                    />
-                    {!isBoss ? (
-                      <Text style={styles.levelNumber}>{node.levelNumber}</Text>
-                    ) : null}
-                  </View>
-
-                  {/* Glassmorphism level card beside the node. */}
-                  <View
-                    pointerEvents="none"
-                    style={[
-                      styles.labelWrap,
-                      labelSide === "right"
-                        ? { left: size + 18 }
-                        : { right: size + 18 },
-                    ]}
-                  >
-                    {isBoss ? (
-                      <View style={styles.bossBadge}>
-                        <Text style={styles.bossBadgeText}>Boss Battle</Text>
-                      </View>
-                    ) : null}
-                    <View style={styles.labelCard}>
-                      <Text numberOfLines={2} style={styles.labelTitle}>
-                        {title}
-                      </Text>
-                      <View style={styles.metaRow}>
-                        <View style={styles.metaChip}>
-                          <Text style={styles.metaChipText}>
-                            Lv {node.levelNumber}
-                          </Text>
-                        </View>
-                        <View style={styles.metaChip}>
-                          <Text style={styles.metaChipText}>
-                            {node.estimatedDays}d
-                          </Text>
-                        </View>
-                        <View
-                          style={[styles.statusChip, { backgroundColor: chip.bg }]}
-                        >
-                          <Text
-                            style={[styles.statusChipText, { color: chip.text }]}
-                          >
-                            {STATUS_WORD[node.status]}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  </View>
-                </Pressable>
+                  node={node}
+                  point={point}
+                  canvasWidth={layout.width}
+                  selected={node.key === selectedKey}
+                  onSelect={onSelect}
+                />
               );
             })}
           </View>

@@ -338,8 +338,8 @@ export function objectivesFor(
  * a small deterministic wobble) so the path snakes organically like the
  * Candy Crush world map.
  */
-export function layoutLevels(graph: RoadmapGraph): LevelLayout {
-  const ordered = orderedNodes(graph.nodes);
+export function layoutLevels(nodes: GraphNode[]): LevelLayout {
+  const ordered = orderedNodes(nodes);
   const points = new Map<string, LevelPoint>();
   const centerX = TRAIL_WIDTH / 2;
   const amplitude = TRAIL_WIDTH / 2 - TRAIL_PAD_X;
