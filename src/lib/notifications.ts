@@ -10,9 +10,9 @@ const STREAK_PENDING_KEY = "atlas.notif.streak.id";
 const STREAK_HOUR = 21;
 const STREAK_FALLBACK_HOUR = 23;
 
-// Custom notification sound file (place at assets/sounds/notification.mp3)
+// Custom notification sound file (placed at assets/notification.wav)
 // Falls back to system default if file is missing or on unsupported platforms.
-const CUSTOM_SOUND = "notification.mp3";
+const CUSTOM_SOUND = "notification.wav";
 
 let cachedModule: NotificationsModule | null = null;
 let moduleUnavailable = false;
