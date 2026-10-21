@@ -14,7 +14,6 @@ import { useFocusEffect, useRouter } from "expo-router";
 import type { Href } from "expo-router";
 import { AppHeader, HEADER_HEIGHT } from "./app-header";
 import { OfflineBanner } from "./offline-banner";
-import { SceneBackdrop } from "./scene-backdrop";
 import { SessionCompleteCard } from "./session-complete-card";
 import { useProfile } from "../hooks/use-profile";
 import { getCachedAuthUser, resolveSession } from "../lib/auth";
@@ -116,7 +115,6 @@ export function ScreenShell({
 
   return (
     <View style={styles.root}>
-      <SceneBackdrop />
       <ScrollView
         ref={scrollRef}
         style={styles.scroll}

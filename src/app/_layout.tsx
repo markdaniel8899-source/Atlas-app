@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Animated, Dimensions, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { DarkTheme, Tabs, ThemeProvider } from "expo-router";
 import Head from "expo-router/head";
 import { StatusBar } from "expo-status-bar";
@@ -25,7 +25,6 @@ import { BlurTargetRefContext } from "../components/blur-target";
 import { initNotifications } from "../lib/notifications";
 import { hydrateProfileCache } from "../lib/profile-cache";
 import { getCachedAuthUser, resolveSession, subscribeAuth } from "../lib/auth";
-import { MOTION } from "../theme/motion";
 import { colors } from "../theme/theme";
 
 void SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -54,33 +53,6 @@ const NAVIGATION_THEME = {
   ...DarkTheme,
   colors: { ...DarkTheme.colors, background: "transparent" },
 };
-
-const VIEWPORT_WIDTH = Dimensions.get("window").width;
-
-/**
- * Full-width page slide. Every tab scene paints an opaque copy of the mesh
- * (SceneBackdrop), so the outgoing screen can never show through the incoming
- * one. Transform only, native driver: no per-frame layout or opacity work.
- */
-function slideSceneStyle({
-  current,
-}: {
-  current: { progress: Animated.Value };
-}) {
-  return {
-    sceneStyle: {
-      transform: [
-        {
-          translateX: current.progress.interpolate({
-            inputRange: [-1, 0, 1],
-            outputRange: [-VIEWPORT_WIDTH, 0, VIEWPORT_WIDTH],
-            extrapolate: "clamp" as const,
-          }),
-        },
-      ],
-    },
-  };
-}
 
 /**
  * Sections are mounted in small background waves so the first visit to any
@@ -193,15 +165,8 @@ export default function RootLayout() {
               detachInactiveScreens={false}
               screenOptions={({ route }) => ({
                 headerShown: false,
-                animation: "shift",
-                sceneStyleInterpolator: slideSceneStyle,
-                transitionSpec: {
-                  animation: "timing",
-                  config: {
-                    duration: MOTION.page,
-                    easing: MOTION.easing,
-                  },
-                },
+                animation: "none",
+                sceneStyle: { backgroundColor: "transparent" },
                 lazy: !preloadedRoutes?.has(route.name),
               })}
             />
