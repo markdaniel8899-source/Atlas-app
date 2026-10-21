@@ -8,6 +8,7 @@ import {
   View,
 } from "react-native";
 import { BlurView } from "expo-blur";
+import { useIsFocused } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, {
   Defs,
@@ -125,10 +126,11 @@ const STATUS_CHIP: Record<NodeStatus, { bg: string; text: string }> = {
 };
 
 /** Pulsing ring around the current (active) level. */
-function ActiveHalo({ size }: { size: number }) {
+function ActiveHalo({ size, active }: { size: number; active: boolean }) {
   const pulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    if (!active) return;
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, {
@@ -147,7 +149,7 @@ function ActiveHalo({ size }: { size: number }) {
     );
     loop.start();
     return () => loop.stop();
-  }, [pulse]);
+  }, [active, pulse]);
 
   return (
     <Animated.View
@@ -181,6 +183,7 @@ interface MapNodeProps {
   point: LevelPoint;
   canvasWidth: number;
   selected: boolean;
+  animateHalo: boolean;
   onSelect: (key: string) => void;
 }
 
@@ -193,6 +196,7 @@ const MapNode = memo(function MapNode({
   point,
   canvasWidth,
   selected,
+  animateHalo,
   onSelect,
 }: MapNodeProps) {
   const isBoss = node.type === "boss";
@@ -233,7 +237,7 @@ const MapNode = memo(function MapNode({
         />
       ) : null}
 
-      {active ? <ActiveHalo size={size} /> : null}
+      {active ? <ActiveHalo size={size} active={animateHalo} /> : null}
 
       <View
         style={[
@@ -314,6 +318,7 @@ const MapNode = memo(function MapNode({
 
 export function RoadmapMap({ graph, selectedKey, onSelect }: RoadmapMapProps) {
   const ordered = useMemo(() => orderedNodes(graph.nodes), [graph.nodes]);
+  const isFocused = useIsFocused();
   const blurTarget = useBlurTargetRef();
   const layout = useMemo(() => layoutLevels(graph.nodes), [graph.nodes]);
   const trail = useMemo(() => {
@@ -522,6 +527,7 @@ export function RoadmapMap({ graph, selectedKey, onSelect }: RoadmapMapProps) {
                   point={point}
                   canvasWidth={layout.width}
                   selected={node.key === selectedKey}
+                  animateHalo={isFocused}
                   onSelect={onSelect}
                 />
               );

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { InteractionManager, StyleSheet, View } from "react-native";
 import { DarkTheme, Tabs, ThemeProvider } from "expo-router";
 import Head from "expo-router/head";
 import { StatusBar } from "expo-status-bar";
@@ -24,6 +24,7 @@ import { GlobalDrawer } from "../components/global-drawer";
 import { BlurTargetRefContext } from "../components/blur-target";
 import { initNotifications } from "../lib/notifications";
 import { hydrateProfileCache } from "../lib/profile-cache";
+import { isHeavyTaskRunning } from "../lib/heavy-task";
 import { getCachedAuthUser, resolveSession, subscribeAuth } from "../lib/auth";
 import { colors } from "../theme/theme";
 
@@ -55,17 +56,15 @@ const NAVIGATION_THEME = {
 };
 
 /**
- * Sections are mounted in small background waves so the first visit to any
- * tab never pays a mount cost mid-transition. One screen per wave keeps every
- * commit short: mounting the heavy screens together caused a visible hitch
- * on the dashboard. `index` mounts on boot, so it is not listed.
+ * Cheap sections are mounted in small background waves so the first visit to
+ * a tab does not pay a mount cost mid-transition. AI-heavy and stateful tabs
+ * (quiz, roadmap, assistant, timer) are intentionally excluded: they mount on
+ * demand instead of competing with a generation. `index` mounts on boot.
  */
 const PRELOAD_WAVES: string[][] = [
   ["leaderboard"],
   ["notes", "courses"],
-  ["quiz", "friends"],
-  ["roadmap"],
-  ["timer", "assistant", "settings"],
+  ["friends", "settings"],
 ];
 
 /** Cumulative snapshot of the waves: a route stays mounted once preloaded. */
@@ -117,13 +116,31 @@ export default function RootLayout() {
 
   useEffect(() => {
     setPreloadStage(0);
-    const timers = PRELOAD_STAGE_SETS.map((_, index) =>
-      setTimeout(
-        () => setPreloadStage((stage) => Math.max(stage, index + 1)),
-        2000 + index * 750,
-      ),
-    );
-    return () => timers.forEach((timer) => clearTimeout(timer));
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let stage = 0;
+
+    const schedule = (delay: number) => {
+      timer = setTimeout(() => {
+        if (cancelled) return;
+        if (isHeavyTaskRunning()) {
+          schedule(1200);
+          return;
+        }
+        InteractionManager.runAfterInteractions(() => {
+          if (cancelled) return;
+          stage += 1;
+          setPreloadStage(stage);
+          if (stage < PRELOAD_WAVES.length) schedule(750);
+        });
+      }, delay);
+    };
+
+    schedule(2000);
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
   }, [sessionKey]);
 
   if (!loaded && !error) return null;

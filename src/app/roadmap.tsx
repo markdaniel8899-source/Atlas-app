@@ -43,6 +43,7 @@ import {
 } from "../lib/events";
 import { useFocusedEvent } from "../hooks/use-focused-event";
 import { ensureOnline } from "../lib/net";
+import { beginHeavyTask, endHeavyTask } from "../lib/heavy-task";
 import {
   appendRoadmapPhase,
   awardLevelXp,
@@ -313,6 +314,7 @@ export default function RoadmapScreen() {
       setBusy(true);
       setError(null);
       setGenerating(null);
+      beginHeavyTask();
       try {
         // Step 1: outline only - small and fast, phase titles show at once.
         const outline = await generateRoadmapOutline(
@@ -442,6 +444,7 @@ export default function RoadmapScreen() {
           setError("Roadmap generation failed. Saved progress is kept.");
         }
       } finally {
+        endHeavyTask();
         setGenerating(null);
         await reloadCourses();
         notifyRoadmapsChanged();

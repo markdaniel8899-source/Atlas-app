@@ -1,6 +1,7 @@
 import { AiError } from "./ai";
 import type { Evaluation } from "./ai";
 import { saveQuizSession } from "./db/quiz-sessions";
+import { beginHeavyTask, endHeavyTask } from "./heavy-task";
 import { registerResetHandler } from "./session-reset";
 import {
   canSubmit,
@@ -127,6 +128,7 @@ export async function generateQuizSession(input: GenerateInput) {
   const run = epoch;
   state = { ...state, phase: "loading", error: null };
   emit();
+  beginHeavyTask();
   try {
     const context = input.contextBuilder
       ? await Promise.resolve()
@@ -157,6 +159,8 @@ export async function generateQuizSession(input: GenerateInput) {
     if (run !== epoch) return;
     state = { ...state, error: classify(caught), phase: "setup" };
     emit();
+  } finally {
+    endHeavyTask();
   }
 }
 

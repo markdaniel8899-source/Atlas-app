@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef } from "react";
 import { Animated } from "react-native";
+import { useIsFocused } from "expo-router";
 import Svg, {
   Defs,
   G,
@@ -89,6 +90,7 @@ export function RankBadge({ rank, tier, size = 48 }: RankBadgeProps) {
   const [mLight, mMid, mDark] = METAL[rank];
   const [iLight, iDark] = ICON[rank];
   const isConqueror = rank === "conqueror";
+  const isFocused = useIsFocused();
 
   // Chevron stack grows upward from a fixed base (additive evolution).
   const stack = [25, 19, 13];
@@ -151,7 +153,7 @@ export function RankBadge({ rank, tier, size = 48 }: RankBadgeProps) {
   // Conqueror pulse (Tailwind animate-pulse equivalent on opacity).
   const pulse = useRef(new Animated.Value(1)).current;
   useEffect(() => {
-    if (!isConqueror) return;
+    if (!isConqueror || !isFocused) return;
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, {
@@ -168,7 +170,7 @@ export function RankBadge({ rank, tier, size = 48 }: RankBadgeProps) {
     );
     loop.start();
     return () => loop.stop();
-  }, [isConqueror, pulse]);
+  }, [isConqueror, isFocused, pulse]);
 
   const svg = (
     <Svg width={size} height={size} viewBox="0 0 48 48" fill="none">
