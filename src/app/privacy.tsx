@@ -34,7 +34,10 @@ export default function PrivacyScreen() {
         </InfoParagraph>
         <InfoSubheading>Uploaded files</InfoSubheading>
         <InfoParagraph>
-          PDFs you upload to generate a quiz are read only for that request.
+          PDFs you upload to generate a quiz are sent to our AI provider to
+          generate the quiz and are not kept in your account. Note content and
+          PDF excerpts are processed by an AI provider to generate quizzes and
+          assist with your learning.
         </InfoParagraph>
       </InfoSection>
 
@@ -52,7 +55,6 @@ export default function PrivacyScreen() {
       <InfoSection title="Data deletion">
         <InfoBullets
           items={[
-            "PDFs you upload are deleted immediately after the quiz is generated. They are never stored.",
             "Deleting a course also removes its roadmap, topics and notes.",
             "You can request full deletion of your account and everything tied to it by emailing hafizmzain786@gmail.com. We remove your data after we confirm the request comes from the account owner.",
           ]}

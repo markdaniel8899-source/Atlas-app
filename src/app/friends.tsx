@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Animated,
   Pressable,
+  RefreshControl,
   StyleSheet,
   Text,
   TextInput,
@@ -35,6 +36,7 @@ import { getRankFromXP } from "../lib/gamification";
 import { PROFILE_CHANGED_EVENT } from "../lib/events";
 import { useFocusedEvent } from "../hooks/use-focused-event";
 import { ensureOnline } from "../lib/net";
+import { StaleNotice } from "../components/ui/stale-notice";
 import { colors, ease, fonts } from "../theme/theme";
 
 const SQUAD_ERROR =
@@ -299,6 +301,7 @@ export default function FriendsScreen() {
   const [loading, setLoading] = useState(
     () => readCache<SquadMember[]>(CACHE_KEY) === null,
   );
+  const [stale, setStale] = useState(false);
   const [tab, setTab] = useState<Tab>("friends");
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -306,24 +309,43 @@ export default function FriendsScreen() {
 
   const [invite, setInvite] = useState("");
   const [inviting, setInviting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const requestRef = useRef(0);
   const firstFocus = useRef(true);
 
   const load = useCallback(async () => {
     const seq = ++requestRef.current;
-    const result = await fetchSquad();
-    if (seq !== requestRef.current) return;
-    if (result.ok) {
-      setMembers(result.members);
-      writeCache(CACHE_KEY, result.members);
+    let result: Awaited<ReturnType<typeof fetchSquad>> | null = null;
+    try {
+      result = await fetchSquad();
+      if (seq !== requestRef.current) return;
+      if (result.ok) {
+        setMembers(result.members);
+        writeCache(CACHE_KEY, result.members);
+        setStale(false);
+      } else {
+        setStale(members.length > 0);
+      }
+    } catch {
+      if (seq !== requestRef.current) return;
+      setStale(members.length > 0);
+    } finally {
+      if (seq === requestRef.current) setLoading(false);
     }
-    setLoading(false);
-    setError((current) => {
-      if (!result.ok) return SQUAD_ERROR;
-      return current === SQUAD_ERROR ? null : current;
-    });
+    if (seq === requestRef.current) {
+      setError((current) => {
+        if (!result?.ok) return SQUAD_ERROR;
+        return current === SQUAD_ERROR ? null : current;
+      });
+    }
   }, []);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }, [load]);
 
   useEffect(() => {
     void load();
@@ -411,7 +433,17 @@ export default function FriendsScreen() {
       }`;
 
   return (
-    <ScreenShell title="Friends">
+    <ScreenShell
+      title="Friends"
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={["#cf9eff"]}
+        />
+      }
+    >
+      <StaleNotice visible={stale && members.length > 0} onRetry={onRefresh} retrying={refreshing} />
       <ScreenHeading eyebrow="Your people" title="Friends." subtitle={subtitle} />
 
       <View style={styles.inviteRow}>

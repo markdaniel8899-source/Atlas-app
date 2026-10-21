@@ -14,6 +14,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   SectionList,
   StyleSheet,
@@ -47,6 +48,8 @@ import { Card } from "../components/ui/card";
 import { RichNoteEditor } from "../components/notes/rich-note-editor";
 import type { RichNoteEditorHandle } from "../components/notes/rich-note-editor";
 import { ShareNoteModal } from "../components/notes/share-note-modal";
+import { ConfirmDialog } from "../components/ui/confirm-dialog";
+import { StaleNotice } from "../components/ui/stale-notice";
 import { useCourses } from "../hooks/use-courses";
 import { readCache, writeCache } from "../lib/data-cache";
 import { createNote, fetchNotes } from "../lib/db/notes";
@@ -254,6 +257,10 @@ export default function NotesScreen() {
     title: string;
   } | null>(null);
 
+  const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
+  const [stale, setStale] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
   const queue = useSyncExternalStore(
     subscribeNotesQueue,
     getNotesQueueSnapshot,
@@ -338,13 +345,21 @@ export default function NotesScreen() {
     let rows: Note[] | null = null;
     try {
       rows = await fetchNotes(scope);
+      setStale(false);
     } catch {
       rows = null;
+      setStale(notes.length > 0);
     }
     if (!rows) return;
     writeCache(`notes:${activeCourseId ?? "all"}`, rows);
     applyRows(rows);
-  }, [activeCourseId, applyRows]);
+  }, [activeCourseId, applyRows, notes.length]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }, [load]);
 
   // Fetch only the notes of the active context: the selected course's
   // notes when a course is picked, otherwise every note (the list is then
@@ -632,6 +647,12 @@ export default function NotesScreen() {
   }, [rawCompose, loading, coursesLoading, addNote, router]);
 
   const removeNote = (id: string) => {
+    setNoteToDelete(id);
+  };
+
+  const confirmDeleteNote = () => {
+    if (!noteToDelete) return;
+    const id = noteToDelete;
     if (activeId === id) {
       if (titleTimerRef.current) {
         clearTimeout(titleTimerRef.current);
@@ -648,6 +669,7 @@ export default function NotesScreen() {
     setNotes(next);
     if (activeId === id) setActiveId(next[0]?.id ?? null);
     queueNoteDelete(id);
+    setNoteToDelete(null);
   };
 
   /** Open the friend picker - only for a note that already synced. */
@@ -679,7 +701,17 @@ export default function NotesScreen() {
   };
 
   return (
-    <ScreenShell title="Notes">
+    <ScreenShell
+      title="Notes"
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={["#cf9eff"]}
+        />
+      }
+    >
+      <StaleNotice visible={stale && notes.length > 0} onRetry={onRefresh} retrying={refreshing} />
       <ScreenHeading eyebrow="Memory" title="Notes that survive the session." />
 
       {flash ? (
@@ -813,7 +845,7 @@ export default function NotesScreen() {
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Delete note"
-                  onPress={() => removeNote(active.id)}
+                  onPress={() => setNoteToDelete(active.id)}
                   style={({ pressed }) => [
                     styles.toolButton,
                     pressed && styles.toolButtonPressed,
@@ -870,7 +902,7 @@ export default function NotesScreen() {
       </Card>
 
       <Text style={styles.footnote}>
-        Content is sanitized with DOMPurify and saved as you type.
+        Content is sanitized before saving and saved as you type.
       </Text>
 
       <ShareNoteModal
@@ -882,6 +914,14 @@ export default function NotesScreen() {
           setShareTarget(null);
           setFlash(message);
         }}
+      />
+      <ConfirmDialog
+        open={noteToDelete !== null}
+        title="Delete this note?"
+        message="This can\u2019t be undone."
+        confirmLabel="Delete"
+        onConfirm={confirmDeleteNote}
+        onCancel={() => setNoteToDelete(null)}
       />
     </ScreenShell>
   );

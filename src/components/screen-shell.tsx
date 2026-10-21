@@ -4,6 +4,8 @@ import {
   BackHandler,
   Keyboard,
   Pressable,
+  RefreshControl,
+  RefreshControlProps,
   ScrollView,
   StyleSheet,
   Text,
@@ -38,6 +40,8 @@ interface ScreenShellProps {
    * screen body becomes a plain flex view instead of a ScrollView.
    */
   scrollable?: boolean;
+  /** Pull-to-refresh control for the ScrollView. */
+  refreshControl?: React.ReactElement<RefreshControlProps>;
 }
 
 /**
@@ -51,6 +55,7 @@ export function ScreenShell({
   publicPage = false,
   scrollOnKeyboard = false,
   scrollable = true,
+  refreshControl,
 }: ScreenShellProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -128,6 +133,7 @@ export function ScreenShell({
           showsVerticalScrollIndicator={false}
           contentInsetAdjustmentBehavior="never"
           keyboardShouldPersistTaps="handled"
+          refreshControl={refreshControl}
         >
           <View style={styles.sections}>{children}</View>
           {footer}

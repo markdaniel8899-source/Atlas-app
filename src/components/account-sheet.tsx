@@ -37,6 +37,7 @@ import { PROFILE_CHANGED_EVENT, listen } from "../lib/events";
 import type { Profile } from "../lib/db/types";
 import { MOTION } from "../theme/motion";
 import { colors, fonts } from "../theme/theme";
+import { ConfirmDialog } from "./ui/confirm-dialog";
 
 const APP_ICON = require("../../assets/icon.png");
 
@@ -74,6 +75,7 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
     getCachedProfile(),
   );
   const [name, setName] = useState("");
+  const [logoutConfirm, setLogoutConfirm] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -148,11 +150,16 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
   };
 
   const handleLogOut = () => {
+    setLogoutConfirm(true);
+  };
+
+  const confirmLogOut = () => {
     handleClose(() => {
       void signOut()
         .catch(() => {})
         .then(() => router.navigate("/login"));
     });
+    setLogoutConfirm(false);
   };
 
   const displayName =
@@ -302,6 +309,14 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
           )}
         </Animated.View>
       </View>
+      <ConfirmDialog
+        open={logoutConfirm}
+        title="Log out of ATLAS?"
+        message="You can log back in anytime."
+        confirmLabel="Log out"
+        onConfirm={confirmLogOut}
+        onCancel={() => setLogoutConfirm(false)}
+      />
     </Modal>
   );
 }

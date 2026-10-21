@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
+  RefreshControl,
   StyleSheet,
   Text,
   View,
@@ -26,6 +27,7 @@ import { ScreenHeading, ScreenShell } from "../components/screen-shell";
 import { Card } from "../components/ui/card";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { ThemedInput } from "../components/ui/themed-input";
+import { StaleNotice } from "../components/ui/stale-notice";
 import { CourseEditorModal } from "../components/courses/course-editor-modal";
 import { useCourses } from "../hooks/use-courses";
 import { readCache, writeCache } from "../lib/data-cache";
@@ -351,6 +353,8 @@ export default function CoursesScreen() {
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Course | null>(null);
   const [confirmTarget, setConfirmTarget] = useState<Course | null>(null);
+  const [stale, setStale] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [roadmaps, setRoadmaps] = useState<
     Map<number, RoadmapCourseProgress>
   >(() => readCache<Map<number, RoadmapCourseProgress>>(ROADMAPS_CACHE_KEY) ?? new Map());
@@ -364,6 +368,18 @@ export default function CoursesScreen() {
       // Keep the last known roadmap progress on a transient failure.
     }
   }, []);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await reload();
+      setStale(false);
+    } catch {
+      setStale(courses.length > 0);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [reload, courses.length]);
 
   // Roadmap saves can auto-create a course, so refresh both lists together.
   // Course/topic rows themselves are refreshed by every useCourses instance
@@ -500,7 +516,17 @@ export default function CoursesScreen() {
   const empty = !loading && courses.length === 0;
 
   return (
-    <ScreenShell title="Courses">
+    <ScreenShell
+      title="Courses"
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={["#cf9eff"]}
+        />
+      }
+    >
+      <StaleNotice visible={stale && courses.length > 0} onRetry={onRefresh} retrying={refreshing} />
       <ScreenHeading
         eyebrow="Syllabus"
         title="Courses on the wall."

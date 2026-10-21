@@ -1,7 +1,8 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   BackHandler,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -19,6 +20,7 @@ import { OfflineBanner } from "../components/offline-banner";
 import { SessionCompleteCard } from "../components/session-complete-card";
 import { RevealText } from "../components/ui/reveal-text";
 import { useDashboard } from "../hooks/use-dashboard";
+import { StaleNotice } from "../components/ui/stale-notice";
 import { getCachedAuthUser } from "../lib/auth";
 import { closeDrawer, isDrawerOpen, openDrawer } from "../lib/drawer-store";
 import { hasSeenOnboarding } from "../lib/onboarding";
@@ -33,7 +35,7 @@ function greeting(): string {
 }
 
 export default function DashboardScreen() {
-  const { user, profile, heatmap, focus, loading } = useDashboard();
+  const { user, profile, heatmap, focus, loading, stale, reload } = useDashboard();
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -75,6 +77,13 @@ export default function DashboardScreen() {
 
   const name = profile?.display_name?.trim() || user?.name || "";
   const firstName = name.split(" ")[0]?.trim() || "Explorer";
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await reload();
+    setRefreshing(false);
+  }, [reload]);
 
   return (
     <View style={styles.root}>
@@ -89,6 +98,14 @@ export default function DashboardScreen() {
         ]}
         showsVerticalScrollIndicator={false}
         contentInsetAdjustmentBehavior="never"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#cf9eff"]}
+            progressViewOffset={insets.top + HEADER_HEIGHT + 32}
+          />
+        }
       >
         <View style={styles.sections}>
           <View>
@@ -135,6 +152,8 @@ export default function DashboardScreen() {
           </View>
         </View>
       </ScrollView>
+
+      <StaleNotice visible={stale && heatmap.length > 0} onRetry={onRefresh} retrying={refreshing} />
 
       <AppHeader
         title="Dashboard"

@@ -25,7 +25,8 @@ export interface DashboardData {
 
 export interface DashboardState extends DashboardData {
   loading: boolean;
-  reload: () => void;
+  stale: boolean;
+  reload: () => Promise<void>;
 }
 
 interface DashboardSnapshot {
@@ -61,66 +62,70 @@ export function useDashboard(): DashboardState {
   const [loading, setLoading] = useState(
     () => readCache<DashboardSnapshot>(CACHE_KEY) === null,
   );
+  const [stale, setStale] = useState(false);
 
   const requestRef = useRef(0);
 
-  const reload = useCallback(() => {
+  const reload = useCallback(async () => {
     const request = ++requestRef.current;
-    void (async () => {
-      const user = await resolveSession().catch(() => getCachedAuthUser());
+    let user: AuthUser | null = null;
+    let cachedProfile: Profile | null = null;
+    try {
+      user = await resolveSession().catch(() => getCachedAuthUser());
       if (request !== requestRef.current) return;
       if (!user) {
         setData(EMPTY);
         syncAtlasStatsWidget(null, []);
         void syncStreakReminder(null);
         setLoading(false);
+        setStale(false);
         return;
       }
 
-      const cachedProfile = getCachedProfile(user.id);
+      cachedProfile = getCachedProfile(user.id);
       if (cachedProfile) {
         setData((prev) => ({ ...prev, user, profile: cachedProfile }));
       }
 
-      try {
-        const [profile, heatmap, focus] = await Promise.all([
-          fetchProfile(user.id),
-          fetchHeatmap(365),
-          fetchFocusCourse(),
-        ]);
-        // A late response for the previous account must not repaint or
-        // re-cache data after the owner has changed.
-        if (request !== requestRef.current) return;
-        if (getCachedAuthUser()?.id !== user.id) return;
-        writeCache<DashboardSnapshot>(CACHE_KEY, { heatmap, focus });
-        const next: DashboardData = {
-          user,
-          profile: profile ?? cachedProfile,
-          heatmap,
-          focus,
-        };
-        setData(next);
-        syncAtlasStatsWidget(next.profile, heatmap);
-        void syncStreakReminder(
-          next.profile
-            ? {
-                streak: next.profile.streak ?? 0,
-                lastActiveDate: next.profile.last_active_date ?? null,
-              }
-            : null,
-        );
-      } catch {
-        if (request !== requestRef.current) return;
-        if (getCachedAuthUser()?.id !== user.id) return;
-        if (!cachedProfile) setData((prev) => ({ ...prev, user }));
-      } finally {
-        setLoading(false);
-      }
-    })();
+      const [profile, heatmap, focus] = await Promise.all([
+        fetchProfile(user.id),
+        fetchHeatmap(365),
+        fetchFocusCourse(),
+      ]);
+      // A late response for the previous account must not repaint or
+      // re-cache data after the owner has changed.
+      if (request !== requestRef.current) return;
+      if (getCachedAuthUser()?.id !== user.id) return;
+      writeCache<DashboardSnapshot>(CACHE_KEY, { heatmap, focus });
+      const next: DashboardData = {
+        user,
+        profile: profile ?? cachedProfile,
+        heatmap,
+        focus,
+      };
+      setData(next);
+      syncAtlasStatsWidget(next.profile, heatmap);
+      void syncStreakReminder(
+        next.profile
+          ? {
+              streak: next.profile.streak ?? 0,
+              lastActiveDate: next.profile.last_active_date ?? null,
+            }
+          : null,
+      );
+      setStale(false);
+    } catch {
+      if (request !== requestRef.current) return;
+      if (getCachedAuthUser()?.id !== user?.id) return;
+      if (!cachedProfile && user) setData((prev) => ({ ...prev, user }));
+      setStale(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    reload();
+    void reload();
   }, [reload]);
 
   // Re-read profile / focus course / heatmap when this screen is visible and
@@ -129,5 +134,5 @@ export function useDashboard(): DashboardState {
   useFocusedEvent(COURSES_CHANGED_EVENT, reload);
   useFocusedEvent(FOCUS_CHANGED_EVENT, reload);
 
-  return { ...data, loading, reload };
+  return { ...data, loading, stale, reload };
 }

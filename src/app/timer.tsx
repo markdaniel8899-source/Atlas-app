@@ -8,6 +8,7 @@ import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { SelectMenu } from "../components/ui/select-menu";
 import type { SelectOption } from "../components/ui/select-menu";
+import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { useTimer, useTimerClock } from "../context/timer-context";
 import { useCourses } from "../hooks/use-courses";
 import { getCachedAuthUser } from "../lib/auth";
@@ -79,6 +80,7 @@ export default function TimerScreen() {
   const { globalTotal, courseTotal, progress } = useTimerClock();
   const { courses } = useCourses();
   const [sessions, setSessions] = useState<StudySession[]>([]);
+  const [stopConfirm, setStopConfirm] = useState(false);
 
   // /timer?courseId=<id> (Courses / Roadmap pills) preselects the course once.
   const params = useLocalSearchParams<{ courseId?: string | string[] }>();
@@ -120,6 +122,11 @@ export default function TimerScreen() {
       : state.mode === "paused"
         ? "Paused - resume to keep counting from here."
         : "Resumes from this total next time you press Start.";
+
+  const confirmStop = () => {
+    timer.stop();
+    setStopConfirm(false);
+  };
 
   const courseOptions = useMemo<SelectOption<string>[]>(
     () => [
@@ -254,7 +261,7 @@ export default function TimerScreen() {
                 variant="ghost"
                 label={state.mode === "idle" ? "Reset" : "Finish"}
                 icon={<RotateCcw size={14} color={colors.white} />}
-                onPress={() => timer.stop()}
+                onPress={() => setStopConfirm(true)}
                 disabled={state.mode === "idle"}
                 contentStyle={styles.mainButton}
                 accessibilityLabel="Stop and log session"
@@ -334,6 +341,14 @@ export default function TimerScreen() {
             ))
         )}
       </Card>
+      <ConfirmDialog
+        open={stopConfirm}
+        title="End this session?"
+        message="Your time so far will be saved."
+        confirmLabel="End session"
+        onConfirm={confirmStop}
+        onCancel={() => setStopConfirm(false)}
+      />
     </ScreenShell>
   );
 }
