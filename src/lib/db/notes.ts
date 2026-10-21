@@ -21,7 +21,7 @@ function toNote(row: NoteRow): Note {
   return {
     id: String(row.id),
     title: row.title,
-    html: row.content,
+    html: sanitizeHtml(row.content),
     updatedAt: Number.isNaN(Date.parse(row.updated_at))
       ? Date.now()
       : Date.parse(row.updated_at),

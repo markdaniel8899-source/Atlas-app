@@ -218,6 +218,14 @@ export const RichNoteEditor = forwardRef<
         setBuiltInZoomControls={false}
         overScrollMode="never"
         nestedScrollEnabled
+        javaScriptEnabled={true}
+        allowsInlineMediaPlayback={false}
+        mediaPlaybackRequiresUserAction={true}
+        mixedContentMode="never"
+        thirdPartyCookiesEnabled={false}
+        allowFileAccess={false}
+        allowUniversalAccessFromFileURLs={false}
+        domStorageEnabled={true}
       />
       {!ready ? (
         <View style={styles.loading} pointerEvents="none">
