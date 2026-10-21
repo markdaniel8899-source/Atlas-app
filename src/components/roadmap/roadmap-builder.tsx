@@ -44,6 +44,7 @@ export interface RoadmapRequestInput {
 
 interface RoadmapBuilderProps {
   busy: boolean;
+  disabled?: boolean;
   error: string | null;
   onGenerate: (input: RoadmapRequestInput) => void;
   defaultCourseId?: number | null;
@@ -114,6 +115,7 @@ const TEMPLATES: { label: string; icon: typeof Code; goal: string }[] = [
 
 export function RoadmapBuilder({
   busy,
+  disabled = false,
   error,
   onGenerate,
   defaultCourseId = null,
@@ -419,11 +421,11 @@ export function RoadmapBuilder({
             accessibilityRole="button"
             accessibilityLabel="Generate roadmap"
             onPress={run}
-            disabled={busy}
+            disabled={busy || disabled}
             style={({ pressed }) => [
               styles.generateButton,
               pressed && styles.generatePressed,
-              busy && styles.disabled,
+              (busy || disabled) && styles.disabled,
             ]}
           >
             {busy ? (

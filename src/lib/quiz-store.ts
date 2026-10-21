@@ -123,7 +123,7 @@ export function getQuizSessionSnapshot(): QuizSessionState {
   return snapshot;
 }
 
-export async function generateQuizSession(input: GenerateInput) {
+export async function generateQuizSession(input: GenerateInput, signal?: AbortSignal) {
   if (state.phase === "loading") return;
   const run = epoch;
   state = { ...state, phase: "loading", error: null };
@@ -136,7 +136,8 @@ export async function generateQuizSession(input: GenerateInput) {
           .catch(() => input.context ?? "")
       : input.context;
     if (run !== epoch) return;
-    const result = await requestQuiz({ ...input, context });
+    if (signal?.aborted) return;
+    const result = await requestQuiz({ ...input, context }, signal);
     if (run !== epoch) return;
     if (result.questions.length === 0) {
       throw new AiError("The AI returned an empty quiz. Try again.", 0);
@@ -157,7 +158,11 @@ export async function generateQuizSession(input: GenerateInput) {
     emit();
   } catch (caught) {
     if (run !== epoch) return;
-    state = { ...state, error: classify(caught), phase: "setup" };
+    if (signal?.aborted) {
+      state = { ...state, phase: "setup" };
+    } else {
+      state = { ...state, error: classify(caught), phase: "setup" };
+    }
     emit();
   } finally {
     endHeavyTask();

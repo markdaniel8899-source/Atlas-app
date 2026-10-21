@@ -75,7 +75,7 @@ function shuffle<T>(items: T[]): T[] {
  * single quiz exercises all four renderers. Individual failures are tolerated
  * as long as at least one batch comes back.
  */
-export async function requestQuiz(input: GenerateInput): Promise<QuizResult> {
+export async function requestQuiz(input: GenerateInput, signal?: AbortSignal): Promise<QuizResult> {
   const pdf = input.pdf ?? null;
   const options = {
     difficulty: input.difficulty,
@@ -85,8 +85,8 @@ export async function requestQuiz(input: GenerateInput): Promise<QuizResult> {
   };
   const run = (kind: QuizKind, count: number): Promise<QuizResult> =>
     pdf
-      ? generateQuizFromPdf(pdf, input.topic, kind, count, options)
-      : generateQuiz(input.topic, kind, count, options);
+      ? generateQuizFromPdf(pdf, input.topic, kind, count, options, signal)
+      : generateQuiz(input.topic, kind, count, options, signal);
 
   if (input.kind !== "mixed") {
     return run(input.kind, input.count);

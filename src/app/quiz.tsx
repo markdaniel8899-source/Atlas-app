@@ -1,4 +1,4 @@
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
 import {
   ActivityIndicator,
@@ -44,6 +44,8 @@ import {
 } from "../lib/quiz-store";
 import { MOTION } from "../theme/motion";
 import { colors, fonts } from "../theme/theme";
+import { useAiStatus } from "../hooks/use-ai-status";
+import { AiConsentModal, hasAiConsent } from "../components/ai-consent-modal";
 
 const ACHIEVEMENT_TITLES: Record<string, string> = {
   first_quiz: "First Steps",
@@ -96,6 +98,10 @@ function FadeIn({
 
 export default function QuizScreen() {
   const { courses, loading: coursesLoading } = useCourses();
+  const aiStatus = useAiStatus();
+  const [consentOpen, setConsentOpen] = useState(false);
+  const [pendingGenerate, setPendingGenerate] = useState<GenerateInput | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const {
     phase,
@@ -119,8 +125,30 @@ export default function QuizScreen() {
     attempts.length > 0 ? (answered / attempts.length) * 100 : 0;
   const summary = summarize(attempts);
 
-  const handleGenerate = (input: GenerateInput) => {
-    void generateQuizSession(input);
+  const handleGenerate = async (input: GenerateInput) => {
+    if (aiStatus === "offline") return;
+    const needsConsent = input.pdf != null || (input.contextBuilder != null);
+    if (needsConsent && !(await hasAiConsent())) {
+      setPendingGenerate(input);
+      setConsentOpen(true);
+      return;
+    }
+    abortControllerRef.current = new AbortController();
+    generateQuizSession(input, abortControllerRef.current.signal);
+  };
+
+  const handleConsentAccept = () => {
+    if (pendingGenerate) {
+      abortControllerRef.current = new AbortController();
+      generateQuizSession(pendingGenerate, abortControllerRef.current.signal);
+      setPendingGenerate(null);
+    }
+    setConsentOpen(false);
+  };
+
+  const handleConsentDecline = () => {
+    setPendingGenerate(null);
+    setConsentOpen(false);
   };
 
   const alert =
@@ -145,7 +173,8 @@ export default function QuizScreen() {
     ) : null;
 
   return (
-    <ScreenShell title="Quiz">
+    <>
+      <ScreenShell title="Quiz">
       <ScreenHeading eyebrow="Assessment" title="Quiz." />
 
       {phase === "setup" ? (
@@ -154,6 +183,7 @@ export default function QuizScreen() {
             courses={courses}
             loading={coursesLoading}
             busy={false}
+            disabled={aiStatus === "offline"}
             error={error}
             onGenerate={(input) => void handleGenerate(input)}
           />
@@ -172,6 +202,16 @@ export default function QuizScreen() {
               This keeps running even if you leave the screen.
             </Text>
           </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Cancel generation"
+            onPress={() => {
+              abortControllerRef.current?.abort();
+            }}
+            style={styles.cancelButton}
+          >
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </Pressable>
         </View>
       ) : null}
 
@@ -437,10 +477,16 @@ export default function QuizScreen() {
             />
           </FadeIn>
         </View>
-      ) : null}
-    </ScreenShell>
-  );
-}
+) : null}
+      </ScreenShell>
+      <AiConsentModal
+        open={consentOpen}
+        onAccept={handleConsentAccept}
+        onDecline={handleConsentDecline}
+      />
+    </>
+    );
+  }
 
 const styles = StyleSheet.create({
   phaseWrap: {
@@ -811,5 +857,20 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontFamily: fonts.regular,
     color: "rgba(255,255,255,0.52)",
+  },
+  cancelButton: {
+    marginTop: 16,
+    minHeight: 44,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(244,63,94,0.35)",
+    backgroundColor: "rgba(244,63,94,0.10)",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  cancelButtonText: {
+    fontSize: 13,
+    fontFamily: fonts.medium,
+    color: "#fecdd3",
   },
 });

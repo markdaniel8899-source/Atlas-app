@@ -26,6 +26,7 @@ import { initNotifications } from "../lib/notifications";
 import { hydrateProfileCache } from "../lib/profile-cache";
 import { isHeavyTaskRunning } from "../lib/heavy-task";
 import { getCachedAuthUser, resolveSession, subscribeAuth } from "../lib/auth";
+import { refreshAiBaseUrl } from "../lib/api-config";
 import { colors } from "../theme/theme";
 
 void SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -41,6 +42,9 @@ void hydrateProfileCache();
 // Resolve the local Supabase session early so ScreenShell can render its
 // chrome on the first frame instead of waiting for an async read.
 void resolveSession();
+
+// Fetch the AI base URL from app_config (non-blocking; falls back to env).
+void refreshAiBaseUrl();
 
 // Android detaches and re-attaches screens for a frame during navigator
 // transitions; painting the window with the app background keeps that frame

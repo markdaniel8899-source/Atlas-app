@@ -34,6 +34,7 @@ import type { RoadmapRequestInput } from "../components/roadmap/roadmap-builder"
 import { RoadmapDetail } from "../components/roadmap/roadmap-detail";
 import { RoadmapMap } from "../components/roadmap/roadmap-map";
 import { AiError, generateRoadmapOutline, generateRoadmapPhase } from "../lib/ai";
+import { useAiStatus } from "../hooks/use-ai-status";
 import { useCourses } from "../hooks/use-courses";
 import { readCache, writeCache } from "../lib/data-cache";
 import { fetchCourses } from "../lib/db/courses";
@@ -198,6 +199,9 @@ export default function RoadmapScreen() {
     number: number;
     message: string;
   } | null>(null);
+  const [cancelRequested, setCancelRequested] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const aiStatus = useAiStatus();
   const {
     courses,
     setCourses,
@@ -314,6 +318,8 @@ export default function RoadmapScreen() {
       setBusy(true);
       setError(null);
       setGenerating(null);
+      setCancelRequested(false);
+      abortControllerRef.current = new AbortController();
       beginHeavyTask();
       try {
         // Step 1: outline only - small and fast, phase titles show at once.
@@ -321,7 +327,11 @@ export default function RoadmapScreen() {
           input.goal,
           input.hours,
           input.level,
+          {},
+          abortControllerRef.current.signal,
         );
+
+        if (abortControllerRef.current.signal.aborted) return;
 
         const skeleton = await saveRoadmapSkeleton({
           goal: input.goal,
@@ -357,6 +367,11 @@ export default function RoadmapScreen() {
         let saveFailed = false;
 
         for (let index = 0; index < outline.phases.length; index += 1) {
+          if (abortControllerRef.current.signal.aborted) {
+            setError("Roadmap generation cancelled. Saved phases are kept.");
+            break;
+          }
+
           const meta = outline.phases[index];
           setGenerating({
             number: meta.number,
@@ -370,7 +385,12 @@ export default function RoadmapScreen() {
             outline: outline.phases,
             phaseNumber: meta.number,
             doneTitles: current.nodes.map((node) => node.title),
-          });
+          }, abortControllerRef.current.signal);
+
+          if (abortControllerRef.current.signal.aborted) {
+            setError("Roadmap generation cancelled. Saved phases are kept.");
+            break;
+          }
 
           const newNodes = graphNodesFromPhase(chunk.phase, takenKeys);
           const base: RoadmapGraph = {
@@ -440,12 +460,13 @@ export default function RoadmapScreen() {
                 ? "The AI timed out mid-generation. Your saved progress is kept - try again."
                 : err.message,
           );
-        } else {
+        } else if (!abortControllerRef.current?.signal.aborted) {
           setError("Roadmap generation failed. Saved progress is kept.");
         }
       } finally {
         endHeavyTask();
         setGenerating(null);
+        abortControllerRef.current = null;
         await reloadCourses();
         notifyRoadmapsChanged();
         busyRef.current = false;
@@ -726,6 +747,7 @@ export default function RoadmapScreen() {
       {showBuilder ? (
         <RoadmapBuilder
           busy={busy}
+          disabled={aiStatus === "offline"}
           error={error}
           defaultCourseId={graph.courseId}
           onGenerate={(input) => void generate(input)}
@@ -895,6 +917,17 @@ export default function RoadmapScreen() {
               Generating next levels…
             </Text>
           </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Cancel generation"
+            onPress={() => {
+              setCancelRequested(true);
+              abortControllerRef.current?.abort();
+            }}
+            style={styles.cancelButton}
+          >
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </Pressable>
         </View>
       ) : null}
 
@@ -1371,5 +1404,19 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     letterSpacing: 0.3,
     color: colors.w45,
+  },
+  cancelButton: {
+    minHeight: 44,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(244,63,94,0.35)",
+    backgroundColor: "rgba(244,63,94,0.10)",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  cancelButtonText: {
+    fontSize: 13,
+    fontFamily: fonts.medium,
+    color: "#fecdd3",
   },
 });

@@ -177,6 +177,7 @@ interface QuizSetupProps {
   courses: Course[];
   loading: boolean;
   busy: boolean;
+  disabled?: boolean;
   error: string | null;
   onGenerate: (input: GenerateInput) => void;
 }
@@ -185,6 +186,7 @@ export function QuizSetup({
   courses,
   loading,
   busy,
+  disabled = false,
   error,
   onGenerate,
 }: QuizSetupProps) {
@@ -564,12 +566,12 @@ export function QuizSetup({
             <Text style={styles.alertText}>{message}</Text>
             <Pressable
               accessibilityRole="button"
-              disabled={busy || preparing}
+              disabled={busy || preparing || disabled}
               onPress={() => void submit()}
               style={({ pressed }) => [
                 styles.retryButton,
                 pressed && styles.pressed,
-                (busy || preparing) && styles.disabled,
+                (busy || preparing || disabled) && styles.disabled,
               ]}
             >
               <RefreshCw size={12} color={colors.w80} />
@@ -589,12 +591,12 @@ export function QuizSetup({
           </View>
           <Pressable
             accessibilityRole="button"
-            disabled={busy || preparing}
+            disabled={busy || preparing || disabled}
             onPress={() => void submit()}
             style={({ pressed }) => [
               styles.generateButton,
               pressed && styles.pressed,
-              (busy || preparing) && styles.generateDisabled,
+              (busy || preparing || disabled) && styles.generateDisabled,
             ]}
           >
             {busy || preparing ? (

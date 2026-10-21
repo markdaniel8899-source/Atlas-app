@@ -1,14 +1,10 @@
 import { supabase } from "./supabase";
-
-const rawBase: string = process.env.EXPO_PUBLIC_AI_API_URL ?? "";
-
-export const AI_BASE_URL = rawBase.replace(/\/+$/, "");
+import { getAiBaseUrl } from "./api-config";
 
 const REQUEST_TIMEOUT_MS = 90_000;
-/** Complex roadmaps need longer than the default 90s. */
 const ROADMAP_TIMEOUT_MS = 180_000;
-/** PDFs need extraction + a full generation pass on the server. */
 const PDF_TIMEOUT_MS = 120_000;
+const CONNECT_TIMEOUT_MS = 5_000;
 
 export type QuizKind = "mcq" | "code" | "debug" | "output";
 export type Difficulty = "easy" | "medium" | "hard";
@@ -44,16 +40,13 @@ export interface RoadmapResource {
 }
 
 export interface RoadmapNode {
-  /** Stable slug used by prerequisites and connections. */
   key: string;
   title: string;
   description: string;
   phase_number: number;
   estimated_hours: number;
-  /** Keys of nodes that must be finished first. */
   prerequisites: string[];
   resources: RoadmapResource[];
-  /** Candy-Crush level kind; missing on older payloads (derived client-side). */
   type?: "regular" | "boss";
   estimated_days?: number;
   quiz_required?: boolean;
@@ -141,9 +134,7 @@ export interface QuizOptions {
   difficulty?: Difficulty;
   language?: string;
   context?: string;
-  /** When set, the backend fetches this course's syllabus/roadmap/notes itself. */
   courseId?: number | null;
-  /** Subject scope: the backend only forwards notes belonging to it. */
   subject?: string;
 }
 
@@ -156,7 +147,6 @@ export interface EvaluateOptions {
   correctIndex?: number | null;
 }
 
-/** A file picked on device, in the shape React Native FormData uploads. */
 export interface NativeFile {
   uri: string;
   name: string;
@@ -175,7 +165,6 @@ async function readErrorDetail(response: Response): Promise<string> {
   return "";
 }
 
-/** Lets the backend query Supabase as the signed-in user (RLS applies). */
 async function authHeaders(): Promise<Record<string, string>> {
   try {
     const { data } = await supabase.auth.getSession();
@@ -194,28 +183,56 @@ function isAbortError(error: unknown): boolean {
   );
 }
 
+async function fetchWithConnectTimeout(
+  url: string,
+  init: RequestInit,
+  totalTimeoutMs: number,
+): Promise<Response> {
+  const controller = new AbortController();
+  const connectTimer = setTimeout(() => controller.abort(), CONNECT_TIMEOUT_MS);
+  const totalTimer = setTimeout(() => controller.abort(), totalTimeoutMs);
+
+  if (init.signal) {
+    init.signal.addEventListener("abort", () => controller.abort());
+  }
+
+  try {
+    const response = await fetch(url, {
+      ...init,
+      signal: controller.signal,
+    });
+    return response;
+  } finally {
+    clearTimeout(connectTimer);
+    clearTimeout(totalTimer);
+  }
+}
+
 async function request<T>(
   path: string,
   body: unknown,
   timeoutMs: number = REQUEST_TIMEOUT_MS,
+  signal?: AbortSignal,
 ): Promise<T> {
-  if (!AI_BASE_URL) {
+  const base = getAiBaseUrl();
+  if (!base) {
     throw new AiError("AI Service Unavailable. Please try again later.", 0);
   }
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-
   try {
-    const response = await fetch(`${AI_BASE_URL}${path}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(await authHeaders()),
+    const response = await fetchWithConnectTimeout(
+      `${base}${path}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeaders()),
+        },
+        body: JSON.stringify(body),
+        signal,
       },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
+      timeoutMs,
+    );
 
     if (!response.ok) {
       const detail = await readErrorDetail(response);
@@ -232,8 +249,6 @@ async function request<T>(
       throw new AiError("The request timed out. Try again.", 408);
     }
     throw new AiError("Something went wrong. Please try again.", 0);
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -242,6 +257,7 @@ export async function generateRoadmapOutline(
   hours: number,
   level: string,
   options: RoadmapOptions = {},
+  signal?: AbortSignal,
 ): Promise<RoadmapOutlineResult> {
   const body: Record<string, unknown> = {
     goal,
@@ -256,6 +272,7 @@ export async function generateRoadmapOutline(
     "/api/roadmaps/outline",
     body,
     ROADMAP_TIMEOUT_MS,
+    signal,
   );
 }
 
@@ -265,12 +282,12 @@ export interface RoadmapPhaseParams {
   level: string;
   outline: RoadmapOutlinePhase[];
   phaseNumber: number;
-  /** Titles already generated, so the model never repeats a level. */
   doneTitles: string[];
 }
 
 export async function generateRoadmapPhase(
   params: RoadmapPhaseParams,
+  signal?: AbortSignal,
 ): Promise<RoadmapPhaseResult> {
   return request<RoadmapPhaseResult>(
     "/api/roadmaps/phase",
@@ -283,6 +300,7 @@ export async function generateRoadmapPhase(
       done_titles: params.doneTitles.slice(0, 40),
     },
     ROADMAP_TIMEOUT_MS,
+    signal,
   );
 }
 
@@ -291,36 +309,45 @@ export async function generateQuiz(
   kind: QuizKind,
   count: number,
   options: QuizOptions = {},
+  signal?: AbortSignal,
 ): Promise<QuizResult> {
-  return request<QuizResult>("/api/quizzes/generate", {
-    topic,
-    kind,
-    count,
-    difficulty: options.difficulty ?? "medium",
-    language: options.language ?? "python",
-    context: options.context ?? "",
-    course_id: options.courseId ?? null,
-    subject: options.subject ?? "",
-  });
+  return request<QuizResult>(
+    "/api/quizzes/generate",
+    {
+      topic,
+      kind,
+      count,
+      difficulty: options.difficulty ?? "medium",
+      language: options.language ?? "python",
+      context: options.context ?? "",
+      course_id: options.courseId ?? null,
+      subject: options.subject ?? "",
+    },
+    REQUEST_TIMEOUT_MS,
+    signal,
+  );
 }
 
-/**
- * Uploads the PDF with the request; the server reads it in memory for this
- * one generation and never stores it.
- */
 export async function generateQuizFromPdf(
   file: NativeFile,
   topic: string,
   kind: QuizKind,
   count: number,
   options: QuizOptions = {},
+  signal?: AbortSignal,
 ): Promise<QuizResult> {
-  if (!AI_BASE_URL) {
+  const base = getAiBaseUrl();
+  if (!base) {
     throw new AiError("AI Service Unavailable. Please try again later.", 0);
   }
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), PDF_TIMEOUT_MS);
+  const connectTimer = setTimeout(() => controller.abort(), CONNECT_TIMEOUT_MS);
+  const totalTimer = setTimeout(() => controller.abort(), PDF_TIMEOUT_MS);
+
+  if (signal) {
+    signal.addEventListener("abort", () => controller.abort());
+  }
 
   const form = new FormData();
   form.append("file", file as unknown as Blob);
@@ -334,7 +361,7 @@ export async function generateQuizFromPdf(
   form.append("subject", options.subject ?? "");
 
   try {
-    const response = await fetch(`${AI_BASE_URL}/api/quizzes/generate-pdf`, {
+    const response = await fetch(`${base}/api/quizzes/generate-pdf`, {
       method: "POST",
       headers: await authHeaders(),
       body: form,
@@ -357,7 +384,8 @@ export async function generateQuizFromPdf(
     }
     throw new AiError("Something went wrong. Please try again.", 0);
   } finally {
-    clearTimeout(timer);
+    clearTimeout(connectTimer);
+    clearTimeout(totalTimer);
   }
 }
 
@@ -367,28 +395,40 @@ export async function evaluateCode(
   answer: AiAnswer,
   code = "",
   options: EvaluateOptions = {},
+  signal?: AbortSignal,
 ): Promise<Evaluation> {
-  return request<Evaluation>("/api/quizzes/evaluate", {
-    kind,
-    question,
-    answer,
-    code,
-    language: options.language ?? "python",
-    reference_solution: options.referenceSolution ?? "",
-    expected_output: options.expectedOutput ?? "",
-    buggy_line: options.buggyLine ?? null,
-    correct_index: options.correctIndex ?? null,
-  });
+  return request<Evaluation>(
+    "/api/quizzes/evaluate",
+    {
+      kind,
+      question,
+      answer,
+      code,
+      language: options.language ?? "python",
+      reference_solution: options.referenceSolution ?? "",
+      expected_output: options.expectedOutput ?? "",
+      buggy_line: options.buggyLine ?? null,
+      correct_index: options.correctIndex ?? null,
+    },
+    REQUEST_TIMEOUT_MS,
+    signal,
+  );
 }
 
 export async function chat(
   message: string,
   history: ChatMessage[] = [],
   userName?: string,
+  signal?: AbortSignal,
 ): Promise<ChatResult> {
-  return request<ChatResult>("/api/chat", {
-    message,
-    history,
-    user_name: (userName ?? "").trim().slice(0, 120),
-  });
+  return request<ChatResult>(
+    "/api/chat",
+    {
+      message,
+      history,
+      user_name: (userName ?? "").trim().slice(0, 120),
+    },
+    REQUEST_TIMEOUT_MS,
+    signal,
+  );
 }
