@@ -211,24 +211,36 @@ export async function quizGoNext() {
       xpRecorded: false,
     };
     emit();
-    try {
-      const saved = await saveQuizSession({
-        topic,
-        kind: "mixed",
-        correct: result.correct,
-        total: result.total,
-        xp: result.xp,
-      });
-      if (run !== epoch || state.phase !== "done") return;
-      state = { ...state, ...savedState(saved) };
-      emit();
-    } catch {
-      if (run !== epoch || state.phase !== "done") return;
-      state = { ...state, saveState: "failed", syncNote: SAVE_FAILED_NOTE };
-      emit();
-    } finally {
-      if (run === epoch) finishing = false;
-    }
+    // Let the results screen paint before the network write and its
+    // PROFILE_CHANGED handlers run.
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        void (async () => {
+          try {
+            const saved = await saveQuizSession({
+              topic,
+              kind: "mixed",
+              correct: result.correct,
+              total: result.total,
+              xp: result.xp,
+            });
+            if (run !== epoch || state.phase !== "done") return;
+            state = { ...state, ...savedState(saved) };
+            emit();
+          } catch {
+            if (run !== epoch || state.phase !== "done") return;
+            state = {
+              ...state,
+              saveState: "failed",
+              syncNote: SAVE_FAILED_NOTE,
+            };
+            emit();
+          } finally {
+            if (run === epoch) finishing = false;
+          }
+        })();
+      }),
+    );
     return;
   }
   const next = index + 1;

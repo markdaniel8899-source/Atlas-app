@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle as SvgCircle } from "react-native-svg";
 import {
@@ -24,6 +25,8 @@ interface QuizResultsProps {
   onNewQuiz: () => void;
 }
 
+const INITIAL_REVIEW_COUNT = 5;
+
 function verdict(percent: number): string {
   if (percent >= 90) return "Outstanding command of the topic.";
   if (percent >= 70) return "Solid - a few rough edges left.";
@@ -39,6 +42,10 @@ export function QuizResults({
   onRetry,
   onNewQuiz,
 }: QuizResultsProps) {
+  const [showAll, setShowAll] = useState(false);
+  const visibleAttempts = showAll
+    ? attempts
+    : attempts.slice(0, INITIAL_REVIEW_COUNT);
   const circumference = 2 * Math.PI * 56;
   const offset = circumference * (1 - summary.percent / 100);
   const xpLabel =
@@ -136,7 +143,7 @@ export function QuizResults({
 
       <View style={styles.reviewWrap}>
         <Text style={styles.reviewHeading}>Review</Text>
-        {attempts.map((attempt, index) => {
+        {visibleAttempts.map((attempt, index) => {
           const passed = Boolean(attempt.evaluation?.is_correct);
           const KindIcon = KIND_ICON[attempt.question.kind];
           return (
@@ -231,6 +238,24 @@ export function QuizResults({
             </Card>
           );
         })}
+        {attempts.length > INITIAL_REVIEW_COUNT ? (
+          <View style={styles.showMoreWrap}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setShowAll((value) => !value)}
+              style={({ pressed }) => [
+                styles.newQuizButton,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text style={styles.newQuizText}>
+                {showAll
+                  ? "Show fewer"
+                  : `Show all ${attempts.length} questions`}
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
       </View>
     </View>
   );
@@ -398,6 +423,10 @@ const styles = StyleSheet.create({
   reviewCard: {
     padding: 20,
     borderRadius: 16,
+  },
+  showMoreWrap: {
+    alignItems: "center",
+    paddingTop: 2,
   },
   reviewRow: {
     flexDirection: "row",
