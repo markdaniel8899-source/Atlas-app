@@ -84,15 +84,39 @@ export async function getGlobalFocusSeconds(): Promise<number> {
   return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
 }
 
+let rpcUnavailable = false;
+
 /**
- * Add a delta to the global focus counter. Serialized by the caller
- * (see db/focus.ts) so pause/resume cycles cannot lose an update.
+ * Add a delta to the global focus counter using atomic RPC.
+ * Falls back to read-modify-write if the RPC is not available.
  */
 export async function addGlobalFocusSeconds(seconds: number): Promise<boolean> {
   if (!Number.isFinite(seconds) || seconds < 1) return false;
   const user = await resolveSession();
   if (!user) return false;
 
+  if (!rpcUnavailable) {
+    try {
+      const { error } = await supabase.rpc("increment_global_focus", {
+        p_seconds: Math.floor(seconds),
+      });
+      if (!error) return true;
+      // Check if function doesn't exist (PGRST202 / 42883)
+      if (
+        error.code === "PGRST202" ||
+        error.message.includes("function") ||
+        error.message.includes("does not exist")
+      ) {
+        rpcUnavailable = true;
+      } else {
+        return false;
+      }
+    } catch {
+      rpcUnavailable = true;
+    }
+  }
+
+  // Fallback: read-modify-write
   const current = await getGlobalFocusSeconds();
   const { error } = await supabase
     .from("profiles")

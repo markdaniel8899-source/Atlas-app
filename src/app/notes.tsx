@@ -220,15 +220,22 @@ const NoteRow = memo(function NoteRow({
       onPress={() => onPress(note.id)}
       style={[styles.noteItem, active && styles.noteItemActive]}
     >
-      <Text numberOfLines={1} style={styles.noteItemTitle}>
-        {note.title || "Untitled note"}
-      </Text>
-      <Text style={styles.noteItemDate}>
-        {new Date(note.updatedAt).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-        })}
-      </Text>
+      <View style={styles.noteItemContent}>
+        <Text numberOfLines={1} style={styles.noteItemTitle}>
+          {note.title || "Untitled note"}
+        </Text>
+        <View style={styles.noteItemMeta}>
+          <Text style={styles.noteItemDate}>
+            {new Date(note.updatedAt).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+            })}
+          </Text>
+          {note.sharedBy ? (
+            <Text style={styles.noteItemShared}>Shared</Text>
+          ) : null}
+        </View>
+      </View>
     </Pressable>
   );
 });
@@ -502,6 +509,8 @@ export default function NotesScreen() {
       courseId: null,
       topicId: null,
       courseTitle: null,
+      sharedBy: null,
+      sharedAt: null,
       ...current,
       ...patch,
       updatedAt: Date.now(),
@@ -624,6 +633,8 @@ export default function NotesScreen() {
       courseId,
       topicId,
       courseTitle: selectedCourse?.title ?? null,
+      sharedBy: null,
+      sharedAt: null,
     };
     setNotes((prev) => [local, ...prev]);
     setActiveId(local.id);
@@ -1124,16 +1135,34 @@ const styles = StyleSheet.create({
     borderColor: colors.w10,
     backgroundColor: colors.w07,
   },
+  noteItemContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+  noteItemMeta: {
+    marginTop: 2,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   noteItemTitle: {
     fontSize: 14,
     fontFamily: fonts.regular,
     color: colors.white,
   },
   noteItemDate: {
-    marginTop: 2,
     fontSize: 12,
     fontFamily: fonts.regular,
     color: colors.w35,
+  },
+  noteItemShared: {
+    fontSize: 11,
+    fontFamily: fonts.medium,
+    color: colors.lilac,
+    backgroundColor: colors.lilac10,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 999,
   },
   editorCard: {
     overflow: "hidden",

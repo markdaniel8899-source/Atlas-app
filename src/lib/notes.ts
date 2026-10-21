@@ -9,6 +9,10 @@ export interface Note {
   topicId: number | null;
   /** Title of the owning course, used for subject grouping. */
   courseTitle: string | null;
+  /** User ID of who shared this note (if it was shared). */
+  sharedBy: string | null;
+  /** When the note was shared. */
+  sharedAt: number | null;
 }
 
 /** Tags the editor itself can produce (plus legacy web-client content). */

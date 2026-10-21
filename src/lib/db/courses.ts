@@ -198,6 +198,8 @@ export async function getFocusSeconds(
  * by the caller (see db/focus.ts) so rapid pause/resume cycles can't lose
  * an update.
  */
+let courseRpcUnavailable = false;
+
 export async function addFocusSeconds(
   courseId: number,
   seconds: number,
@@ -206,6 +208,28 @@ export async function addFocusSeconds(
   const user = await resolveSession();
   if (!user) return false;
 
+  if (!courseRpcUnavailable) {
+    try {
+      const { error } = await supabase.rpc("increment_course_focus", {
+        p_course_id: courseId,
+        p_seconds: Math.floor(seconds),
+      });
+      if (!error) return true;
+      if (
+        error.code === "PGRST202" ||
+        error.message.includes("function") ||
+        error.message.includes("does not exist")
+      ) {
+        courseRpcUnavailable = true;
+      } else {
+        return false;
+      }
+    } catch {
+      courseRpcUnavailable = true;
+    }
+  }
+
+  // Fallback: read-modify-write
   const current = await getFocusSeconds(courseId);
   const { error } = await supabase
     .from("courses")
@@ -277,6 +301,8 @@ export async function updateCourse(
   return course;
 }
 
+let deleteCourseRpcUnavailable = false;
+
 /**
  * Delete a course together with everything that belongs to it: its roadmap
  * (nodes and connections cascade from the roadmap row), its study sessions
@@ -284,12 +310,38 @@ export async function updateCourse(
  * notes.course_id and via the course's topics), topics, quizzes and quiz
  * attempts. Every step is checked - if a step fails the course row is left
  * untouched, so a failed delete never orphans a roadmap.
+ * Uses atomic RPC if available, falls back to multi-step delete.
  */
 export async function deleteCourse(courseId: number): Promise<boolean> {
   const user = await resolveSession();
   if (!user) return false;
 
-  // Notes first: they hang off the topics that the course delete cascades.
+  // Try atomic RPC first
+  if (!deleteCourseRpcUnavailable) {
+    try {
+      const { data, error } = await supabase.rpc("delete_course_cascade", {
+        p_course_id: courseId,
+      });
+      if (!error && data === true) {
+        notifyRoadmapsChanged();
+        notifyCoursesChanged();
+        return true;
+      }
+      if (error && (
+        error.code === "PGRST202" ||
+        error.message.includes("function") ||
+        error.message.includes("does not exist")
+      )) {
+        deleteCourseRpcUnavailable = true;
+      } else if (error) {
+        return false;
+      }
+    } catch {
+      deleteCourseRpcUnavailable = true;
+    }
+  }
+
+  // Fallback: multi-step delete (original logic)
   const { data: topicRows } = await supabase
     .from("course_topics")
     .select("id")
