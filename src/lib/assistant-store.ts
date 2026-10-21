@@ -6,6 +6,7 @@ import {
   validate,
   type Turn,
 } from "./assistant";
+import { registerResetHandler } from "./session-reset";
 
 const STORAGE_KEY = "atlas.assistant.thread.v1";
 
@@ -39,6 +40,8 @@ let hydrated = false;
 /** Owner (user id) of the persisted thread - never shown across accounts. */
 let persistedOwner: string | null = null;
 let claimedOwner: string | null = null;
+/** Bumped on reset so a reply for the previous account is discarded. */
+let epoch = 0;
 const listeners = new Set<() => void>();
 
 function emit() {
@@ -133,10 +136,12 @@ async function runAsk(
   systemPrompt: string | null,
   userName?: string,
 ) {
+  const run = epoch;
   const startedAt = Date.now();
   console.log("[assistant] request start", text.length, "chars");
   try {
     const reply = await ask(text, history, systemPrompt, userName);
+    if (run !== epoch) return;
     console.log(
       "[assistant] reply",
       reply.content.length,
@@ -155,6 +160,7 @@ async function runAsk(
     emit();
     persist();
   } catch (caught) {
+    if (run !== epoch) return;
     console.log(
       "[assistant] request failed",
       caught instanceof Error ? caught.message : String(caught),
@@ -214,9 +220,13 @@ export function dismissAssistantError() {
 }
 
 export function clearAssistantChat() {
+  epoch += 1;
   state = INITIAL;
   historyBase = [];
   persistedOwner = null;
+  claimedOwner = null;
   emit();
   void AsyncStorage.removeItem(STORAGE_KEY).catch(() => undefined);
 }
+
+registerResetHandler(clearAssistantChat);

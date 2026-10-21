@@ -7,6 +7,7 @@ import {
   cancelStreakReminder,
 } from "./notifications";
 import { clearProfileCache } from "./profile-cache";
+import { runResetHandlers } from "./session-reset";
 import {
   syncAtlasNotesWidget,
   syncAtlasStatsWidget,
@@ -30,9 +31,18 @@ export const CONFIG_ERROR =
   "Supabase isn't configured yet. Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to your .env file.";
 
 let cached: AuthUser | null = null;
+let lastAuthId: string | null | undefined;
 
 supabase.auth.onAuthStateChange((_event, session) => {
   cached = session?.user ? toAuthUser(session.user) : null;
+  const nextId = session?.user?.id ?? null;
+  // Reset once the account actually changes; the initial session event only
+  // establishes the baseline. Registered first, so stores are cleared before
+  // screen subscribers see the new user.
+  if (lastAuthId !== undefined && lastAuthId !== nextId) {
+    runResetHandlers();
+  }
+  lastAuthId = nextId;
 });
 
 /** Subscribe to sign-in / sign-out (fires with null after sign-out). */
@@ -225,15 +235,22 @@ export async function updatePassword(password: string): Promise<AuthResult> {
 }
 
 export async function signOut(): Promise<void> {
+  const ownerId = cached?.id ?? null;
   cached = null;
-  if (isSupabaseConfigured) await supabase.auth.signOut();
-  await clearLocalTimerCache();
-  void cancelSessionEndNotification();
-  void cancelStreakReminder();
-  syncAtlasStatsWidget(null, []);
-  syncAtlasNotesWidget(null);
-  clearProfileCache();
-  clearDataCaches();
+  try {
+    if (isSupabaseConfigured) await supabase.auth.signOut();
+  } catch {
+    // Local sign-out must still complete when the network is unavailable.
+  } finally {
+    await clearLocalTimerCache(ownerId);
+    void cancelSessionEndNotification();
+    void cancelStreakReminder();
+    syncAtlasStatsWidget(null, []);
+    syncAtlasNotesWidget(null);
+    clearProfileCache();
+    clearDataCaches();
+    runResetHandlers();
+  }
 }
 
 /** Restores the persisted session on load and refreshes the cached user. */

@@ -152,7 +152,9 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
 
   const handleLogOut = () => {
     handleClose(() => {
-      void signOut().then(() => router.navigate("/login"));
+      void signOut()
+        .catch(() => {})
+        .then(() => router.navigate("/login"));
     });
   };
 

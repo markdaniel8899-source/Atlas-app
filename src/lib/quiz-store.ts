@@ -1,6 +1,7 @@
 import { AiError } from "./ai";
 import type { Evaluation } from "./ai";
 import { saveQuizSession } from "./db/quiz-sessions";
+import { registerResetHandler } from "./session-reset";
 import {
   canSubmit,
   evaluateAnswer,
@@ -72,6 +73,8 @@ const INITIAL: QuizSessionState = {
  */
 let state: QuizSessionState = INITIAL;
 let snapshot: QuizSessionState = state;
+/** Bumped on reset so in-flight requests cannot repopulate another account. */
+let epoch = 0;
 const listeners = new Set<() => void>();
 
 function emit() {
@@ -92,6 +95,7 @@ export function getQuizSessionSnapshot(): QuizSessionState {
 
 export async function generateQuizSession(input: GenerateInput) {
   if (state.phase === "loading") return;
+  const run = epoch;
   state = { ...state, phase: "loading", error: null };
   emit();
   try {
@@ -100,7 +104,9 @@ export async function generateQuizSession(input: GenerateInput) {
           .then(input.contextBuilder)
           .catch(() => input.context ?? "")
       : input.context;
+    if (run !== epoch) return;
     const result = await requestQuiz({ ...input, context });
+    if (run !== epoch) return;
     if (result.questions.length === 0) {
       throw new AiError("The AI returned an empty quiz. Try again.", 0);
     }
@@ -119,6 +125,7 @@ export async function generateQuizSession(input: GenerateInput) {
     };
     emit();
   } catch (caught) {
+    if (run !== epoch) return;
     state = { ...state, error: classify(caught), phase: "setup" };
     emit();
   }
@@ -135,10 +142,12 @@ export async function submitQuizAnswer() {
     return;
   }
   const { index, answer } = state;
+  const run = epoch;
   state = { ...state, evaluating: true, error: null };
   emit();
   try {
     const result = await evaluateAnswer(question, answer);
+    if (run !== epoch) return;
     state = {
       ...state,
       attempts: state.attempts.map((item, position) =>
@@ -149,6 +158,7 @@ export async function submitQuizAnswer() {
     };
     emit();
   } catch (caught) {
+    if (run !== epoch) return;
     state = { ...state, evaluating: false, error: classify(caught) };
     emit();
   }
@@ -156,6 +166,7 @@ export async function submitQuizAnswer() {
 
 export async function quizGoNext() {
   const { attempts, index } = state;
+  const run = epoch;
   if (index >= attempts.length - 1) {
     const result = summarize(attempts);
     const saved = await saveQuizSession({
@@ -165,6 +176,7 @@ export async function quizGoNext() {
       total: result.total,
       xp: result.xp,
     });
+    if (run !== epoch) return;
     state = {
       ...state,
       unlocked: saved.codes,
@@ -224,9 +236,14 @@ export function quizRetake() {
   emit();
 }
 
-export function quizStartOver() {
+export function resetQuizStore() {
+  epoch += 1;
   state = INITIAL;
   emit();
+}
+
+export function quizStartOver() {
+  resetQuizStore();
 }
 
 export function dismissQuizError() {
@@ -234,3 +251,5 @@ export function dismissQuizError() {
   state = { ...state, error: null };
   emit();
 }
+
+registerResetHandler(resetQuizStore);

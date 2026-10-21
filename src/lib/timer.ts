@@ -24,14 +24,37 @@ const STATE_KEY = "atlas.timer";
 const SESSIONS_KEY = "atlas.sessions";
 const BASE_KEY = "atlas.focus.base";
 
+const LEGACY_KEYS = [STATE_KEY, SESSIONS_KEY, BASE_KEY];
+
+/** Per-account keys keep one user's timer out of the next user's session. */
+function ownerKey(base: string, ownerId?: string | null): string {
+  return ownerId ? `${base}.${ownerId}` : base;
+}
+
 /**
  * Wipes the local timer/focus caches. Called on sign-out so one account's
  * counters can never bleed into the next session; state is reconciled from
- * the server on the following sign-in.
+ * the server on the following sign-in. Old unscoped keys are removed too.
  */
-export async function clearLocalTimerCache(): Promise<void> {
+export async function clearLocalTimerCache(
+  ownerId?: string | null,
+): Promise<void> {
   try {
-    await AsyncStorage.multiRemove([STATE_KEY, SESSIONS_KEY, BASE_KEY]);
+    if (ownerId === undefined) {
+      const keys = await AsyncStorage.getAllKeys();
+      await AsyncStorage.multiRemove(
+        keys.filter((key) =>
+          LEGACY_KEYS.some(
+            (base) => key === base || key.startsWith(`${base}.`),
+          ),
+        ),
+      );
+      return;
+    }
+    await AsyncStorage.multiRemove([
+      ...LEGACY_KEYS,
+      ...LEGACY_KEYS.map((base) => ownerKey(base, ownerId)),
+    ]);
   } catch {
     // Best-effort - a failed clear only means stale local state.
   }
@@ -119,9 +142,11 @@ function sanitise(parsed: TimerState | null): TimerState {
   };
 }
 
-export async function loadTimerState(): Promise<TimerState> {
+export async function loadTimerState(
+  ownerId?: string | null,
+): Promise<TimerState> {
   try {
-    const raw = await AsyncStorage.getItem(STATE_KEY);
+    const raw = await AsyncStorage.getItem(ownerKey(STATE_KEY, ownerId));
     if (!raw) return defaultTimerState();
     return sanitise(JSON.parse(raw) as TimerState);
   } catch {
@@ -129,10 +154,15 @@ export async function loadTimerState(): Promise<TimerState> {
   }
 }
 
-export function saveTimerState(state: TimerState): void {
-  void AsyncStorage.setItem(STATE_KEY, JSON.stringify(state)).catch(
-    () => undefined,
-  );
+export function saveTimerState(
+  state: TimerState,
+  ownerId?: string | null,
+): void {
+  if (!ownerId) return;
+  void AsyncStorage.setItem(
+    ownerKey(STATE_KEY, ownerId),
+    JSON.stringify(state),
+  ).catch(() => undefined);
 }
 
 /* ---------------------------------------------------------------
@@ -140,9 +170,11 @@ export function saveTimerState(state: TimerState): void {
    from zero. Until auth lands, the lifetime base lives on-device.
 --------------------------------------------------------------- */
 
-export async function loadFocusBase(): Promise<number> {
+export async function loadFocusBase(
+  ownerId?: string | null,
+): Promise<number> {
   try {
-    const raw = await AsyncStorage.getItem(BASE_KEY);
+    const raw = await AsyncStorage.getItem(ownerKey(BASE_KEY, ownerId));
     const value = Number(raw);
     return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
   } catch {
@@ -150,9 +182,13 @@ export async function loadFocusBase(): Promise<number> {
   }
 }
 
-export function saveFocusBase(seconds: number): void {
+export function saveFocusBase(
+  seconds: number,
+  ownerId?: string | null,
+): void {
+  if (!ownerId) return;
   void AsyncStorage.setItem(
-    BASE_KEY,
+    ownerKey(BASE_KEY, ownerId),
     String(Math.max(0, Math.floor(seconds))),
   ).catch(() => undefined);
 }
@@ -162,9 +198,11 @@ export function saveFocusBase(seconds: number): void {
    learning_sessions from lib/db/sessions.ts).
 --------------------------------------------------------------- */
 
-export async function loadSessions(): Promise<StudySession[]> {
+export async function loadSessions(
+  ownerId?: string | null,
+): Promise<StudySession[]> {
   try {
-    const raw = await AsyncStorage.getItem(SESSIONS_KEY);
+    const raw = await AsyncStorage.getItem(ownerKey(SESSIONS_KEY, ownerId));
     if (!raw) return [];
     const parsed = JSON.parse(raw) as StudySession[];
     return Array.isArray(parsed) ? parsed : [];
@@ -175,7 +213,9 @@ export async function loadSessions(): Promise<StudySession[]> {
 
 export async function commitSession(
   state: TimerState,
+  ownerId?: string | null,
 ): Promise<StudySession | null> {
+  if (!ownerId) return null;
   const ms = elapsedMs(state);
   if (ms < 60_000) return null;
   const endedAt = Date.now();
@@ -185,9 +225,9 @@ export async function commitSession(
     endedAt,
     minutes: Math.floor(ms / 60_000),
   };
-  const sessions = await loadSessions();
+  const sessions = await loadSessions(ownerId);
   void AsyncStorage.setItem(
-    SESSIONS_KEY,
+    ownerKey(SESSIONS_KEY, ownerId),
     JSON.stringify([...sessions, session].slice(-500)),
   ).catch(() => undefined);
   return session;

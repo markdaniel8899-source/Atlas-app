@@ -10,6 +10,7 @@ import { SelectMenu } from "../components/ui/select-menu";
 import type { SelectOption } from "../components/ui/select-menu";
 import { useTimer } from "../context/timer-context";
 import { useCourses } from "../hooks/use-courses";
+import { getCachedAuthUser } from "../lib/auth";
 import { loadSessions } from "../lib/timer";
 import type { StudySession } from "../lib/timer";
 import { colors, ease, fonts } from "../theme/theme";
@@ -99,7 +100,7 @@ export default function TimerScreen() {
 
   // Session history list - refreshed after every commit.
   useEffect(() => {
-    void loadSessions().then(setSessions);
+    void loadSessions(getCachedAuthUser()?.id ?? null).then(setSessions);
   }, [timer.historyVersion]);
 
   const progressAnim = useRef(new Animated.Value(0)).current;

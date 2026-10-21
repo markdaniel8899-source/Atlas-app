@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getCachedAuthUser, resolveSession } from "../lib/auth";
 import type { AuthUser } from "../lib/auth";
 import { readCache, writeCache } from "../lib/data-cache";
@@ -62,9 +62,13 @@ export function useDashboard(): DashboardState {
     () => readCache<DashboardSnapshot>(CACHE_KEY) === null,
   );
 
+  const requestRef = useRef(0);
+
   const reload = useCallback(() => {
+    const request = ++requestRef.current;
     void (async () => {
       const user = await resolveSession().catch(() => getCachedAuthUser());
+      if (request !== requestRef.current) return;
       if (!user) {
         setData(EMPTY);
         syncAtlasStatsWidget(null, []);
@@ -84,6 +88,10 @@ export function useDashboard(): DashboardState {
           fetchHeatmap(365),
           fetchFocusCourse(),
         ]);
+        // A late response for the previous account must not repaint or
+        // re-cache data after the owner has changed.
+        if (request !== requestRef.current) return;
+        if (getCachedAuthUser()?.id !== user.id) return;
         writeCache<DashboardSnapshot>(CACHE_KEY, { heatmap, focus });
         const next: DashboardData = {
           user,
@@ -102,6 +110,8 @@ export function useDashboard(): DashboardState {
             : null,
         );
       } catch {
+        if (request !== requestRef.current) return;
+        if (getCachedAuthUser()?.id !== user.id) return;
         if (!cachedProfile) setData((prev) => ({ ...prev, user }));
       } finally {
         setLoading(false);

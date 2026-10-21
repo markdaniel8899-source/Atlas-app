@@ -9,7 +9,7 @@ import {
 } from "react";
 import type { ReactNode } from "react";
 import { useCourses } from "../hooks/use-courses";
-import { subscribeAuth } from "../lib/auth";
+import { resolveSession, subscribeAuth } from "../lib/auth";
 import { commitFocus, flushFocus } from "../lib/db/focus";
 import { getFocusSeconds } from "../lib/db/courses";
 import { getGlobalFocusSeconds } from "../lib/db/profile";
@@ -27,6 +27,7 @@ import {
 } from "../lib/timer";
 import type { TimerState } from "../lib/timer";
 import { notifyFocusChanged } from "../lib/events";
+import { registerResetHandler } from "../lib/session-reset";
 import {
   cancelSessionEndNotification,
   scheduleSessionEndNotification,
@@ -95,6 +96,9 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   const baseRef = useRef(0);
   const courseBaseRef = useRef(0);
   const hydratedRef = useRef(false);
+  const ownerRef = useRef<string | null>(null);
+  const hydrateRunRef = useRef(0);
+  const completionNotifiedRef = useRef(false);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const completionCardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -105,51 +109,114 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     setState(next);
   }, []);
 
-  // Hydrate the persisted timer + local lifetime base once on mount, then
-  // reconcile with the account's lifetime total from Supabase.
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const [stored, base] = await Promise.all([
-        loadTimerState(),
-        loadFocusBase(),
-      ]);
-      if (cancelled) return;
+  // Hydrate the persisted timer + local lifetime base for one account. Any
+  // in-flight run is invalidated when the owner changes again (sign-out or a
+  // different account), so a late response can never overwrite the new user.
+  const hydrateForOwner = useCallback(async (ownerId: string | null) => {
+    const run = ++hydrateRunRef.current;
+    ownerRef.current = ownerId;
+    hydratedRef.current = false;
+
+    // Drop the previous account's live state immediately.
+    const fresh = defaultTimerState();
+    stateRef.current = fresh;
+    baseRef.current = 0;
+    courseBaseRef.current = 0;
+    completionNotifiedRef.current = false;
+    setState(fresh);
+    setGlobalBase(0);
+    setCourseBase(0);
+    setFlash(null);
+    setShowCompletionCard(false);
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+    flashTimerRef.current = null;
+    if (completionCardTimerRef.current)
+      clearTimeout(completionCardTimerRef.current);
+    completionCardTimerRef.current = null;
+    void cancelSessionEndNotification();
+
+    if (!ownerId) {
       hydratedRef.current = true;
-      stateRef.current = stored;
-      baseRef.current = base;
-      setState(stored);
-      setGlobalBase(base);
+      return;
+    }
 
-      // Keep the end-of-session alert in sync with a persisted run.
-      const endsAt = sessionEndsAt(stored);
-      if (endsAt) void scheduleSessionEndNotification(endsAt);
-      else void cancelSessionEndNotification();
+    const [stored, base] = await Promise.all([
+      loadTimerState(ownerId),
+      loadFocusBase(ownerId),
+    ]);
+    if (run !== hydrateRunRef.current || ownerRef.current !== ownerId) return;
 
-      const serverSeconds = await getGlobalFocusSeconds();
-      if (cancelled || serverSeconds <= baseRef.current) return;
-      baseRef.current = serverSeconds;
-      setGlobalBase(serverSeconds);
-      saveFocusBase(serverSeconds);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    stateRef.current = stored;
+    baseRef.current = base;
+    setState(stored);
+    setGlobalBase(base);
+    hydratedRef.current = true;
 
-  /** Pull the account's lifetime total after sign-in / refresh. */
-  const syncGlobalBase = useCallback(async () => {
+    // Keep the end-of-session alert in sync with a persisted run.
+    const endsAt = sessionEndsAt(stored);
+    if (endsAt) void scheduleSessionEndNotification(endsAt);
+    else void cancelSessionEndNotification();
+
     const serverSeconds = await getGlobalFocusSeconds();
+    if (run !== hydrateRunRef.current || ownerRef.current !== ownerId) return;
     if (serverSeconds > baseRef.current) {
       baseRef.current = serverSeconds;
       setGlobalBase(serverSeconds);
-      saveFocusBase(serverSeconds);
+      saveFocusBase(serverSeconds, ownerId);
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void resolveSession()
+      .then((user) => {
+        if (!cancelled) void hydrateForOwner(user?.id ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) void hydrateForOwner(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrateForOwner]);
+
+  useEffect(
+    () =>
+      subscribeAuth((user) => {
+        const next = user?.id ?? null;
+        if (next === ownerRef.current) return;
+        void hydrateForOwner(next);
+      }),
+    [hydrateForOwner],
+  );
+
+  // Sign-out resets every registered store; keep the timer in that set.
+  useEffect(
+    () =>
+      registerResetHandler(() => {
+        void hydrateForOwner(null);
+      }),
+    [hydrateForOwner],
+  );
+
+  /** Pull the account's lifetime total after sign-in / refresh. */
+  const syncGlobalBase = useCallback(async () => {
+    const ownerId = ownerRef.current;
+    if (!ownerId) return;
+    const serverSeconds = await getGlobalFocusSeconds();
+    if (ownerId !== ownerRef.current) return;
+    if (serverSeconds > baseRef.current) {
+      baseRef.current = serverSeconds;
+      setGlobalBase(serverSeconds);
+      saveFocusBase(serverSeconds, ownerId);
     }
   }, []);
 
   /** Fresh course counter (courses.total_focus_seconds). */
   const reloadCourseBase = useCallback(async (courseId: number | null) => {
+    const ownerId = ownerRef.current;
     const seconds = await getFocusSeconds(courseId);
+    if (ownerId !== ownerRef.current) return;
     if (courseId !== stateRef.current.courseId) return;
     courseBaseRef.current = seconds;
     setCourseBase(seconds);
@@ -172,7 +239,9 @@ export function TimerProvider({ children }: { children: ReactNode }) {
 
   // Persist every transition (app restarts keep the timer alive via this).
   useEffect(() => {
-    if (hydratedRef.current) saveTimerState(state);
+    if (hydratedRef.current && ownerRef.current) {
+      saveTimerState(state, ownerRef.current);
+    }
   }, [state]);
 
   // Single 1Hz tick for every consumer while the timer runs.
@@ -203,7 +272,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     const next = baseRef.current + delta;
     baseRef.current = next;
     setGlobalBase(next);
-    saveFocusBase(next);
+    if (ownerRef.current) saveFocusBase(next, ownerRef.current);
 
     if (stateRef.current.courseId != null) {
       courseBaseRef.current += delta;
@@ -320,7 +389,6 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   const stopRef = useRef(stop);
   stopRef.current = stop;
   // One-shot: the completion card shows exactly once per session.
-  const completionNotifiedRef = useRef(false);
   useEffect(() => {
     if (state.mode !== "running") completionNotifiedRef.current = false;
   }, [state.mode]);
