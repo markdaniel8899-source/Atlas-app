@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { InteractionManager, StyleSheet, View } from "react-native";
+import { ActivityIndicator, InteractionManager, StyleSheet, View } from "react-native";
 import { DarkTheme, Tabs, ThemeProvider } from "expo-router";
 import Head from "expo-router/head";
 import { StatusBar } from "expo-status-bar";
@@ -93,6 +93,11 @@ export default function RootLayout() {
     CreateFuture: require("../../assets/fonts/CreateFuture.otf"),
   });
 
+  // Global session gate: prevents any app UI from rendering until SecureStore
+  // session restoration is complete. This eliminates the race condition where
+  // API calls fire before the auth token is available.
+  const [isSessionReady, setIsSessionReady] = useState(false);
+
   // Every route lives in one flat, always-mounted tab set, so switching
   // sections never remounts a screen (no reloads, no stale data). Keying on
   // the auth owner resets that state on sign-in / sign-out / account switch.
@@ -121,7 +126,10 @@ export default function RootLayout() {
     void resolveSession()
       .catch(() => undefined)
       .finally(() => {
-        if (active) setSessionSettled(true);
+        if (active) {
+          setSessionSettled(true);
+          setIsSessionReady(true);
+        }
       });
     return () => {
       active = false;
@@ -167,6 +175,16 @@ export default function RootLayout() {
   }, [sessionKey]);
 
   if (!loaded && !error) return null;
+
+  // Global session gate: do not render the app until SecureStore session is restored.
+  // This prevents premature API calls (AI, notes, roadmap, etc.) from firing with empty auth headers.
+  if (!isSessionReady) {
+    return (
+      <View style={styles.sessionLoading}>
+        <ActivityIndicator color="#9db4ff" size="large" />
+      </View>
+    );
+  }
 
   const preloadedRoutes =
     sessionKey !== "anon" && preloadStage > 0
@@ -224,5 +242,11 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.appBg,
+  },
+  sessionLoading: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#0a0a0a",
   },
 });

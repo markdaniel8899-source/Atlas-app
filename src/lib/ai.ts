@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { getAiBaseUrl } from "./api-config";
+import { resolveSession } from "./auth";
 
 const REQUEST_TIMEOUT_MS = 90_000;
 const ROADMAP_TIMEOUT_MS = 180_000;
@@ -167,10 +168,17 @@ async function readErrorDetail(response: Response): Promise<string> {
 
 async function authHeaders(): Promise<Record<string, string>> {
   try {
+    const user = await resolveSession();
+    if (!user) return {};
+
     const { data } = await supabase.auth.getSession();
     const token = data.session?.access_token;
+
+    console.log("🔐 Mobile Auth Token:", token ? `${token.slice(0, 15)}...` : "MISSING");
+
     return token ? { Authorization: `Bearer ${token}` } : {};
-  } catch {
+  } catch (error) {
+    console.error("❌ Error in authHeaders:", error);
     return {};
   }
 }
@@ -220,14 +228,17 @@ async function request<T>(
   }
 
   try {
+    const headers = {
+      "Content-Type": "application/json",
+      ...(await authHeaders()),
+    };
+    console.log("🌐 API Request Headers:", JSON.stringify(headers));
+
     const response = await fetchWithConnectTimeout(
       `${base}${path}`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(await authHeaders()),
-        },
+        headers,
         body: JSON.stringify(body),
         signal,
       },

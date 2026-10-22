@@ -118,49 +118,58 @@ export interface NotesScope {
 }
 
 export async function fetchNotes(scope?: NotesScope): Promise<Note[]> {
-  const user = await resolveSession();
-  console.log("Notes Fetch User:", user);
-  if (!user) return [];
+  try {
+    const user = await resolveSession();
+    console.log("📝 Notes Fetch - User:", user ? "Authenticated" : "NULL", "Session exists:", !!user);
 
-  if (
-    scope?.courseId == null &&
-    scope?.topicIds &&
-    scope.topicIds.length === 0
-  ) {
+    if (!user) {
+      console.warn("⚠️ fetchNotes aborted: No user session found.");
+      return [];
+    }
+
+    if (
+      scope?.courseId == null &&
+      scope?.topicIds &&
+      scope.topicIds.length === 0
+    ) {
+      return [];
+    }
+
+    let query = supabase
+      .from("notes")
+      .select(NOTE_COLUMNS)
+      .eq("user_id", user.id)
+      .order("updated_at", { ascending: false });
+
+    if (scope?.courseId != null) {
+      if (scope.topicIds && scope.topicIds.length > 0) {
+        // Course view: everything linked to the course directly OR through a
+        // topic (covers rows written before course_id existed).
+        query = query.or(
+          `course_id.eq.${scope.courseId},topic_id.in.(${scope.topicIds.join(",")})`,
+        );
+      } else {
+        query = query.eq("course_id", scope.courseId);
+      }
+    } else if (scope?.topicIds) {
+      query = query.in("topic_id", scope.topicIds);
+    }
+
+    const { data, error } = await query;
+    console.log("Notes Fetch Response:", { data, error });
+    if (error || !Array.isArray(data)) return [];
+
+    const rows = data as unknown as NoteRow[];
+    const courseByNote = await loadCourseTitles(rows);
+    return rows.map((row) => {
+      const note = toNote(row);
+      note.courseTitle = courseByNote.get(row.id) ?? null;
+      return note;
+    });
+  } catch (error) {
+    console.error("❌ Error in fetchNotes:", error);
     return [];
   }
-
-  let query = supabase
-    .from("notes")
-    .select(NOTE_COLUMNS)
-    .eq("user_id", user.id)
-    .order("updated_at", { ascending: false });
-
-  if (scope?.courseId != null) {
-    if (scope.topicIds && scope.topicIds.length > 0) {
-      // Course view: everything linked to the course directly OR through a
-      // topic (covers rows written before course_id existed).
-      query = query.or(
-        `course_id.eq.${scope.courseId},topic_id.in.(${scope.topicIds.join(",")})`,
-      );
-    } else {
-      query = query.eq("course_id", scope.courseId);
-    }
-  } else if (scope?.topicIds) {
-    query = query.in("topic_id", scope.topicIds);
-  }
-
-  const { data, error } = await query;
-  console.log("Notes Fetch Response:", { data, error });
-  if (error || !Array.isArray(data)) return [];
-
-  const rows = data as unknown as NoteRow[];
-  const courseByNote = await loadCourseTitles(rows);
-  return rows.map((row) => {
-    const note = toNote(row);
-    note.courseTitle = courseByNote.get(row.id) ?? null;
-    return note;
-  });
 }
 
 /**
