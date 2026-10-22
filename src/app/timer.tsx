@@ -302,10 +302,6 @@ export default function TimerScreen() {
             {timer.flash ? (
               <FlashLine key={timer.flash} text={timer.flash} />
             ) : null}
-
-            <Text style={styles.hint}>
-              {hint} Elapsed time is derived from timestamps, not tick counts.
-            </Text>
           </View>
         </Card>
       </View>

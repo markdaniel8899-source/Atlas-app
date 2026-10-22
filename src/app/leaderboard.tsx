@@ -357,21 +357,26 @@ export default function LeaderboardScreen() {
   );
 
   // One shared sweep for all three podium cards, and only while this tab is
-  // focused. No per-card 2.5-3.5s infinite loops.
+  // focused. Infinite loop.
   useFocusEffect(
     useCallback(() => {
       shine.stopAnimation();
       shine.setValue(0);
       if (reduceMotion) return;
-      const animation = Animated.timing(shine, {
-        toValue: 1,
-        duration: 1600,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      });
-      animation.start();
+      const loop = () => {
+        const animation = Animated.timing(shine, {
+          toValue: 1,
+          duration: 1600,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        });
+        animation.start(() => {
+          shine.setValue(0);
+          loop();
+        });
+      };
+      loop();
       return () => {
-        animation.stop();
         shine.stopAnimation();
       };
     }, [shine, reduceMotion]),
