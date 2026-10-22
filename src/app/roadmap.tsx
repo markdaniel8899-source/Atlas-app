@@ -200,6 +200,8 @@ export default function RoadmapScreen() {
     message: string;
   } | null>(null);
   const [cancelRequested, setCancelRequested] = useState(false);
+  /** Index of the phase that failed (for retry). */
+  const [failedPhaseIndex, setFailedPhaseIndex] = useState<number | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const aiStatus = useAiStatus();
   const {
@@ -211,6 +213,8 @@ export default function RoadmapScreen() {
   /** True while this page is writing roadmaps, so its own change
    *  notifications never trigger a refetch that would clobber local state. */
   const busyRef = useRef(false);
+  /** Store the last generation input for retry. */
+  const lastGenerationInputRef = useRef<RoadmapRequestInput | null>(null);
 
   useEffect(
     () => () => {
@@ -306,6 +310,7 @@ export default function RoadmapScreen() {
   const generate = useCallback(
     async (input: RoadmapRequestInput) => {
       if (busyRef.current) return;
+      lastGenerationInputRef.current = input;
       busyRef.current = true;
       if (
         !(await ensureOnline(
@@ -319,8 +324,10 @@ export default function RoadmapScreen() {
       setError(null);
       setGenerating(null);
       setCancelRequested(false);
+      setFailedPhaseIndex(null);
       abortControllerRef.current = new AbortController();
       beginHeavyTask();
+      let currentPhaseIndex = 0;
       try {
         // Step 1: outline only - small and fast, phase titles show at once.
         const outline = await generateRoadmapOutline(
@@ -367,6 +374,7 @@ export default function RoadmapScreen() {
         let saveFailed = false;
 
         for (let index = 0; index < outline.phases.length; index += 1) {
+          currentPhaseIndex = index;
           if (abortControllerRef.current.signal.aborted) {
             setError("Roadmap generation cancelled. Saved phases are kept.");
             break;
@@ -452,10 +460,14 @@ export default function RoadmapScreen() {
       } catch (err) {
         // Phases generated before the failure stay on screen and in the DB.
         if (err instanceof AiError) {
-          const unreachable = err.status === 0 || err.status === 503;
+          // Network errors (status 0 or 503) should show a retry message, not disappear silently
+          const isNetworkError = err.status === 0 || err.status === 503;
+          if (isNetworkError) {
+            setFailedPhaseIndex(currentPhaseIndex);
+          }
           setError(
-            unreachable
-              ? null
+            isNetworkError
+              ? "Network interrupted. Tap to retry the current phase."
               : err.status === 408
                 ? "The AI timed out mid-generation. Your saved progress is kept - try again."
                 : err.message,
@@ -475,6 +487,18 @@ export default function RoadmapScreen() {
     },
     [roadmapCourseId, reloadCourses, router],
   );
+
+  /** Retry generation from the failed phase index. */
+  const retryGeneration = useCallback(async () => {
+    if (failedPhaseIndex === null) return;
+    const input = lastGenerationInputRef.current;
+    if (!input) return;
+    setFailedPhaseIndex(null);
+    setError(null);
+    // Re-trigger the full generation - it will reuse the existing skeleton
+    // and saved phases, then continue from where it left off
+    await generate(input);
+  }, [failedPhaseIndex, generate]);
 
   const toggleNode = useCallback(
     async (node: GraphNode) => {
@@ -743,6 +767,20 @@ export default function RoadmapScreen() {
           <Text style={styles.deletePillText}>Delete roadmap</Text>
         </Pressable>
       </View>
+
+      {error && failedPhaseIndex !== null ? (
+        <View style={styles.retryBanner}>
+          <Text style={styles.retryBannerText}>{error}</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Retry generation"
+            onPress={retryGeneration}
+            style={styles.retryButton}
+          >
+            <Text style={styles.retryButtonText}>Retry Phase</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       {showBuilder ? (
         <RoadmapBuilder
@@ -1415,6 +1453,40 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   cancelButtonText: {
+    fontSize: 13,
+    fontFamily: fonts.medium,
+    color: "#fecdd3",
+  },
+  retryBanner: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(251,113,133,0.35)",
+    backgroundColor: "rgba(244,63,94,0.10)",
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    marginTop: 10,
+  },
+  retryBannerText: {
+    flexShrink: 1,
+    fontSize: 14,
+    fontFamily: fonts.regular,
+    color: "#fecdd3",
+  },
+  retryButton: {
+    minHeight: 44,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(251,113,133,0.55)",
+    backgroundColor: "rgba(244,63,94,0.14)",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  retryButtonText: {
     fontSize: 13,
     fontFamily: fonts.medium,
     color: "#fecdd3",

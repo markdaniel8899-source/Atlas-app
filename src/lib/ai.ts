@@ -248,6 +248,15 @@ async function request<T>(
     if (isAbortError(error)) {
       throw new AiError("The request timed out. Try again.", 408);
     }
+    // Network errors (TypeError, fetch failures) get a distinct status for retry UI
+    if (error instanceof TypeError || (error instanceof Error && (
+      error.name === "NetworkError" ||
+      error.message.includes("network") ||
+      error.message.includes("fetch") ||
+      error.message.includes("Failed to fetch")
+    ))) {
+      throw new AiError("Network connection lost. Check your internet and retry.", 503);
+    }
     throw new AiError("Something went wrong. Please try again.", 0);
   }
 }
