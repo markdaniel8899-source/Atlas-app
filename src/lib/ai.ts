@@ -5,7 +5,6 @@ import { resolveSession } from "./auth";
 const REQUEST_TIMEOUT_MS = 90_000;
 const ROADMAP_TIMEOUT_MS = 180_000;
 const PDF_TIMEOUT_MS = 120_000;
-const CONNECT_TIMEOUT_MS = 5_000;
 
 export type QuizKind = "mcq" | "code" | "debug" | "output";
 export type Difficulty = "easy" | "medium" | "hard";
@@ -197,7 +196,6 @@ async function fetchWithConnectTimeout(
   totalTimeoutMs: number,
 ): Promise<Response> {
   const controller = new AbortController();
-  const connectTimer = setTimeout(() => controller.abort(), CONNECT_TIMEOUT_MS);
   const totalTimer = setTimeout(() => controller.abort(), totalTimeoutMs);
 
   if (init.signal) {
@@ -211,7 +209,6 @@ async function fetchWithConnectTimeout(
     });
     return response;
   } finally {
-    clearTimeout(connectTimer);
     clearTimeout(totalTimer);
   }
 }
@@ -362,7 +359,6 @@ export async function generateQuizFromPdf(
   }
 
   const controller = new AbortController();
-  const connectTimer = setTimeout(() => controller.abort(), CONNECT_TIMEOUT_MS);
   const totalTimer = setTimeout(() => controller.abort(), PDF_TIMEOUT_MS);
 
   if (signal) {
@@ -404,7 +400,6 @@ export async function generateQuizFromPdf(
     }
     throw new AiError("Something went wrong. Please try again.", 0);
   } finally {
-    clearTimeout(connectTimer);
     clearTimeout(totalTimer);
   }
 }
