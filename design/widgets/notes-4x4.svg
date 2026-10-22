@@ -1,0 +1,64 @@
+<svg width="440" height="440" viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="220" height="220" rx="24" fill="url(#bgGradient)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+  <defs>
+    <linearGradient id="bgGradient" x1="0" y1="0" x2="220" y2="220" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1b1440"/>
+      <stop offset="100%" stop-color="#0a0817"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Header: file-text icon + Notes + count + plus button -->
+  <svg x="16" y="16" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" stroke="#cf9eff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M14 2v5a1 1 0 0 0 1 1h5" stroke="#cf9eff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M10 9H8" stroke="#cf9eff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M16 13H8" stroke="#cf9eff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M16 17H8" stroke="#cf9eff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  
+  <text x="40" y="27" font-size="14" font-weight="600" fill="#ffffff" letter-spacing="0.2">Notes</text>
+  <text x="85" y="27" font-size="10.5" fill="rgba(255,255,255,0.35)">· 5</text>
+
+  <!-- Plus button -->
+  <rect x="176" y="8" width="28" height="28" rx="14" fill="url(#plusGradient)"/>
+  <defs>
+    <linearGradient id="plusGradient" x1="176" y1="8" x2="204" y2="36" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#c9a3ff"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+  </defs>
+  <svg x="183" y="15" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M5 12h14M12 5v14" stroke="#0a0817" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+
+  <!-- Notes list (4 rows) -->
+  <g transform="translate(16, 52)">
+    <!-- Note 1 -->
+    <circle cx="3" cy="3" r="3" fill="#cf9eff"/>
+    <text x="16" y="13" font-size="13" font-weight="600" fill="#ffffff" letter-spacing="0.1">Physics notes — Mechanics</text>
+    <text x="16" y="25" font-size="11" fill="rgba(255,255,255,0.55)" letter-spacing="0.1">Chapter 1: Kinematics, forces, energy...</text>
+    <text x="195" y="16" font-size="9" fill="rgba(255,255,255,0.35)" text-anchor="end">2h ago</text>
+    <line x1="0" y1="30" x2="204" y2="30" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>
+
+    <!-- Note 2 -->
+    <circle cx="3" cy="38" r="3" fill="#cf9eff"/>
+    <text x="16" y="48" font-size="13" font-weight="600" fill="#ffffff" letter-spacing="0.1">Calculus review</text>
+    <text x="16" y="60" font-size="11" fill="rgba(255,255,255,0.55)" letter-spacing="0.1">Limits, derivatives, integrals summary</text>
+    <text x="195" y="51" font-size="9" fill="rgba(255,255,255,0.35)" text-anchor="end">1d ago</text>
+    <line x1="0" y1="65" x2="204" y2="65" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>
+
+    <!-- Note 3 -->
+    <circle cx="3" cy="73" r="3" fill="#cf9eff"/>
+    <text x="16" y="83" font-size="13" font-weight="600" fill="#ffffff" letter-spacing="0.1">Chemistry formulas</text>
+    <text x="16" y="95" font-size="11" fill="rgba(255,255,255,0.55)" letter-spacing="0.1">Periodic trends, bonding, reactions</text>
+    <text x="195" y="86" font-size="9" fill="rgba(255,255,255,0.35)" text-anchor="end">3d ago</text>
+    <line x1="0" y1="100" x2="204" y2="100" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>
+
+    <!-- Note 4 -->
+    <circle cx="3" cy="108" r="3" fill="#cf9eff"/>
+    <text x="16" y="118" font-size="13" font-weight="600" fill="#ffffff" letter-spacing="0.1">History timeline</text>
+    <text x="16" y="130" font-size="11" fill="rgba(255,255,255,0.55)" letter-spacing="0.1">WWI causes, key battles, aftermath</text>
+    <text x="195" y="121" font-size="9" fill="rgba(255,255,255,0.35)" text-anchor="end">1w ago</text>
+  </g>
+</svg>

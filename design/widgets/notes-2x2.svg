@@ -1,0 +1,50 @@
+<svg width="220" height="220" viewBox="0 0 110 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="110" height="110" rx="24" fill="url(#bgGradient)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+  <defs>
+    <linearGradient id="bgGradient" x1="0" y1="0" x2="110" y2="110" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1b1440"/>
+      <stop offset="100%" stop-color="#0a0817"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Header: file-text icon + Notes + count + plus button -->
+  <svg x="12" y="12" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" stroke="#cf9eff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M14 2v5a1 1 0 0 0 1 1h5" stroke="#cf9eff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M10 9H8" stroke="#cf9eff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M16 13H8" stroke="#cf9eff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M16 17H8" stroke="#cf9eff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  
+  <text x="32" y="21" font-size="12" font-weight="600" fill="#ffffff" letter-spacing="0.2">Notes</text>
+  <text x="70" y="21" font-size="9" fill="rgba(255,255,255,0.35)">· 3</text>
+
+  <!-- Plus button -->
+  <rect x="76" y="6" width="24" height="24" rx="12" fill="url(#plusGradient)"/>
+  <defs>
+    <linearGradient id="plusGradient" x1="76" y1="6" x2="100" y2="30" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#c9a3ff"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+  </defs>
+  <svg x="81" y="11" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M5 12h14M12 5v14" stroke="#0a0817" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+
+  <!-- Notes list -->
+  <g transform="translate(12, 44)">
+    <!-- Note 1 -->
+    <circle cx="3" cy="3" r="3" fill="#cf9eff"/>
+    <text x="14" y="11" font-size="11" font-weight="600" fill="#ffffff" letter-spacing="0.1">Physics notes</text>
+    <text x="14" y="21" font-size="9" fill="rgba(255,255,255,0.55)" letter-spacing="0.1">Chapter 1: Mechanics overview...</text>
+    <text x="95" y="14" font-size="8" fill="rgba(255,255,255,0.35)" text-anchor="end">2h ago</text>
+    <line x1="0" y1="25" x2="98" y2="25" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>
+
+    <!-- Note 2 -->
+    <circle cx="3" cy="33" r="3" fill="#cf9eff"/>
+    <text x="14" y="41" font-size="11" font-weight="600" fill="#ffffff" letter-spacing="0.1">Calculus review</text>
+    <text x="14" y="51" font-size="9" fill="rgba(255,255,255,0.55)" letter-spacing="0.1">Limits and derivatives summary</text>
+    <text x="95" y="44" font-size="8" fill="rgba(255,255,255,0.35)" text-anchor="end">1d ago</text>
+  </g>
+</svg>
