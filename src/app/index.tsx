@@ -16,6 +16,14 @@ import { ActivityHeatmap } from "../components/dashboard/activity-heatmap";
 import { FocusTimerWidget } from "../components/dashboard/focus-timer-widget";
 import { PlayerStats } from "../components/dashboard/player-stats";
 import { TodayFocus } from "../components/dashboard/today-focus";
+import {
+  StreakWidgetV1,
+  StreakWidgetV2,
+  StreakWidgetV3,
+  NotesWidgetV1,
+  NotesWidgetV2,
+  NotesWidgetV3,
+} from "../components/dashboard-widgets";
 import { OfflineBanner } from "../components/offline-banner";
 import { SessionCompleteCard } from "../components/session-complete-card";
 import { RevealText } from "../components/ui/reveal-text";
@@ -124,6 +132,20 @@ export default function DashboardScreen() {
           <FocusTimerWidget />
           <TodayFocus focus={focus} loading={loading} />
           <ActivityHeatmap days={heatmap} />
+
+          {/* ==========================================
+               WIDGET VARIATIONS - Swap by commenting/uncommenting
+               ========================================== */}
+          
+          {/* STREAK WIDGET VARIATIONS (choose ONE) */}
+          {/* <StreakWidgetV1 streak={profile?.streak ?? 12} /> */}
+          {/* <StreakWidgetV2 streak={profile?.streak ?? 12} rank={profile ? "Iron" : "—"} level={3} /> */}
+          {/* <StreakWidgetV3 rank="Iron" xp={1240} xpNeed={2000} xpPercent={62} /> */}
+
+          {/* NOTES WIDGET VARIATIONS (choose ONE) */}
+          {/* <NotesWidgetV1 /> */}
+          {/* <NotesWidgetV2 /> */}
+          {/* <NotesWidgetV3 /> */}
         </View>
 
         <View style={styles.footerWrap}>
