@@ -12,7 +12,6 @@ const LILAC = "#cf9eff";
 const WHITE = "#ffffff";
 const MUTED = "rgba(255, 255, 255, 0.55)";
 const FAINT = "rgba(255, 255, 255, 0.35)";
-const GLASS_BORDER = "rgba(255, 255, 255, 0.06)";
 const HAIRLINE = "rgba(255, 255, 255, 0.055)";
 const PLUS_BG_FROM = "#e6d2ff";
 const PLUS_BG_TO = "#cf9eff";
@@ -44,10 +43,10 @@ export function AtlasNotesWidget({
         width: "match_parent",
         height: "match_parent",
         flexDirection: "column",
-        padding: 9,
-        borderRadius: 24,
+        padding: 12,
+        borderRadius: 26,
         borderWidth: 1,
-        borderColor: GLASS_BORDER,
+        borderColor: "rgba(207, 158, 255, 0.22)",
         backgroundGradient: {
           from: "#1b1440",
           to: "#0a0817",
@@ -58,17 +57,17 @@ export function AtlasNotesWidget({
       <FlexWidget
         style={{
           width: "match_parent",
-          height: 20,
           flexDirection: "row",
           alignItems: "center",
           justifyContent: "space-between",
+          height: 24,
         }}
       >
         <TextWidget
           text={isCompact ? "NOTES" : "RECENT NOTES"}
           style={{
-            fontSize: 8,
-            fontWeight: "600",
+            fontSize: 8.5,
+            fontWeight: "700",
             color: FAINT,
             letterSpacing: 1.2,
           }}
@@ -79,7 +78,7 @@ export function AtlasNotesWidget({
         >
           {!isCompact ? (
             <TextWidget
-              text={`${notes.length} total`}
+              text={`${notes.length} notes`}
               style={{ fontSize: 8, color: FAINT }}
               maxLines={1}
             />
@@ -88,8 +87,8 @@ export function AtlasNotesWidget({
             clickAction="OPEN_URI"
             clickActionData={{ uri: "atlas://notes?compose=1" }}
             style={{
-              width: 22,
-              height: 22,
+              width: 24,
+              height: 24,
               borderRadius: 999,
               alignItems: "center",
               justifyContent: "center",
@@ -110,7 +109,7 @@ export function AtlasNotesWidget({
           style={{
             width: "match_parent",
             height: listHeight,
-            marginTop: 3,
+            marginTop: 6,
           }}
         >
           {displayNotes.map((note, index) => (
@@ -122,16 +121,16 @@ export function AtlasNotesWidget({
                 width: "match_parent",
                 flexDirection: "row",
                 alignItems: "center",
-                flexGap: 7,
-                paddingVertical: 2.5,
+                flexGap: 8,
+                paddingVertical: 4,
                 borderBottomWidth: index < displayNotes.length - 1 ? 0.5 : 0,
                 borderBottomColor: HAIRLINE,
               }}
             >
               <FlexWidget
                 style={{
-                  width: 4.5,
-                  height: 4.5,
+                  width: 5,
+                  height: 5,
                   borderRadius: 999,
                   backgroundColor: NOTE_DOT,
                 }}
@@ -140,10 +139,10 @@ export function AtlasNotesWidget({
                 <TextWidget
                   text={note.title}
                   style={{
-                    fontSize: 10,
+                    fontSize: 10.5,
                     fontWeight: "600",
                     color: WHITE,
-                    lineHeight: 12,
+                    lineHeight: 13,
                   }}
                   maxLines={1}
                   truncate="END"
@@ -164,26 +163,26 @@ export function AtlasNotesWidget({
             flex: 1,
             alignItems: "center",
             justifyContent: "center",
-            paddingHorizontal: 8,
+            paddingHorizontal: 12,
           }}
         >
           <FlexWidget
             style={{
-              width: 34,
-              height: 34,
+              width: 38,
+              height: 38,
               borderRadius: 999,
               alignItems: "center",
               justifyContent: "center",
-              backgroundColor: "rgba(207, 158, 255, 0.12)",
-              marginBottom: 6,
+              backgroundColor: "rgba(207, 158, 255, 0.15)",
+              marginBottom: 8,
             }}
           >
-            <TextWidget text={buildFileTextIcon(LILAC, 16)} style={{}} />
+            <TextWidget text={buildFileTextIcon(LILAC, 18)} style={{}} />
           </FlexWidget>
           <TextWidget
             text="No notes yet"
             style={{
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: "600",
               color: WHITE,
               letterSpacing: 0.1,
@@ -195,7 +194,7 @@ export function AtlasNotesWidget({
             style={{
               fontSize: 9,
               color: MUTED,
-              marginTop: 3,
+              marginTop: 4,
               letterSpacing: 0.1,
             }}
             maxLines={1}

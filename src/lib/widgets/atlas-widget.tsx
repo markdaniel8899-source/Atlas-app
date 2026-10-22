@@ -2,13 +2,11 @@
 
 import {
   FlexWidget,
-  SvgWidget,
   TextWidget,
 } from "react-native-android-widget";
 import { getRankFromXP } from "../gamification";
 import type { AtlasWidgetData, WidgetWeekDay } from "./atlas-widget-data";
-import { formatXp } from "./widget-model";
-import { buildRankBadgeSvg } from "./rank-badge-svg";
+import { formatFocus } from "./widget-model";
 
 const LILAC = "#cf9eff";
 const LILAC_DEEP = "#8b5cf6";
@@ -17,22 +15,23 @@ const MUTED = "rgba(255, 255, 255, 0.55)";
 const FAINT = "rgba(255, 255, 255, 0.35)";
 const TRACK = "rgba(255, 255, 255, 0.08)";
 const HAIRLINE = "rgba(255, 255, 255, 0.08)";
-const GLASS_BORDER = "rgba(255, 255, 255, 0.06)";
+const GLASS_BORDER = "rgba(207, 158, 255, 0.22)";
+const CARD_FROM = "#1b1440";
+const CARD_TO = "#0a0817";
 
 const WEEK_LENGTH = 7;
-const PADDING = 12;
-const LEFT_WIDTH = 84;
-/** Below this width the 7-day chart is dropped so the stats stay readable. */
-const FULL_LAYOUT_MIN_WIDTH = 290;
+const PADDING = 16;
+const CHART_HEIGHT = 56;
 
 /**
- * Wide streak card (4x2): flame + streak on the left, the 7-day focus chart
- * in the middle and the real rank badge with XP progress on the right.
- * Compact widths (<290dp) hide the chart instead of squeezing the stats.
+ * Streak + Stats + Chart card (4x3+): ATLAS wordmark + LV pill header,
+ * flame + streak + focus today row, 7-day focus chart, badge chips footer.
+ * Single column layout with justifyContent space-between for premium feel.
  */
 export function AtlasWidget({
   data,
-  width = 250,
+  width = 320,
+  height = 220,
 }: {
   data: AtlasWidgetData;
   width?: number;
@@ -41,19 +40,20 @@ export function AtlasWidget({
   const week: WidgetWeekDay[] = data.week.slice(-WEEK_LENGTH);
   const maxSeconds = Math.max(1, ...week.map((day) => day.seconds));
   const streakCaption = data.streak > 0 ? "day streak" : "start today";
-  const showBars = width >= FULL_LAYOUT_MIN_WIDTH && week.length > 0;
+  const focusTodayLabel = formatFocus(data.todaySeconds);
 
   const rank = getRankFromXP(data.xp);
-  const badgeSvg = buildRankBadgeSvg(rank.tier.key, rank.current.step, 19);
 
-  const rightWidth = Math.max(
-    64,
-    width - PADDING * 2 - LEFT_WIDTH - 21 - (showBars ? 76 : 0),
-  );
-  const fillWidth = Math.max(
-    3,
-    Math.round((rightWidth * Math.min(100, Math.max(0, rank.percent))) / 100),
-  );
+  // Badge chips: streak milestone, rank, weekly XP
+  const streakMilestones = [7, 14, 21, 30, 50, 100, 200, 365];
+  const streakBadge = streakMilestones
+    .filter((m) => data.streak >= m)
+    .sort((a, b) => b - a)[0];
+  const badges = [];
+  if (streakBadge) badges.push(`🔥 ${streakBadge}-Day Streak`);
+  badges.push(`★ ${rank.name}`);
+  if (data.weeklyXp > 0) badges.push(`⚡ ${data.weeklyXp} wk XP`);
+  const displayBadges = badges.slice(0, 3);
 
   return (
     <FlexWidget
@@ -61,203 +61,250 @@ export function AtlasWidget({
       style={{
         width: "match_parent",
         height: "match_parent",
-        flexDirection: "row",
-        alignItems: "center",
+        flexDirection: "column",
         padding: PADDING,
-        borderRadius: 24,
+        borderRadius: 26,
         borderWidth: 1,
         borderColor: GLASS_BORDER,
         backgroundGradient: {
-          from: "#1b1440",
-          to: "#0a0817",
+          from: CARD_FROM,
+          to: CARD_TO,
           orientation: "TL_BR",
         },
+        justifyContent: "space-between",
       }}
     >
+      {/* Header: ATLAS wordmark + LV pill */}
       <FlexWidget
         style={{
-          width: LEFT_WIDTH,
-          flexDirection: "column",
+          width: "match_parent",
+          flexDirection: "row",
           alignItems: "center",
-          justifyContent: "center",
+          justifyContent: "space-between",
         }}
       >
         <TextWidget
-          text="🔥"
-          style={{ fontSize: 24, lineHeight: 28 }}
+          text="ATLAS"
+          style={{
+            fontSize: 18,
+            fontWeight: "800",
+            color: WHITE,
+            letterSpacing: 3,
+            fontFamily: "sans-serif",
+          }}
           maxLines={1}
         />
         <FlexWidget
           style={{
             flexDirection: "row",
-            alignItems: "flex-end",
-            flexGap: 4,
-            marginTop: 2,
+            alignItems: "center",
+            paddingHorizontal: 10,
+            paddingVertical: 3,
+            borderRadius: 999,
+            backgroundColor: "rgba(207, 158, 255, 0.18)",
+            borderWidth: 1,
+            borderColor: "rgba(207, 158, 255, 0.35)",
           }}
         >
           <TextWidget
-            text={`${data.streak}`}
+            text={`LV ${data.level}`}
             style={{
-              fontSize: 28,
-              fontWeight: "800",
-              color: WHITE,
-              lineHeight: 28,
+              fontSize: 10,
+              fontWeight: "700",
+              color: LILAC,
+              letterSpacing: 0.5,
             }}
-            maxLines={1}
-          />
-          <TextWidget
-            text={streakCaption}
-            style={{ fontSize: 8.5, color: MUTED, marginBottom: 3 }}
             maxLines={1}
           />
         </FlexWidget>
       </FlexWidget>
 
-      {showBars ? (
+      {/* Main Stats Row: Flame + Streak (left) | Focus Today (right) */}
+      <FlexWidget
+        style={{
+          width: "match_parent",
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginTop: 4,
+        }}
+      >
+        {/* Left: Flame + Streak */}
         <FlexWidget
           style={{
-            width: 74,
-            height: 62,
             flexDirection: "row",
             alignItems: "flex-end",
-            flexGap: 3,
-            marginLeft: 2,
+            flexGap: 6,
           }}
         >
-          {week.map((day, index) => {
-            const isToday = index === week.length - 1;
-            const height =
-              day.seconds <= 0
-                ? 4
-                : 6 +
-                  Math.round(
-                    Math.min(1, day.seconds / maxSeconds) * 38,
-                  );
-            return (
-              <FlexWidget
-                key={`${day.label}-${index}`}
+          <TextWidget
+            text="🔥"
+            style={{ fontSize: 32, lineHeight: 36 }}
+            maxLines={1}
+          />
+          <FlexWidget style={{ flexDirection: "column" }}>
+            <TextWidget
+              text={`${data.streak}`}
+              style={{
+                fontSize: 34,
+                fontWeight: "800",
+                color: WHITE,
+                lineHeight: 36,
+              }}
+              maxLines={1}
+            />
+            <TextWidget
+              text={streakCaption}
+              style={{ fontSize: 10, color: MUTED, letterSpacing: 0.2 }}
+              maxLines={1}
+            />
+          </FlexWidget>
+        </FlexWidget>
+
+        {/* Right: Focus Today */}
+        <FlexWidget
+          style={{
+            flexDirection: "column",
+            alignItems: "flex-end",
+            justifyContent: "flex-end",
+            flexGap: 2,
+          }}
+        >
+          <TextWidget
+            text="FOCUS TODAY"
+            style={{
+              fontSize: 9,
+              fontWeight: "600",
+              color: FAINT,
+              letterSpacing: 0.8,
+            }}
+            maxLines={1}
+          />
+          <TextWidget
+            text={focusTodayLabel}
+            style={{
+              fontSize: 22,
+              fontWeight: "700",
+              color: LILAC,
+              lineHeight: 26,
+            }}
+            maxLines={1}
+          />
+        </FlexWidget>
+      </FlexWidget>
+
+      {/* 7-Day Focus Chart */}
+      <FlexWidget
+        style={{
+          width: "match_parent",
+          height: CHART_HEIGHT,
+          flexDirection: "row",
+          alignItems: "flex-end",
+          flexGap: 5,
+          marginTop: 6,
+        }}
+      >
+        {week.map((day, index) => {
+          const isToday = index === week.length - 1;
+          const barHeight =
+            day.seconds <= 0
+              ? 4
+              : 6 + Math.round(Math.min(1, day.seconds / maxSeconds) * 44);
+          return (
+            <FlexWidget
+              key={`${day.label}-${index}`}
+              style={{
+                flex: 1,
+                height: barHeight,
+                borderRadius: 2,
+                ...(isToday
+                  ? {
+                      backgroundGradient: {
+                        from: LILAC,
+                        to: LILAC_DEEP,
+                        orientation: "TOP_BOTTOM" as const,
+                      },
+                    }
+                  : {
+                      backgroundColor:
+                        day.seconds > 0
+                          ? "rgba(207, 158, 255, 0.34)"
+                          : TRACK,
+                    }),
+              }}
+            />
+          );
+        })}
+      </FlexWidget>
+
+      {/* Weekday Labels */}
+      <FlexWidget
+        style={{
+          width: "match_parent",
+          flexDirection: "row",
+          justifyContent: "space-between",
+          marginTop: 4,
+          paddingHorizontal: 2,
+        }}
+      >
+        {week.map((day, index) => (
+          <TextWidget
+            key={`${day.label}-${index}`}
+            text={day.label}
+            style={{
+              fontSize: 8.5,
+              fontWeight: index === week.length - 1 ? "700" : "500",
+              color: index === week.length - 1 ? LILAC : FAINT,
+              letterSpacing: 0.2,
+              textAlign: "center",
+            }}
+            maxLines={1}
+          />
+        ))}
+      </FlexWidget>
+
+      {/* Footer: Badge Chips */}
+      {displayBadges.length > 0 && (
+        <FlexWidget
+          style={{
+            width: "match_parent",
+            flexDirection: "row",
+            flexGap: 6,
+            alignItems: "center",
+            marginTop: 8,
+            paddingTop: 8,
+            borderTopWidth: 0.5,
+            borderTopColor: HAIRLINE,
+          }}
+        >
+          {displayBadges.map((badge, index) => (
+            <FlexWidget
+              key={`${badge}-${index}`}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                paddingHorizontal: 9,
+                paddingVertical: 4,
+                borderRadius: 999,
+                backgroundColor: "rgba(255, 255, 255, 0.06)",
+                borderWidth: 0.5,
+                borderColor: "rgba(255, 255, 255, 0.08)",
+              }}
+            >
+              <TextWidget
+                text={badge}
                 style={{
-                  flex: 1,
-                  height,
-                  borderRadius: 2,
-                  ...(isToday
-                    ? {
-                        backgroundGradient: {
-                          from: "#ffb27d",
-                          to: "#ff8f52",
-                          orientation: "TOP_BOTTOM" as const,
-                        },
-                      }
-                    : {
-                        backgroundColor:
-                          day.seconds > 0
-                            ? "rgba(207, 158, 255, 0.28)"
-                            : TRACK,
-                      }),
+                  fontSize: 8.5,
+                  fontWeight: "600",
+                  color: WHITE,
+                  letterSpacing: 0.2,
                 }}
+                maxLines={1}
               />
-            );
-          })}
+            </FlexWidget>
+          ))}
         </FlexWidget>
-      ) : null}
-
-      <FlexWidget
-        style={{
-          width: 1,
-          height: 64,
-          backgroundColor: HAIRLINE,
-          marginHorizontal: 10,
-        }}
-      />
-
-      <FlexWidget
-        style={{
-          width: rightWidth,
-          flexDirection: "column",
-          justifyContent: "center",
-        }}
-      >
-        <FlexWidget
-          style={{ flexDirection: "row", alignItems: "center", flexGap: 6 }}
-        >
-          <SvgWidget svg={badgeSvg} style={{ width: 19, height: 19 }} />
-          <TextWidget
-            text={rank.name}
-            style={{
-              fontSize: 10.5,
-              fontWeight: "700",
-              color: WHITE,
-              letterSpacing: -0.1,
-            }}
-            maxLines={1}
-            truncate="END"
-          />
-        </FlexWidget>
-
-        <FlexWidget
-          style={{
-            flexDirection: "row",
-            alignItems: "flex-end",
-            flexGap: 4,
-            marginTop: 6,
-          }}
-        >
-          <TextWidget
-            text={formatXp(data.xp)}
-            style={{
-              fontSize: 15,
-              fontWeight: "700",
-              color: WHITE,
-              lineHeight: 16,
-            }}
-            maxLines={1}
-          />
-          <TextWidget
-            text="XP"
-            style={{ fontSize: 8, color: FAINT, marginBottom: 2 }}
-            maxLines={1}
-          />
-        </FlexWidget>
-
-        <FlexWidget
-          style={{
-            width: rightWidth,
-            height: 4,
-            borderRadius: 99,
-            backgroundColor: TRACK,
-            marginTop: 5,
-          }}
-        >
-          <FlexWidget
-            style={{
-              width: fillWidth,
-              height: 4,
-              borderRadius: 99,
-              backgroundGradient: {
-                from: LILAC,
-                to: LILAC_DEEP,
-                orientation: "LEFT_RIGHT",
-              },
-            }}
-          />
-        </FlexWidget>
-
-        <TextWidget
-          text={
-            rank.nextRankName
-              ? `LV ${data.level} · ${formatXp(rank.xpToNext)} XP to ${rank.nextRankName}`
-              : "Max rank reached"
-          }
-          style={{
-            fontSize: 7.5,
-            color: FAINT,
-            marginTop: 5,
-            letterSpacing: 0.1,
-          }}
-          maxLines={1}
-          truncate="END"
-        />
-      </FlexWidget>
+      )}
     </FlexWidget>
   );
 }
