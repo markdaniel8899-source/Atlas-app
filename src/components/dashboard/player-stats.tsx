@@ -55,8 +55,25 @@ function LoadingCard() {
     <Card>
       <Animated.View style={{ opacity: pulse, gap: 20 }}>
         <View style={styles.skeletonRow}>
-          <View style={styles.skeletonTall} />
-          <View style={styles.skeletonTall} />
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 10,
+              flexShrink: 1,
+              minWidth: 0,
+            }}
+          >
+            <View style={styles.skeletonFlameBox} />
+            <View style={styles.skeletonCellValue} />
+          </View>
+          <View style={styles.skeletonRankBlock}>
+            <View style={styles.skeletonRankBadge} />
+            <View style={styles.skeletonRankTextCol}>
+              <View style={styles.skeletonRankName} />
+              <View style={styles.skeletonRankMicro} />
+            </View>
+          </View>
         </View>
         <View style={styles.skeletonBar} />
       </Animated.View>
@@ -99,8 +116,24 @@ export function PlayerStats({ profile, loading }: PlayerStatsProps) {
           style={styles.cardGlow}
         />
 
-        <View style={styles.topRow}>
-          <View style={styles.cell}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            columnGap: 16,
+            rowGap: 8,
+            flexWrap: "nowrap",
+          }}
+        >
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 10,
+              minWidth: 0,
+              flexShrink: 1,
+            }}
+          >
             <View style={styles.flameBox}>
               <Flame size={20} color={colors.flame} />
             </View>
@@ -125,10 +158,21 @@ export function PlayerStats({ profile, loading }: PlayerStatsProps) {
               size={44}
             />
             <View style={styles.rankTextCol}>
-              <Text style={styles.rankName} numberOfLines={1}>
+              <Text
+                style={styles.rankName}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
+                maxFontSizeMultiplier={1.2}
+              >
                 {rankData.name}
               </Text>
-              <Text style={[styles.micro, styles.microGap]} numberOfLines={1}>
+              <Text
+                style={[styles.micro, styles.microGap]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
+              >
                 current rank
               </Text>
             </View>
@@ -319,13 +363,54 @@ const styles = StyleSheet.create({
   },
   skeletonRow: {
     flexDirection: "row",
-    gap: 12,
+    alignItems: "center",
+    columnGap: 16,
+    rowGap: 8,
+    flexWrap: "nowrap",
   },
-  skeletonTall: {
-    flex: 1,
+  skeletonFlameBox: {
+    width: 44,
     height: 44,
     borderRadius: 12,
     backgroundColor: colors.w06,
+  },
+  skeletonCellValue: {
+    flexShrink: 1,
+    minWidth: 0,
+    height: 20,
+    borderRadius: 4,
+    backgroundColor: colors.w05,
+  },
+  skeletonRankBlock: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 4,
+    borderRadius: 12,
+    backgroundColor: colors.w03,
+  },
+  skeletonRankBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: colors.w05,
+  },
+  skeletonRankTextCol: {
+    flexShrink: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  skeletonRankName: {
+    height: 18,
+    width: "60%",
+    borderRadius: 4,
+    backgroundColor: colors.w05,
+  },
+  skeletonRankMicro: {
+    height: 11,
+    width: "40%",
+    borderRadius: 4,
+    backgroundColor: colors.w05,
   },
   skeletonBar: {
     height: 10,

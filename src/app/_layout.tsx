@@ -29,6 +29,7 @@ import { getCachedAuthUser, resolveSession, subscribeAuth } from "../lib/auth";
 import { refreshAiBaseUrl } from "../lib/api-config";
 import "../lib/sentry";
 import { colors } from "../theme/theme";
+import { tabTransitionOptions } from "../lib/tab-transition";
 
 void SplashScreen.preventAutoHideAsync().catch(() => {});
 SplashScreen.setOptions({ duration: 400, fade: true });
@@ -204,9 +205,9 @@ export default function RootLayout() {
               detachInactiveScreens={false}
               screenOptions={({ route }) => ({
                 headerShown: false,
-                animation: "none",
                 sceneStyle: { backgroundColor: "transparent" },
                 lazy: !preloadedRoutes?.has(route.name),
+                ...tabTransitionOptions(),
               })}
             />
           </ThemeProvider>

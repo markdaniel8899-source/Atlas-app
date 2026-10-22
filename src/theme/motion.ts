@@ -8,3 +8,6 @@ export const MOTION = {
   sheetClose: 200,
   easing: ease,
 } as const;
+
+export const TAB_TRANSITION: "none" | "fade-through" = "none";
+export const TAB_FADE_MS = 160;
