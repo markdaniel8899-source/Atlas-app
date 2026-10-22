@@ -24,7 +24,13 @@ export function registerAtlasWidgetTaskHandler(): void {
 
       if (name === ATLAS_WIDGET_NAME) {
         const data = await loadAtlasWidgetData();
-        props.renderWidget(<AtlasWidget data={data} />);
+        props.renderWidget(
+          <AtlasWidget
+            data={data}
+            width={props.widgetInfo.width}
+            height={props.widgetInfo.height}
+          />,
+        );
         return;
       }
 

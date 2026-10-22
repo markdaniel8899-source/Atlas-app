@@ -13,7 +13,7 @@
     },
     "android": {
       "package": "com.atlas.mobile",
-      "versionCode": 7,
+      "versionCode": 8,
       "allowBackup": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
@@ -48,20 +48,20 @@
           "widgets": [
             {
               "name": "AtlasWidget",
-              "label": "ATLAS - Streak, Badges & Stats",
+              "label": "ATLAS - Streak, Rank & XP",
               "minWidth": "250dp",
               "minHeight": "110dp",
-              "description": "Streak, today's focus, a 7-day chart and your badges at a glance.",
+              "description": "Your streak, rank badge, XP progress and 7-day focus chart.",
               "previewImage": "./assets/widget-preview.png",
               "updatePeriodMillis": 0,
               "resizeMode": "horizontal|vertical"
             },
             {
               "name": "AtlasNotesWidget",
-              "label": "ATLAS - Quick Notes",
-              "minWidth": "110dp",
+              "label": "ATLAS - Recent Notes",
+              "minWidth": "250dp",
               "minHeight": "110dp",
-              "description": "Recent notes and a one-tap new note.",
+              "description": "Your latest notes with a one-tap new note.",
               "previewImage": "./assets/widget-preview-notes.png",
               "updatePeriodMillis": 0,
               "resizeMode": "horizontal|vertical"

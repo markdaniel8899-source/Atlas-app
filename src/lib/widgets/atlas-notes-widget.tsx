@@ -13,31 +13,29 @@ const WHITE = "#ffffff";
 const MUTED = "rgba(255, 255, 255, 0.55)";
 const FAINT = "rgba(255, 255, 255, 0.35)";
 const GLASS_BORDER = "rgba(255, 255, 255, 0.06)";
-const HAIRLINE = "rgba(255, 255, 255, 0.05)";
-const PLUS_BG_FROM = "#c9a3ff";
-const PLUS_BG_TO = "#8b5cf6";
+const HAIRLINE = "rgba(255, 255, 255, 0.055)";
+const PLUS_BG_FROM = "#e6d2ff";
+const PLUS_BG_TO = "#cf9eff";
 const NOTE_DOT = "#cf9eff";
 
 /**
- * Premium quick-notes card: the newest notes plus a one-tap new-note
- * shortcut (atlas://notes?compose=1).
- * Responsive: 2x2 (110dp) shows 1-2 rows, larger sizes show up to 4 rows.
+ * Wide recent-notes card (4x2): RECENT NOTES header with the note count and
+ * a one-tap compose button, then a list of the newest notes (title + time).
+ * Tap a row to open Notes, tap + to jump straight into a new note.
  */
 export function AtlasNotesWidget({
   notes,
-  width = 110,
+  width = 250,
   height = 110,
 }: {
   notes: WidgetNote[];
   width?: number;
   height?: number;
 }) {
-  const headerHeight = 36;
-  const availableHeight = height - 24; // 12dp padding top + bottom
-  const listHeight = Math.max(44, availableHeight - headerHeight - 8);
-  const maxRows = Math.max(1, Math.floor(listHeight / 36));
-  const displayNotes = notes.slice(0, maxRows);
-  const isCompact = height <= 120;
+  const displayNotes = notes.slice(0, 5);
+  const listHeight = Math.max(48, height - 41);
+  // Older 2x2 placements stay renderable: drop the long header and the count.
+  const isCompact = width < 180;
 
   return (
     <FlexWidget
@@ -46,7 +44,7 @@ export function AtlasNotesWidget({
         width: "match_parent",
         height: "match_parent",
         flexDirection: "column",
-        padding: 12,
+        padding: 9,
         borderRadius: 24,
         borderWidth: 1,
         borderColor: GLASS_BORDER,
@@ -60,55 +58,50 @@ export function AtlasNotesWidget({
       <FlexWidget
         style={{
           width: "match_parent",
+          height: 20,
           flexDirection: "row",
           alignItems: "center",
           justifyContent: "space-between",
-          height: headerHeight,
         }}
       >
-        <FlexWidget
-          style={{ flexDirection: "row", alignItems: "center", flexGap: 6 }}
-        >
-          <TextWidget
-            text={buildFileTextIcon(LILAC, isCompact ? 14 : 16)}
-            style={{}}
-          />
-          <TextWidget
-            text="Notes"
-            style={{
-              fontSize: isCompact ? 12 : 14,
-              fontWeight: "600",
-              color: WHITE,
-              letterSpacing: 0.2,
-            }}
-            maxLines={1}
-          />
-          <TextWidget
-            text={`· ${notes.length}`}
-            style={{ fontSize: isCompact ? 9 : 10.5, color: FAINT }}
-            maxLines={1}
-          />
-        </FlexWidget>
-        <FlexWidget
-          clickAction="OPEN_URI"
-          clickActionData={{ uri: "atlas://notes?compose=1" }}
+        <TextWidget
+          text={isCompact ? "NOTES" : "RECENT NOTES"}
           style={{
-            width: isCompact ? 24 : 28,
-            height: isCompact ? 24 : 28,
-            borderRadius: 999,
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundGradient: {
-              from: PLUS_BG_FROM,
-              to: PLUS_BG_TO,
-              orientation: "TL_BR",
-            },
+            fontSize: 8,
+            fontWeight: "600",
+            color: FAINT,
+            letterSpacing: 1.2,
           }}
+          maxLines={1}
+        />
+        <FlexWidget
+          style={{ flexDirection: "row", alignItems: "center", flexGap: 8 }}
         >
-          <TextWidget
-            text={buildPlusIcon("#0a0817", isCompact ? 14 : 17)}
-            style={{}}
-          />
+          {!isCompact ? (
+            <TextWidget
+              text={`${notes.length} total`}
+              style={{ fontSize: 8, color: FAINT }}
+              maxLines={1}
+            />
+          ) : null}
+          <FlexWidget
+            clickAction="OPEN_URI"
+            clickActionData={{ uri: "atlas://notes?compose=1" }}
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 999,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundGradient: {
+                from: PLUS_BG_FROM,
+                to: PLUS_BG_TO,
+                orientation: "TL_BR",
+              },
+            }}
+          >
+            <TextWidget text={buildPlusIcon("#0a0817", 12)} style={{}} />
+          </FlexWidget>
         </FlexWidget>
       </FlexWidget>
 
@@ -117,7 +110,7 @@ export function AtlasNotesWidget({
           style={{
             width: "match_parent",
             height: listHeight,
-            marginTop: 8,
+            marginTop: 3,
           }}
         >
           {displayNotes.map((note, index) => (
@@ -129,49 +122,36 @@ export function AtlasNotesWidget({
                 width: "match_parent",
                 flexDirection: "row",
                 alignItems: "center",
-                flexGap: 8,
-                paddingVertical: isCompact ? 5 : 7,
+                flexGap: 7,
+                paddingVertical: 2.5,
                 borderBottomWidth: index < displayNotes.length - 1 ? 0.5 : 0,
                 borderBottomColor: HAIRLINE,
               }}
             >
               <FlexWidget
                 style={{
-                  width: 5,
-                  height: 5,
+                  width: 4.5,
+                  height: 4.5,
                   borderRadius: 999,
                   backgroundColor: NOTE_DOT,
                 }}
               />
-              <FlexWidget style={{ flex: 1, flexDirection: "column" }}>
+              <FlexWidget style={{ flex: 1 }}>
                 <TextWidget
                   text={note.title}
                   style={{
-                    fontSize: isCompact ? 11 : 13,
+                    fontSize: 10,
                     fontWeight: "600",
                     color: WHITE,
-                    letterSpacing: 0.1,
+                    lineHeight: 12,
                   }}
                   maxLines={1}
                   truncate="END"
                 />
-                {note.snippet ? (
-                  <TextWidget
-                    text={note.snippet}
-                    style={{
-                      fontSize: isCompact ? 9 : 11,
-                      color: MUTED,
-                      marginTop: 1,
-                      letterSpacing: 0.1,
-                    }}
-                    maxLines={1}
-                    truncate="END"
-                  />
-                ) : null}
               </FlexWidget>
               <TextWidget
                 text={note.timeLabel}
-                style={{ fontSize: isCompact ? 8 : 9, color: FAINT }}
+                style={{ fontSize: 8, color: FAINT }}
                 maxLines={1}
               />
             </FlexWidget>
@@ -189,24 +169,21 @@ export function AtlasNotesWidget({
         >
           <FlexWidget
             style={{
-              width: isCompact ? 36 : 44,
-              height: isCompact ? 36 : 44,
+              width: 34,
+              height: 34,
               borderRadius: 999,
               alignItems: "center",
               justifyContent: "center",
               backgroundColor: "rgba(207, 158, 255, 0.12)",
-              marginBottom: isCompact ? 6 : 8,
+              marginBottom: 6,
             }}
           >
-            <TextWidget
-              text={buildFileTextIcon(LILAC, isCompact ? 16 : 20)}
-              style={{}}
-            />
+            <TextWidget text={buildFileTextIcon(LILAC, 16)} style={{}} />
           </FlexWidget>
           <TextWidget
             text="No notes yet"
             style={{
-              fontSize: isCompact ? 11 : 13,
+              fontSize: 11,
               fontWeight: "600",
               color: WHITE,
               letterSpacing: 0.1,
@@ -216,9 +193,9 @@ export function AtlasNotesWidget({
           <TextWidget
             text="Tap + to write one."
             style={{
-              fontSize: isCompact ? 9 : 10.5,
+              fontSize: 9,
               color: MUTED,
-              marginTop: isCompact ? 3 : 4,
+              marginTop: 3,
               letterSpacing: 0.1,
             }}
             maxLines={1}

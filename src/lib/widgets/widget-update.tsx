@@ -10,7 +10,13 @@ import type { NotesWidgetData } from "./notes-widget-data";
 export function pushAtlasStatsWidgetUpdate(data: AtlasWidgetData): void {
   void requestWidgetUpdate({
     widgetName: ATLAS_WIDGET_NAME,
-    renderWidget: () => <AtlasWidget data={data} />,
+    renderWidget: (info) => (
+      <AtlasWidget
+        data={data}
+        width={info.width}
+        height={info.height}
+      />
+    ),
     widgetNotFound: () => undefined,
   }).catch(() => undefined);
 }
