@@ -68,7 +68,6 @@ import {
 } from "../lib/notes-queue";
 import { inferSubject } from "../lib/subjects";
 import { syncAtlasNotesWidget } from "../lib/widgets/widget-sync";
-import { getCachedAuthUser, resolveSession } from "../lib/auth";
 import { colors, fonts } from "../theme/theme";
 
 const TOOLS: {
@@ -257,7 +256,6 @@ export default function NotesScreen() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [loading, setLoading] = useState(true);
-  const [sessionLoading, setSessionLoading] = useState(true);
   const [editorReady, setEditorReady] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
 
@@ -364,20 +362,6 @@ export default function NotesScreen() {
     applyRows(rows);
   }, [activeCourseId, applyRows, notes.length]);
 
-  /** Wait for a valid auth session before allowing notes fetch. */
-  const waitForSession = useCallback(async (): Promise<boolean> => {
-    // Fast path: cached user is already available
-    if (getCachedAuthUser()) return true;
-    // Slow path: wait for resolveSession to restore from SecureStore
-    setSessionLoading(true);
-    try {
-      const user = await resolveSession();
-      return Boolean(user);
-    } finally {
-      setSessionLoading(false);
-    }
-  }, []);
-
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await load();
@@ -396,8 +380,6 @@ export default function NotesScreen() {
     setLoading(cached === null);
 
     (async () => {
-      const hasSession = await waitForSession();
-      if (!alive || !hasSession) return;
       await load();
       if (alive) setLoading(false);
     })();
@@ -405,7 +387,7 @@ export default function NotesScreen() {
     return () => {
       alive = false;
     };
-  }, [coursesLoading, selectedCourseId, activeCourseId, load, applyRows, waitForSession]);
+  }, [coursesLoading, selectedCourseId, activeCourseId, load, applyRows]);
 
   // Tabs stay mounted: silently re-pull on re-focus so a note shared by a
   // friend shows up without restarting the app. The first focus is already
@@ -776,12 +758,7 @@ export default function NotesScreen() {
       </View>
 
       <Card padded={false} style={styles.listCard}>
-        {sessionLoading ? (
-          <View style={styles.listContent}>
-            <ActivityIndicator size="small" color={colors.lilac} />
-            <Text style={styles.listMessage}>Restoring session…</Text>
-          </View>
-        ) : loading ? (
+        {loading ? (
           <View style={styles.listContent}>
             <Text style={styles.listMessage}>Loading notes…</Text>
           </View>
@@ -922,7 +899,7 @@ export default function NotesScreen() {
         ) : (
           <View style={styles.editorEmpty}>
             <Text style={styles.listMessage}>
-              {sessionLoading
+              {loading
                 ? "Restoring session…"
                 : loading
                 ? "Loading notes…"

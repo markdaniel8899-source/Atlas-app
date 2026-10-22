@@ -119,6 +119,7 @@ export interface NotesScope {
 
 export async function fetchNotes(scope?: NotesScope): Promise<Note[]> {
   const user = await resolveSession();
+  console.log("Notes Fetch User:", user);
   if (!user) return [];
 
   if (
@@ -150,6 +151,7 @@ export async function fetchNotes(scope?: NotesScope): Promise<Note[]> {
   }
 
   const { data, error } = await query;
+  console.log("Notes Fetch Response:", { data, error });
   if (error || !Array.isArray(data)) return [];
 
   const rows = data as unknown as NoteRow[];

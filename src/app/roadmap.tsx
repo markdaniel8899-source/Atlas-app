@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ComponentType } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Modal,
   Pressable,
   StyleSheet,
@@ -459,21 +460,30 @@ export default function RoadmapScreen() {
         setShowBuilder(false);
       } catch (err) {
         // Phases generated before the failure stay on screen and in the DB.
+        console.error("ROADMAP GENERATION FAILED:", err);
         if (err instanceof AiError) {
           // Network errors (status 0 or 503) should show a retry message, not disappear silently
           const isNetworkError = err.status === 0 || err.status === 503;
           if (isNetworkError) {
             setFailedPhaseIndex(currentPhaseIndex);
           }
-          setError(
+          const message =
             isNetworkError
               ? "Network interrupted. Tap to retry the current phase."
               : err.status === 408
                 ? "The AI timed out mid-generation. Your saved progress is kept - try again."
-                : err.message,
+                : err.message;
+          setError(message);
+          Alert.alert(
+            "Roadmap Error",
+            message + " (Status: " + (err.status ?? "unknown") + ")",
           );
         } else if (!abortControllerRef.current?.signal.aborted) {
           setError("Roadmap generation failed. Saved progress is kept.");
+          Alert.alert(
+            "Roadmap Error",
+            "Roadmap generation failed. Saved progress is kept. (Status: unknown)",
+          );
         }
       } finally {
         endHeavyTask();
@@ -768,7 +778,7 @@ export default function RoadmapScreen() {
         </Pressable>
       </View>
 
-      {error && failedPhaseIndex !== null ? (
+      {error ? (
         <View style={styles.retryBanner}>
           <Text style={styles.retryBannerText}>{error}</Text>
           <Pressable
