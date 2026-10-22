@@ -10,12 +10,10 @@ interface NoteRow {
   updated_at: string;
   course_id: number | null;
   topic_id: number | null;
-  shared_by: string | null;
-  shared_at: string | null;
 }
 
 const NOTE_COLUMNS =
-  "id, title, content, updated_at, course_id, topic_id, shared_by, shared_at";
+  "id, title, content, updated_at, course_id, topic_id";
 
 function toNote(row: NoteRow): Note {
   return {
@@ -28,8 +26,8 @@ function toNote(row: NoteRow): Note {
     courseId: typeof row.course_id === "number" ? row.course_id : null,
     topicId: typeof row.topic_id === "number" ? row.topic_id : null,
     courseTitle: null,
-    sharedBy: row.shared_by ?? null,
-    sharedAt: row.shared_at ? Date.parse(row.shared_at) : null,
+    sharedBy: null,
+    sharedAt: null,
   };
 }
 
