@@ -2,7 +2,8 @@ import { useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { colors, fonts } from "../../theme/theme";
 
-const LENGTH = 6;
+/** Supabase is configured for 8-digit email OTPs. */
+export const OTP_LENGTH = 8;
 
 interface OtpInputProps {
   value: string;
@@ -10,10 +11,11 @@ interface OtpInputProps {
   onComplete?: (code: string) => void;
   autoFocus?: boolean;
   error?: boolean;
+  length?: number;
 }
 
 /**
- * Six single-digit boxes backed by one hidden TextInput, so paste, backspace
+ * Single-digit boxes backed by one hidden TextInput, so paste, backspace
  * and the OS one-time-code autofill all behave like a native code field.
  */
 export function OtpInput({
@@ -22,15 +24,16 @@ export function OtpInput({
   onComplete,
   autoFocus,
   error,
+  length = OTP_LENGTH,
 }: OtpInputProps) {
   const inputRef = useRef<TextInput>(null);
   const [focused, setFocused] = useState(false);
   const digits = value.split("");
 
   const handleChange = (raw: string) => {
-    const next = raw.replace(/\D/g, "").slice(0, LENGTH);
+    const next = raw.replace(/\D/g, "").slice(0, length);
     onChange(next);
-    if (next.length === LENGTH) onComplete?.(next);
+    if (next.length === length) onComplete?.(next);
   };
 
   return (
@@ -39,12 +42,12 @@ export function OtpInput({
       style={styles.row}
       accessibilityLabel="Verification code"
     >
-      {Array.from({ length: LENGTH }).map((_, index) => {
+      {Array.from({ length }).map((_, index) => {
         const digit = digits[index] ?? "";
         const active =
           focused &&
           (value.length === index ||
-            (value.length === LENGTH && index === LENGTH - 1));
+            (value.length === length && index === length - 1));
         return (
           <View
             key={index}
@@ -70,7 +73,7 @@ export function OtpInput({
         keyboardType="number-pad"
         textContentType="oneTimeCode"
         autoComplete="one-time-code"
-        maxLength={LENGTH}
+        maxLength={length}
         autoFocus={autoFocus}
         caretHidden
         style={styles.hiddenInput}
@@ -82,11 +85,11 @@ export function OtpInput({
 const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
-    gap: 8,
+    gap: 6,
   },
   box: {
     flex: 1,
-    height: 58,
+    height: 56,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.w10,
@@ -106,8 +109,8 @@ const styles = StyleSheet.create({
     borderColor: "rgba(248,113,113,0.55)",
   },
   digit: {
-    fontSize: 22,
-    lineHeight: 26,
+    fontSize: 20,
+    lineHeight: 24,
     fontFamily: fonts.monoMedium,
     color: colors.white,
   },

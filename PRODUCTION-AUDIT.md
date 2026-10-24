@@ -23,7 +23,7 @@
 
 | Area | Status | Notes |
 |------|--------|-------|
-| Auth & Account | ✅ Done | 5 modes, OTP, SecureStore sessions |
+| Auth & Account | ✅ Done | Code + password login, 8-digit OTP, disabled-account guard |
 | Dashboard | ✅ Done | Focus card, stats, quick links |
 | Focus Timer | ✅ Done | Offline-safe, server-authoritative XP |
 | Roadmap | ✅ Done | Map + builder + AI generation + resources |
@@ -51,9 +51,11 @@
 
 ## 3. Features (A → Z)
 
-### 3.1 Auth & Account (`src/app/login.tsx`)
-- Single screen, 5 modes: **login / signup / verify / forgot / reset** (animated two-phase mode switches)
-- **OTP card** (`src/components/auth/otp-input.tsx`): 6 boxes, paste + `one-time-code` autofill, 60s resend cooldown, auto-submit on 6th digit
+### 3.1 Auth & Account (`src/app/login.tsx`, `src/app/forgot-password.tsx`)
+- Login defaults to passwordless **email code** (existing accounts only); password login is the fallback via a text toggle
+- Signup + verify stay password-based; Forgot Password is a dedicated screen: email -> 8-digit recovery code -> new password
+- **OTP card** (`src/components/auth/otp-input.tsx`): 8 boxes (`OTP_LENGTH`), paste + `one-time-code` autofill, 60s resend cooldown, auto-submit on 8th digit
+- **Disabled-account guard** (`src/lib/account-guard.ts`, `guardedFetch` in `supabase.ts`): authenticated 401/403 flags the account; `AccountDisabledOverlay` signs out locally and offers Contact Support
 - Floating-label fields, lilac focus ring, password eye toggle, legal links
 - `AuthGlow` fixed backdrop (no blurs on login — tap-time perf), brand row (formicon + CreateFuture wordmark)
 - `readableError` (network/DNS → "No internet connection") + auto-retry once on network-layer failures
@@ -174,7 +176,7 @@
 
 - **Supabase project:** `bzwqiguoihztbvnammqx` — RLS verified, XP server-authoritative, constraints live
 - **AI backend:** external service via `EXPO_PUBLIC_AI_API_URL` — **temporary trycloudflare tunnel**; tunnel badla → quiz/assistant/roadmap AI dead (EAS env + `.env` update zaroori)
-- **Auth config:** Confirm email DISABLED (signup returns session instantly); OTP screens fallback ke tor pe maujood
+- **Auth config:** 8-digit email OTP; passwordless code login is the default, password is the fallback. Confirm-email template must include `{{ .Token }}` (and the reset template too)
 - **Env:** `.env` local + EAS "production" environment set (eas.json); `eas build` pe `--environment` flag nahi hota (eas.json se aata hai)
 - **Versioning:** `versionCode 3`, `runtimeVersion: { policy: "appVersion" }` — OTA ka scope app version se bandha hua
 
@@ -226,10 +228,13 @@
 **Key files:**
 | File | Role |
 |------|------|
-| `src/app/_layout.tsx` | Stack transitions, fonts, Head (SEO), TimerProvider |
-| `src/app/login.tsx` | Auth 5-mode screen |
-| `src/lib/supabase.ts` | Client + `SUPABASE_ORIGIN` + SecureStore session storage |
+| `src/app/_layout.tsx` | Flat tabs, fonts, Head (SEO), TimerProvider, disabled-account overlay |
+| `src/app/login.tsx` | Auth screen (email code + password fallback) |
+| `src/app/forgot-password.tsx` | Reset flow (email -> 8-digit code -> new password) |
+| `src/lib/supabase.ts` | Client + `SUPABASE_ORIGIN` + SecureStore session storage + `guardedFetch` |
 | `src/lib/auth.ts` | Auth calls, `withRetry`, `readableError`, signOut |
+| `src/lib/account-guard.ts` | Disabled-account store + subscribers |
+| `src/lib/password-recovery.ts` | Defers the session-key remount during reset |
 | `src/lib/net.ts` | Online/offline detection + guards |
 | `src/lib/notes-queue.ts` | Per-account offline notes queue |
 | `src/lib/quiz-store.ts` | Module-level quiz session |

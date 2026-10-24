@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { markAccountDisabled } from "./account-guard";
 import { getAiBaseUrl } from "./api-config";
 import { resolveSession } from "./auth";
 
@@ -173,8 +174,6 @@ async function authHeaders(): Promise<Record<string, string>> {
     const { data } = await supabase.auth.getSession();
     const token = data.session?.access_token;
 
-    console.log("🔐 Mobile Auth Token:", token ? `${token.slice(0, 15)}...` : "MISSING");
-
     return token ? { Authorization: `Bearer ${token}` } : {};
   } catch (error) {
     console.error("❌ Error in authHeaders:", error);
@@ -225,11 +224,11 @@ async function request<T>(
   }
 
   try {
+    const auth = await authHeaders();
     const headers = {
       "Content-Type": "application/json",
-      ...(await authHeaders()),
+      ...auth,
     };
-    console.log("🌐 API Request Headers:", JSON.stringify(headers));
 
     const response = await fetchWithConnectTimeout(
       `${base}${path}`,
@@ -241,6 +240,13 @@ async function request<T>(
       },
       timeoutMs,
     );
+
+    if (
+      (response.status === 401 || response.status === 403) &&
+      auth.Authorization
+    ) {
+      markAccountDisabled();
+    }
 
     if (!response.ok) {
       const detail = await readErrorDetail(response);
@@ -377,12 +383,20 @@ export async function generateQuizFromPdf(
   form.append("subject", options.subject ?? "");
 
   try {
+    const auth = await authHeaders();
     const response = await fetch(`${base}/api/quizzes/generate-pdf`, {
       method: "POST",
-      headers: await authHeaders(),
+      headers: auth,
       body: form,
       signal: controller.signal,
     });
+
+    if (
+      (response.status === 401 || response.status === 403) &&
+      auth.Authorization
+    ) {
+      markAccountDisabled();
+    }
 
     if (!response.ok) {
       const detail = await readErrorDetail(response);

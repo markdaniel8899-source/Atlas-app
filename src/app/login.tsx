@@ -17,29 +17,27 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useKeyboardHeight } from "../hooks/use-keyboard-height";
-import { LinearGradient } from "expo-linear-gradient";
 import {
   ArrowLeft,
   ArrowRight,
   Eye,
   EyeOff,
-  KeyRound,
   Lock,
   Mail,
   RefreshCw,
   ShieldCheck,
   User,
 } from "lucide-react-native";
+import { AuthButton } from "../components/auth/auth-button";
 import { AuthGlow } from "../components/auth/auth-glow";
-import { OtpInput } from "../components/auth/otp-input";
+import { OTP_LENGTH, OtpInput } from "../components/auth/otp-input";
 import {
   CONFIG_ERROR,
-  requestPasswordReset,
+  requestEmailSignInCode,
   resendConfirmationOtp,
   resolveSession,
   signIn,
   signUp,
-  updatePassword,
   verifyEmailOtp,
 } from "../lib/auth";
 import { isSupabaseConfigured } from "../lib/supabase";
@@ -47,8 +45,8 @@ import { colors, ease, fonts } from "../theme/theme";
 
 const BRAND_ICON = require("../../assets/formicon.png");
 
-type Mode = "login" | "signup" | "verify" | "forgot" | "reset";
-type ResetPhase = "code" | "password";
+type Mode = "login" | "signin-code" | "signup" | "verify";
+type LoginMethod = "code" | "password";
 type VerifyOrigin = "login" | "signup";
 
 interface Errors {
@@ -92,7 +90,7 @@ export default function LoginScreen() {
   );
 
   const [mode, setMode] = useState<Mode>("login");
-  const [resetPhase, setResetPhase] = useState<ResetPhase>("code");
+  const [loginMethod, setLoginMethod] = useState<LoginMethod>("code");
   const [verifyOrigin, setVerifyOrigin] = useState<VerifyOrigin>("signup");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -189,7 +187,7 @@ export default function LoginScreen() {
   );
 
   const onVerifyCode = useCallback(
-    async (codeValue: string, type: "signup" | "recovery") => {
+    async (codeValue: string, type: "email" | "signup") => {
       if (busy) return;
       setBusy(true);
       setNotice(null);
@@ -199,23 +197,9 @@ export default function LoginScreen() {
         setNotice({ tone: "error", text: result.error });
         return;
       }
-      if (type === "signup") {
-        router.navigate("/");
-        return;
-      }
-      setPassword("");
-      setCode("");
-      setNotice({ tone: "info", text: "Code verified. Choose your new password." });
-      setResetPhase("password");
-      formAnim.setValue(0);
-      Animated.timing(formAnim, {
-        toValue: 1,
-        duration: 280,
-        easing: ease,
-        useNativeDriver: true,
-      }).start();
+      router.navigate("/");
     },
-    [busy, pendingEmail, router, formAnim],
+    [busy, pendingEmail, router],
   );
 
   const onResend = async () => {
@@ -223,9 +207,9 @@ export default function LoginScreen() {
     setBusy(true);
     setNotice(null);
     const result =
-      mode === "verify"
-        ? await resendConfirmationOtp(pendingEmail)
-        : await requestPasswordReset(pendingEmail);
+      mode === "signin-code"
+        ? await requestEmailSignInCode(pendingEmail)
+        : await resendConfirmationOtp(pendingEmail);
     setBusy(false);
     if (result.error) {
       setNotice({ tone: "error", text: result.error });
@@ -238,55 +222,41 @@ export default function LoginScreen() {
   const onSubmit = async () => {
     if (busy) return;
 
-    if (mode === "verify" || (mode === "reset" && resetPhase === "code")) {
-      if (code.length !== 6) {
+    if (mode === "verify" || mode === "signin-code") {
+      if (code.length !== OTP_LENGTH) {
         setNotice({
           tone: "error",
-          text: "Enter the 6-digit code from the email.",
+          text: `Enter the ${OTP_LENGTH}-digit code from the email.`,
         });
         return;
       }
-      await onVerifyCode(code, mode === "verify" ? "signup" : "recovery");
+      await onVerifyCode(code, mode === "verify" ? "signup" : "email");
       return;
     }
 
-    if (mode === "reset" && resetPhase === "password") {
-      if (password.length < 6) {
-        setErrors({ password: "Use at least 6 characters." });
-        return;
-      }
-      setBusy(true);
-      setNotice(null);
-      const result = await updatePassword(password);
-      setBusy(false);
-      if (result.error) {
-        setNotice({ tone: "error", text: result.error });
-        return;
-      }
-      router.navigate("/");
+    if (!EMAIL_RE.test(email.trim())) {
+      setErrors({ email: "Enter a valid email address." });
       return;
     }
 
-    if (mode === "forgot") {
-      if (!EMAIL_RE.test(email.trim())) {
-        setErrors({ email: "Enter a valid email address." });
-        return;
-      }
-      const target = email.trim();
+    const target = email.trim();
+
+    if (mode === "login" && loginMethod === "code") {
+      setErrors({});
       setBusy(true);
       setNotice(null);
-      const result = await requestPasswordReset(target);
+      const result = await requestEmailSignInCode(target);
       setBusy(false);
       if (result.error) {
         setNotice({ tone: "error", text: result.error });
         return;
       }
       setPendingEmail(target);
-      setResetPhase("code");
+      setCode("");
       setCooldown(60);
-      switchMode("reset", {
+      switchMode("signin-code", {
         tone: "info",
-        text: `We emailed a 6-digit reset code to ${target}.`,
+        text: `We emailed an ${OTP_LENGTH}-digit sign-in code to ${target}.`,
       });
       return;
     }
@@ -294,9 +264,6 @@ export default function LoginScreen() {
     const next: Errors = {};
     if (mode === "signup" && name.trim().length < 2) {
       next.name = "Tell us what to call you.";
-    }
-    if (!EMAIL_RE.test(email.trim())) {
-      next.email = "Enter a valid email address.";
     }
     if (password.length < 6) {
       next.password = "Use at least 6 characters.";
@@ -306,7 +273,6 @@ export default function LoginScreen() {
 
     setBusy(true);
     setNotice(null);
-    const target = email.trim();
     const result =
       mode === "signup"
         ? await signUp(name.trim(), target, password)
@@ -341,7 +307,7 @@ export default function LoginScreen() {
       setCooldown(60);
       switchMode("verify", {
         tone: "info",
-        text: `We emailed a 6-digit code to ${target}.`,
+        text: `We emailed an ${OTP_LENGTH}-digit code to ${target}.`,
       });
       return;
     }
@@ -356,50 +322,35 @@ export default function LoginScreen() {
           title: "Claim your map.",
           subtitle: "Set up your learning OS in under a minute.",
         };
-      case "verify":
+      case "signin-code":
         return {
           title: "Check your inbox.",
-          subtitle: `Enter the 6-digit code we sent to ${pendingEmail}.`,
+          subtitle: `Enter the ${OTP_LENGTH}-digit sign-in code we sent to ${pendingEmail}.`,
         };
-      case "forgot":
+      case "verify":
         return {
-          title: "Reset password.",
-          subtitle: "We'll email you a 6-digit reset code.",
+          title: "Verify your email.",
+          subtitle: `Enter the ${OTP_LENGTH}-digit code we sent to ${pendingEmail}.`,
         };
-      case "reset":
-        return resetPhase === "code"
-          ? {
-              title: "Enter reset code.",
-              subtitle: `Code sent to ${pendingEmail}.`,
-            }
-          : {
-              title: "Set new password.",
-              subtitle: "Almost there - choose a fresh password.",
-            };
       default:
         return {
           title: "Welcome back.",
-          subtitle: "Pick up where the streak left off.",
+          subtitle:
+            loginMethod === "code"
+              ? "Enter your email and we'll send you a sign-in code."
+              : "Pick up where the streak left off.",
         };
     }
-  }, [mode, resetPhase, pendingEmail]);
+  }, [mode, pendingEmail, loginMethod]);
 
   const BadgeIcon =
-    mode === "verify"
-      ? ShieldCheck
-      : mode === "forgot"
-        ? KeyRound
-        : mode === "reset"
-          ? Lock
-          : null;
+    mode === "verify" || mode === "signin-code" ? ShieldCheck : null;
 
   const showSwitch = mode === "login" || mode === "signup";
-  const otpVisible =
-    mode === "verify" || (mode === "reset" && resetPhase === "code");
-  const resetPasswordVisible = mode === "reset" && resetPhase === "password";
-  const emailVisible =
-    mode === "login" || mode === "signup" || mode === "forgot";
-  const passwordVisible = mode === "login" || mode === "signup";
+  const otpVisible = mode === "verify" || mode === "signin-code";
+  const emailVisible = mode === "login" || mode === "signup";
+  const passwordVisible =
+    mode === "signup" || (mode === "login" && loginMethod === "password");
 
   // With the keyboard open, keep the lowest auth controls reachable. The
   // content padding alone still lets a long form scroll; this also brings the
@@ -416,13 +367,10 @@ export default function LoginScreen() {
         case "signup":
           return "Creating account…";
         case "verify":
+        case "signin-code":
           return "Verifying…";
-        case "forgot":
-          return "Sending code…";
-        case "reset":
-          return resetPhase === "code" ? "Verifying…" : "Saving…";
         default:
-          return "Signing in…";
+          return loginMethod === "code" ? "Sending code…" : "Signing in…";
       }
     }
     switch (mode) {
@@ -430,12 +378,10 @@ export default function LoginScreen() {
         return "Create account";
       case "verify":
         return "Verify & continue";
-      case "forgot":
-        return "Send reset code";
-      case "reset":
-        return resetPhase === "code" ? "Verify code" : "Save new password";
+      case "signin-code":
+        return "Verify & sign in";
       default:
-        return "Enter the dashboard";
+        return loginMethod === "code" ? "Email me a code" : "Enter the dashboard";
     }
   })();
 
@@ -604,9 +550,9 @@ export default function LoginScreen() {
                       </Field>
                     ) : null}
 
-                    {passwordVisible || resetPasswordVisible ? (
+                    {passwordVisible ? (
                       <Field
-                        label={resetPasswordVisible ? "New password" : "Password"}
+                        label="Password"
                         icon={
                           <Lock
                             size={16}
@@ -640,20 +586,14 @@ export default function LoginScreen() {
                           onChangeText={setPassword}
                           onFocus={() => setFocused("password")}
                           onBlur={() => setFocused(null)}
-                          accessibilityLabel={
-                            resetPasswordVisible ? "New password" : "Password"
-                          }
+                          accessibilityLabel="Password"
                           secureTextEntry={!showPw}
                           autoCapitalize="none"
                           autoComplete={
-                            passwordVisible && mode === "login"
-                              ? "current-password"
-                              : "new-password"
+                            mode === "login" ? "current-password" : "new-password"
                           }
                           textContentType={
-                            passwordVisible && mode === "login"
-                              ? "password"
-                              : "newPassword"
+                            mode === "login" ? "password" : "newPassword"
                           }
                           returnKeyType="go"
                           onSubmitEditing={() => void onSubmit()}
@@ -665,7 +605,7 @@ export default function LoginScreen() {
                     {mode === "login" ? (
                       <Pressable
                         accessibilityRole="button"
-                        onPress={() => switchMode("forgot")}
+                        onPress={() => router.navigate("/forgot-password")}
                         style={styles.forgotRow}
                         hitSlop={8}
                       >
@@ -683,7 +623,7 @@ export default function LoginScreen() {
                           onComplete={(value) =>
                             void onVerifyCode(
                               value,
-                              mode === "verify" ? "signup" : "recovery",
+                              mode === "verify" ? "signup" : "email",
                             )
                           }
                           autoFocus
@@ -729,6 +669,33 @@ export default function LoginScreen() {
                       disabled={busy}
                       onPress={() => void onSubmit()}
                     />
+
+                    {mode === "login" ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={() => {
+                          setLoginMethod((value) =>
+                            value === "code" ? "password" : "code",
+                          );
+                          setErrors({});
+                          setNotice(null);
+                          setPassword("");
+                        }}
+                        style={styles.methodLink}
+                        hitSlop={8}
+                      >
+                        <Text style={styles.switchMuted}>
+                          {loginMethod === "code"
+                            ? "Prefer your password? "
+                            : "No password? "}
+                        </Text>
+                        <Text style={styles.switchAccent}>
+                          {loginMethod === "code"
+                            ? "Log in with password"
+                            : "Email me a code"}
+                        </Text>
+                      </Pressable>
+                    ) : null}
                   </View>
 
                   {mode === "verify" ? (
@@ -746,16 +713,18 @@ export default function LoginScreen() {
                     </Pressable>
                   ) : null}
 
-                  {mode === "forgot" ||
-                  (mode === "reset" && resetPhase === "code") ? (
+                  {mode === "signin-code" ? (
                     <Pressable
                       accessibilityRole="button"
-                      onPress={() => switchMode("login")}
+                      onPress={() => {
+                        setLoginMethod("code");
+                        switchMode("login");
+                      }}
                       style={styles.backLink}
                       hitSlop={8}
                     >
                       <ArrowLeft size={14} color={colors.w45} />
-                      <Text style={styles.backText}>Back to log in</Text>
+                      <Text style={styles.backText}>Use a different email</Text>
                     </Pressable>
                   ) : null}
 
@@ -802,70 +771,6 @@ export default function LoginScreen() {
           </ScrollView>
         </KeyboardAvoidingView>
       </View>
-  );
-}
-
-function AuthButton({
-  label,
-  icon,
-  disabled,
-  onPress,
-}: {
-  label: string;
-  icon?: ReactNode;
-  disabled?: boolean;
-  onPress?: () => void;
-}) {
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const pressIn = () =>
-    Animated.spring(scale, {
-      toValue: 0.97,
-      stiffness: 420,
-      damping: 22,
-      mass: 1,
-      useNativeDriver: true,
-    }).start();
-
-  const pressOut = () =>
-    Animated.spring(scale, {
-      toValue: 1,
-      stiffness: 420,
-      damping: 22,
-      mass: 1,
-      useNativeDriver: true,
-    }).start();
-
-  return (
-    <Animated.View
-      style={[
-        styles.authButtonWrap,
-        { transform: [{ scale }] },
-        disabled && styles.authButtonDisabled,
-      ]}
-    >
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={label}
-        disabled={disabled}
-        onPress={onPress}
-        onPressIn={pressIn}
-        onPressOut={pressOut}
-      >
-        <LinearGradient
-          colors={["#b394ff", "#8262ef", "#6446d6"]}
-          locations={[0, 0.55, 1]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.authButton}
-        >
-          {icon}
-          <Text style={styles.authButtonText} numberOfLines={1}>
-            {label}
-          </Text>
-        </LinearGradient>
-      </Pressable>
-    </Animated.View>
   );
 }
 
@@ -1178,26 +1083,6 @@ const styles = StyleSheet.create({
   resendDisabled: {
     color: colors.w30,
   },
-  authButtonWrap: {
-    alignSelf: "stretch",
-    marginTop: 8,
-  },
-  authButtonDisabled: {
-    opacity: 0.55,
-  },
-  authButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    borderRadius: 26,
-    paddingVertical: 16,
-  },
-  authButtonText: {
-    fontSize: 15,
-    fontFamily: fonts.semibold,
-    color: colors.white,
-  },
   legal: {
     marginTop: 40,
     flexDirection: "row",
@@ -1213,6 +1098,12 @@ const styles = StyleSheet.create({
   legalDivider: {
     fontSize: 11.5,
     color: colors.w30,
+  },
+  methodLink: {
+    marginTop: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "center",
   },
   switchLink: {
     marginTop: 22,

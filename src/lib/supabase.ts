@@ -3,6 +3,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 import { createClient } from "@supabase/supabase-js";
+import {
+  isDisabledAccountMessage,
+  markAccountDisabled,
+} from "./account-guard";
 
 const supabaseUrl = (process.env.EXPO_PUBLIC_SUPABASE_URL ?? "").trim();
 const supabaseAnonKey = (process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "").trim();
@@ -149,6 +153,95 @@ const sessionStorage = {
   },
 };
 
+function headerValue(
+  headers: HeadersInit | undefined,
+  name: string,
+): string | null {
+  if (!headers) return null;
+  const target = name.toLowerCase();
+  if (typeof Headers !== "undefined" && headers instanceof Headers) {
+    return headers.get(target);
+  }
+  if (Array.isArray(headers)) {
+    const pair = headers.find(([key]) => key.toLowerCase() === target);
+    return pair ? pair[1] : null;
+  }
+  const record = headers as Record<string, string>;
+  const key = Object.keys(record).find((item) => item.toLowerCase() === target);
+  return key ? record[key] : null;
+}
+
+function requestPath(input: RequestInfo | URL): string {
+  const raw =
+    typeof input === "string"
+      ? input
+      : input instanceof URL
+        ? input.toString()
+        : typeof Request !== "undefined" && input instanceof Request
+          ? input.url
+          : "";
+  try {
+    return new URL(raw).pathname.toLowerCase();
+  } catch {
+    return raw.toLowerCase();
+  }
+}
+
+async function errorText(response: Response): Promise<string> {
+  try {
+    const body = (await response.clone().json()) as Record<string, unknown>;
+    return [body.msg, body.message, body.error_description, body.error]
+      .filter((value): value is string => typeof value === "string")
+      .join(" ");
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Any authenticated API call that comes back 401/403 means the account can no
+ * longer use the service. Supabase auth endpoints are excluded (an invalid OTP
+ * is a 403 too), except the token endpoint when GoTrue explicitly reports a
+ * banned/disabled user.
+ */
+const guardedFetch: typeof fetch = async (input, init) => {
+  const response = await fetch(input, init);
+
+  try {
+    if (response.status !== 401 && response.status !== 403) return response;
+
+    const path = requestPath(input);
+    const isAuth = path.includes("/auth/v1");
+    if (isAuth) {
+      if (path.includes("/auth/v1/verify") || path.includes("/auth/v1/otp")) {
+        return response;
+      }
+      if (path.includes("/auth/v1/token")) {
+        if (isDisabledAccountMessage(await errorText(response))) {
+          markAccountDisabled();
+        }
+      }
+      return response;
+    }
+
+    const authorization = headerValue(
+      init?.headers ??
+        (typeof Request !== "undefined" && input instanceof Request
+          ? input.headers
+          : undefined),
+      "authorization",
+    );
+    const token = authorization?.replace(/^bearer\s+/i, "").trim() ?? "";
+    if (!token || token === supabaseAnonKey) return response;
+
+    markAccountDisabled();
+  } catch {
+    // Never let the guard change the response the SDK sees.
+  }
+
+  return response;
+};
+
 export const supabase = createClient(
   supabaseUrl || "https://placeholder.supabase.co",
   supabaseAnonKey || "placeholder-anon-key",
@@ -158,6 +251,9 @@ export const supabase = createClient(
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: false,
+    },
+    global: {
+      fetch: guardedFetch,
     },
   },
 );

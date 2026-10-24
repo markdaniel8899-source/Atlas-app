@@ -1,4 +1,8 @@
 import type { User } from "@supabase/supabase-js";
+import {
+  isDisabledAccountMessage,
+  markAccountDisabled,
+} from "./account-guard";
 import { clearDataCaches } from "./data-cache";
 import { isSupabaseConfigured, supabase } from "./supabase";
 import { clearLocalTimerCache } from "./timer";
@@ -123,7 +127,17 @@ function readableError(message: string): string {
   if (m.includes("different from the old password")) {
     return "Pick a password you haven't used before.";
   }
+  if (m.includes("signups not allowed for otp")) {
+    return "No ATLAS account uses that email yet. Create an account instead.";
+  }
+  if (isDisabledAccountMessage(m)) {
+    return "This account has been disabled. Contact support if you think this is a mistake.";
+  }
   return message;
+}
+
+function flagDisabledAccount(message: string): void {
+  if (isDisabledAccountMessage(message)) markAccountDisabled();
 }
 
 export async function signUp(
@@ -141,7 +155,10 @@ export async function signUp(
     }),
   );
 
-  if (error) return { error: readableError(error.message) };
+  if (error) {
+    flagDisabledAccount(error.message);
+    return { error: readableError(error.message) };
+  }
 
   if (data.session && data.user) {
     cached = toAuthUser(data.user);
@@ -165,6 +182,7 @@ export async function signIn(
   );
 
   if (error) {
+    flagDisabledAccount(error.message);
     return {
       error: readableError(error.message),
       unverifiedEmail: error.message.toLowerCase().includes("email not confirmed"),
@@ -176,13 +194,36 @@ export async function signIn(
 }
 
 /**
- * Verifies the 6-digit email code from Supabase - either the signup
- * confirmation code or the password-recovery code.
+ * Emails an 8-digit sign-in code. Existing accounts only - signing in must
+ * never silently create a new user.
+ */
+export async function requestEmailSignInCode(
+  email: string,
+): Promise<AuthResult> {
+  if (!isSupabaseConfigured) return { error: CONFIG_ERROR };
+
+  const { error } = await withRetry(() =>
+    supabase.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: false },
+    }),
+  );
+
+  if (error) {
+    flagDisabledAccount(error.message);
+    return { error: readableError(error.message) };
+  }
+  return {};
+}
+
+/**
+ * Verifies the 8-digit email code from Supabase - a sign-in code, the signup
+ * confirmation code, or the password-recovery code.
  */
 export async function verifyEmailOtp(
   email: string,
   token: string,
-  type: "signup" | "recovery",
+  type: "email" | "signup" | "recovery",
 ): Promise<AuthResult> {
   if (!isSupabaseConfigured) return { error: CONFIG_ERROR };
 
@@ -190,7 +231,10 @@ export async function verifyEmailOtp(
     supabase.auth.verifyOtp({ email, token, type }),
   );
 
-  if (error) return { error: readableError(error.message) };
+  if (error) {
+    flagDisabledAccount(error.message);
+    return { error: readableError(error.message) };
+  }
 
   if (data.user) cached = toAuthUser(data.user);
   return {};
@@ -204,7 +248,10 @@ export async function resendConfirmationOtp(email: string): Promise<AuthResult> 
     supabase.auth.resend({ type: "signup", email }),
   );
 
-  if (error) return { error: readableError(error.message) };
+  if (error) {
+    flagDisabledAccount(error.message);
+    return { error: readableError(error.message) };
+  }
   return {};
 }
 
@@ -216,7 +263,10 @@ export async function requestPasswordReset(email: string): Promise<AuthResult> {
     supabase.auth.resetPasswordForEmail(email),
   );
 
-  if (error) return { error: readableError(error.message) };
+  if (error) {
+    flagDisabledAccount(error.message);
+    return { error: readableError(error.message) };
+  }
   return {};
 }
 
@@ -228,19 +278,36 @@ export async function updatePassword(password: string): Promise<AuthResult> {
     supabase.auth.updateUser({ password }),
   );
 
-  if (error) return { error: readableError(error.message) };
+  if (error) {
+    flagDisabledAccount(error.message);
+    return { error: readableError(error.message) };
+  }
 
   if (data.user) cached = toAuthUser(data.user);
   return {};
 }
 
-export async function signOut(): Promise<void> {
+export async function signOut(
+  options: { local?: boolean } = {},
+): Promise<void> {
   const ownerId = cached?.id ?? null;
   cached = null;
   try {
-    if (isSupabaseConfigured) await supabase.auth.signOut();
+    if (isSupabaseConfigured) {
+      if (options.local) {
+        await supabase.auth.signOut({ scope: "local" });
+      } else {
+        const { error } = await supabase.auth.signOut();
+        if (error) await supabase.auth.signOut({ scope: "local" });
+      }
+    }
   } catch {
     // Local sign-out must still complete when the network is unavailable.
+    try {
+      await supabase.auth.signOut({ scope: "local" });
+    } catch {
+      // Nothing else to clear; the in-memory cache is already gone.
+    }
   } finally {
     await clearLocalTimerCache(ownerId);
     void cancelSessionEndNotification();

@@ -1,3 +1,4 @@
+import { markAccountDisabled } from "./account-guard";
 import { supabase } from "./supabase";
 
 /**
@@ -37,6 +38,10 @@ async function postJson<T>(path: string, body: unknown): Promise<T | null> {
       body: JSON.stringify(body),
       signal: controller.signal,
     });
+    if (response.status === 401 || response.status === 403) {
+      markAccountDisabled();
+    }
+
     if (!response.ok) {
       const payload = (await response.json().catch(() => null)) as {
         detail?: string;

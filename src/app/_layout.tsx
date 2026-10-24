@@ -21,11 +21,16 @@ import { TimerProvider } from "../context/timer-context";
 import { MeshBackground } from "../components/mesh-background";
 import { SplashOverlay } from "../components/splash-overlay";
 import { GlobalDrawer } from "../components/global-drawer";
+import { AccountDisabledOverlay } from "../components/account-disabled-overlay";
 import { BlurTargetRefContext } from "../components/blur-target";
 import { initNotifications } from "../lib/notifications";
 import { hydrateProfileCache } from "../lib/profile-cache";
 import { isHeavyTaskRunning } from "../lib/heavy-task";
 import { getCachedAuthUser, resolveSession, subscribeAuth } from "../lib/auth";
+import {
+  isPasswordRecoveryActive,
+  subscribePasswordRecovery,
+} from "../lib/password-recovery";
 import { refreshAiBaseUrl } from "../lib/api-config";
 import "../lib/sentry";
 import { colors } from "../theme/theme";
@@ -101,9 +106,12 @@ export default function RootLayout() {
   // Every route lives in one flat, always-mounted tab set, so switching
   // sections never remounts a screen (no reloads, no stale data). Keying on
   // the auth owner resets that state on sign-in / sign-out / account switch.
+  // During password recovery the key change is deferred until the new
+  // password is saved, so the reset screen survives the OTP sign-in.
   const [sessionKey, setSessionKey] = useState(
     () => getCachedAuthUser()?.id ?? "anon",
   );
+  const pendingSessionKeyRef = useRef<string | null>(null);
   // Warm starts already know the local user; a cold start waits for the
   // first session read before the branded splash can hand off.
   const [sessionSettled, setSessionSettled] = useState(
@@ -140,7 +148,29 @@ export default function RootLayout() {
     () =>
       subscribeAuth((user) => {
         const next = user?.id ?? "anon";
+        if (next === "anon") {
+          pendingSessionKeyRef.current = null;
+          setSessionKey((prev) => (prev === "anon" ? prev : "anon"));
+          return;
+        }
+        if (isPasswordRecoveryActive()) {
+          pendingSessionKeyRef.current = next;
+          return;
+        }
+        pendingSessionKeyRef.current = null;
         setSessionKey((prev) => (prev === next ? prev : next));
+      }),
+    [],
+  );
+
+  useEffect(
+    () =>
+      subscribePasswordRecovery((active) => {
+        if (active) return;
+        const pending = pendingSessionKeyRef.current;
+        if (!pending) return;
+        pendingSessionKeyRef.current = null;
+        setSessionKey((prev) => (prev === pending ? prev : pending));
       }),
     [],
   );
@@ -231,6 +261,7 @@ export default function RootLayout() {
           </ThemeProvider>
           <GlobalDrawer />
           <SplashOverlay ready={sessionSettled || Boolean(error)} />
+          <AccountDisabledOverlay />
           <StatusBar style="light" />
         </TimerProvider>
       </View>
