@@ -229,12 +229,12 @@
 | File | Role |
 |------|------|
 | `src/app/_layout.tsx` | Flat tabs, fonts, Head (SEO), TimerProvider, disabled-account overlay |
-| `src/app/login.tsx` | Auth screen (email code + password fallback) |
-| `src/app/forgot-password.tsx` | Reset flow (email -> 8-digit code -> new password) |
+| `src/app/login.tsx` | Auth screen (email + password login, signup -> OTP -> login) |
+| `src/app/forgot-password.tsx` | Reset flow (email -> 8-digit code -> new password -> login) |
 | `src/lib/supabase.ts` | Client + `SUPABASE_ORIGIN` + SecureStore session storage + `guardedFetch` |
 | `src/lib/auth.ts` | Auth calls, `withRetry`, `readableError`, signOut |
 | `src/lib/account-guard.ts` | Disabled-account store + subscribers |
-| `src/lib/password-recovery.ts` | Defers the session-key remount during reset |
+| `src/lib/auth-deferral.ts` | Defers the session-key remount during signup OTP + reset |
 | `src/lib/net.ts` | Online/offline detection + guards |
 | `src/lib/notes-queue.ts` | Per-account offline notes queue |
 | `src/lib/quiz-store.ts` | Module-level quiz session |

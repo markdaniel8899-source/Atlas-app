@@ -19,7 +19,6 @@ import { useFocusEffect, useRouter } from "expo-router";
 import {
   ArrowLeft,
   ArrowRight,
-  CheckCircle2,
   Eye,
   EyeOff,
   KeyRound,
@@ -33,20 +32,21 @@ import { OTP_LENGTH, OtpInput } from "../components/auth/otp-input";
 import { useKeyboardHeight } from "../hooks/use-keyboard-height";
 import {
   requestPasswordReset,
+  signOut,
   updatePassword,
   verifyEmailOtp,
 } from "../lib/auth";
 import {
-  beginPasswordRecovery,
-  endPasswordRecovery,
-} from "../lib/password-recovery";
+  beginAuthDeferral,
+  endAuthDeferral,
+} from "../lib/auth-deferral";
 import { colors, ease, fonts } from "../theme/theme";
 
 const BRAND_ICON = require("../../assets/formicon.png");
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ERROR_ICON = "rgba(252,165,165,0.7)";
 
-type Phase = "email" | "sent" | "code" | "password" | "done";
+type Phase = "email" | "code" | "password";
 
 interface Notice {
   tone: "error" | "info";
@@ -68,21 +68,27 @@ export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
-  const [focused, setFocused] = useState<"email" | "password" | null>(null);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
+  const [focused, setFocused] = useState<
+    "email" | "password" | "confirm" | null
+  >(null);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [busy, setBusy] = useState(false);
   const [cooldown, setCooldown] = useState(0);
 
   const scrollRef = useRef<ScrollView | null>(null);
+  const confirmRef = useRef<TextInput | null>(null);
   const entrance = useRef(new Animated.Value(0)).current;
   const phaseAnim = useRef(new Animated.Value(1)).current;
 
   const goToLogin = useCallback(() => {
     router.navigate("/login");
-    endPasswordRecovery();
+    endAuthDeferral();
   }, [router]);
 
   useFocusEffect(
@@ -96,8 +102,23 @@ export default function ForgotPasswordScreen() {
       );
       return () => {
         subscription.remove();
-        // Leaving the flow must release a deferred recovery sign-in.
-        endPasswordRecovery();
+        // Leaving the flow must release a deferred recovery sign-in and clear
+        // any half-finished step - the screen stays mounted in the tab set.
+        endAuthDeferral();
+        setPhase("email");
+        setEmail("");
+        setCode("");
+        setPassword("");
+        setConfirmPassword("");
+        setEmailError(null);
+        setPasswordError(null);
+        setConfirmError(null);
+        setNotice(null);
+        setBusy(false);
+        setCooldown(0);
+        setShowPw(false);
+        setShowConfirmPw(false);
+        setFocused(null);
       };
     }, [goToLogin]),
   );
@@ -130,7 +151,7 @@ export default function ForgotPasswordScreen() {
   }, [phase]);
 
   const changePhase = useCallback(
-    (next: Phase) => {
+    (next: Phase, nextNotice: Notice | null = null) => {
       phaseAnim.stopAnimation();
       Animated.timing(phaseAnim, {
         toValue: 0,
@@ -139,7 +160,7 @@ export default function ForgotPasswordScreen() {
         useNativeDriver: true,
       }).start(() => {
         setPhase(next);
-        setNotice(null);
+        setNotice(nextNotice);
         Animated.timing(phaseAnim, {
           toValue: 1,
           duration: 300,
@@ -171,9 +192,11 @@ export default function ForgotPasswordScreen() {
     setEmail(target);
     setCode("");
     setCooldown(60);
-    setNotice(null);
-    changePhase(phase === "email" ? "sent" : "code");
-  }, [busy, email, phase, changePhase]);
+    changePhase("code", {
+      tone: "info",
+      text: `We emailed an ${OTP_LENGTH}-digit reset code to ${target}.`,
+    });
+  }, [busy, email, changePhase]);
 
   const resendCode = async () => {
     if (busy || cooldown > 0) return;
@@ -203,16 +226,18 @@ export default function ForgotPasswordScreen() {
       setNotice(null);
       // Verification creates a session; keep the root navigator on this
       // screen until updatePassword has saved the new password.
-      beginPasswordRecovery();
+      beginAuthDeferral();
       const result = await verifyEmailOtp(email.trim(), value, "recovery");
       setBusy(false);
       if (result.error) {
-        endPasswordRecovery();
+        endAuthDeferral();
         setNotice({ tone: "error", text: result.error });
         return;
       }
       setPassword("");
+      setConfirmPassword("");
       setPasswordError(null);
+      setConfirmError(null);
       setNotice(null);
       changePhase("password");
     },
@@ -221,11 +246,15 @@ export default function ForgotPasswordScreen() {
 
   const savePassword = async () => {
     if (busy) return;
-    if (password.length < 6) {
-      setPasswordError("Use at least 6 characters.");
-      return;
-    }
-    setPasswordError(null);
+
+    const nextPasswordError =
+      password.length < 8 ? "Use at least 8 characters." : null;
+    const nextConfirmError =
+      password === confirmPassword ? null : "Passwords do not match.";
+    setPasswordError(nextPasswordError);
+    setConfirmError(nextConfirmError);
+    if (nextPasswordError || nextConfirmError) return;
+
     setBusy(true);
     setNotice(null);
     const result = await updatePassword(password);
@@ -234,16 +263,20 @@ export default function ForgotPasswordScreen() {
       setNotice({ tone: "error", text: result.error });
       return;
     }
-    changePhase("done");
+
+    // Match the website: finish the reset signed out, back on the login form.
+    await signOut({ local: true });
+    endAuthDeferral();
+    setPassword("");
+    setConfirmPassword("");
+    router.navigate({
+      pathname: "/login",
+      params: { message: "Password updated. Please log in." },
+    });
   };
 
   const header = (() => {
     switch (phase) {
-      case "sent":
-        return {
-          title: "Check your inbox.",
-          subtitle: `We emailed an ${OTP_LENGTH}-digit reset code to ${email.trim()}.`,
-        };
       case "code":
         return {
           title: "Enter reset code.",
@@ -253,11 +286,6 @@ export default function ForgotPasswordScreen() {
         return {
           title: "Set a new password.",
           subtitle: "Your code is verified. Choose a fresh password.",
-        };
-      case "done":
-        return {
-          title: "Password updated.",
-          subtitle: "You’re signed in with your new password.",
         };
       default:
         return {
@@ -271,26 +299,19 @@ export default function ForgotPasswordScreen() {
   const submitLabel = (() => {
     if (busy) {
       switch (phase) {
-        case "sent":
         case "email":
           return "Sending code…";
         case "code":
           return "Verifying…";
-        case "password":
-          return "Saving…";
         default:
-          return "One moment…";
+          return "Saving…";
       }
     }
     switch (phase) {
-      case "sent":
-        return "Enter reset code";
       case "code":
         return "Verify code";
       case "password":
         return "Save new password";
-      case "done":
-        return "Continue to dashboard";
       default:
         return "Send reset code";
     }
@@ -301,21 +322,12 @@ export default function ForgotPasswordScreen() {
       void sendResetCode();
       return;
     }
-    if (phase === "sent") {
-      changePhase("code");
-      return;
-    }
     if (phase === "code") {
       void verifyCode(code);
       return;
     }
     if (phase === "password") {
       void savePassword();
-      return;
-    }
-    if (phase === "done") {
-      router.navigate("/");
-      endPasswordRecovery();
       return;
     }
     goToLogin();
@@ -396,11 +408,7 @@ export default function ForgotPasswordScreen() {
               ]}
             >
               <View style={styles.badge}>
-                {phase === "done" ? (
-                  <CheckCircle2 size={28} color={colors.lilac} />
-                ) : (
-                  <KeyRound size={26} color={colors.lilac} />
-                )}
+                <KeyRound size={26} color={colors.lilac} />
               </View>
 
               <Text style={styles.title}>{header.title}</Text>
@@ -456,17 +464,6 @@ export default function ForgotPasswordScreen() {
                 </View>
               ) : null}
 
-              {phase === "sent" ? (
-                <View style={styles.successCard}>
-                  <Text style={styles.successTitle}>Reset code sent</Text>
-                  <Text style={styles.successBody}>
-                    Open the email we sent to {email.trim()} and use the{" "}
-                    {OTP_LENGTH}-digit code to choose a new password. The code
-                    expires in 1 hour.
-                  </Text>
-                </View>
-              ) : null}
-
               {phase === "code" ? (
                 <View style={styles.form}>
                   <OtpInput
@@ -507,7 +504,7 @@ export default function ForgotPasswordScreen() {
                   </View>
                   <Pressable
                     accessibilityRole="button"
-                    onPress={() => changePhase("sent")}
+                    onPress={() => changePhase("email")}
                     hitSlop={8}
                     style={styles.textLink}
                   >
@@ -562,6 +559,55 @@ export default function ForgotPasswordScreen() {
                       autoCapitalize="none"
                       autoComplete="new-password"
                       textContentType="newPassword"
+                      returnKeyType="next"
+                      onSubmitEditing={() => confirmRef.current?.focus()}
+                      style={styles.input}
+                    />
+                  </Field>
+
+                  <Field
+                    label="Confirm password"
+                    icon={
+                      <Lock
+                        size={16}
+                        color={confirmError ? ERROR_ICON : colors.w30}
+                      />
+                    }
+                    error={confirmError ?? undefined}
+                    focused={focused === "confirm"}
+                    trailing={
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={
+                          showConfirmPw ? "Hide password" : "Show password"
+                        }
+                        onPress={() => setShowConfirmPw((value) => !value)}
+                        hitSlop={14}
+                      >
+                        {showConfirmPw ? (
+                          <EyeOff size={17} color={colors.w35} />
+                        ) : (
+                          <Eye size={17} color={colors.w35} />
+                        )}
+                      </Pressable>
+                    }
+                  >
+                    <TextInput
+                      keyboardAppearance="dark"
+                      ref={confirmRef}
+                      value={confirmPassword}
+                      onChangeText={(value) => {
+                        setConfirmPassword(value);
+                        if (confirmError) setConfirmError(null);
+                        if (notice) setNotice(null);
+                      }}
+                      onFocus={() => setFocused("confirm")}
+                      onBlur={() => setFocused(null)}
+                      accessibilityLabel="Confirm password"
+                      secureTextEntry={!showConfirmPw}
+                      autoCapitalize="none"
+                      autoComplete="new-password"
+                      textContentType="newPassword"
                       returnKeyType="go"
                       onSubmitEditing={() => void savePassword()}
                       style={styles.input}
@@ -583,16 +629,6 @@ export default function ForgotPasswordScreen() {
                 />
               ) : null}
 
-              {phase === "sent" ? (
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={goToLogin}
-                  hitSlop={8}
-                  style={styles.textLink}
-                >
-                  <Text style={styles.textLinkLabel}>Back to log in</Text>
-                </Pressable>
-              ) : null}
             </Animated.View>
           </Animated.View>
         </ScrollView>
@@ -779,27 +815,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: fonts.regular,
     color: "rgba(252,165,165,0.8)",
-  },
-  successCard: {
-    marginTop: 26,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "rgba(207,158,255,0.28)",
-    backgroundColor: "rgba(207,158,255,0.08)",
-    paddingHorizontal: 18,
-    paddingVertical: 18,
-  },
-  successTitle: {
-    fontSize: 15,
-    fontFamily: fonts.semibold,
-    color: colors.white,
-  },
-  successBody: {
-    marginTop: 6,
-    fontSize: 13,
-    lineHeight: 20,
-    fontFamily: fonts.regular,
-    color: colors.w60,
   },
   resendRow: {
     flexDirection: "row",

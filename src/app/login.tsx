@@ -15,7 +15,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useKeyboardHeight } from "../hooks/use-keyboard-height";
 import {
   ArrowLeft,
@@ -37,17 +37,19 @@ import {
   resendConfirmationOtp,
   resolveSession,
   signIn,
+  signOut,
   signUp,
   verifyEmailOtp,
 } from "../lib/auth";
+import { beginAuthDeferral, endAuthDeferral } from "../lib/auth-deferral";
 import { isSupabaseConfigured } from "../lib/supabase";
 import { colors, ease, fonts } from "../theme/theme";
 
 const BRAND_ICON = require("../../assets/formicon.png");
 
-type Mode = "login" | "signin-code" | "signup" | "verify";
-type LoginMethod = "code" | "password";
+type Mode = "login" | "signup" | "verify";
 type VerifyOrigin = "login" | "signup";
+type VerifyMethod = "email" | "signup";
 
 interface Errors {
   name?: string;
@@ -89,9 +91,10 @@ export default function LoginScreen() {
     }, []),
   );
 
+  const params = useLocalSearchParams<{ message?: string }>();
   const [mode, setMode] = useState<Mode>("login");
-  const [loginMethod, setLoginMethod] = useState<LoginMethod>("code");
   const [verifyOrigin, setVerifyOrigin] = useState<VerifyOrigin>("signup");
+  const [verifyMethod, setVerifyMethod] = useState<VerifyMethod>("signup");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -132,6 +135,16 @@ export default function LoginScreen() {
     if (!isSupabaseConfigured) setNotice({ tone: "error", text: CONFIG_ERROR });
   }, []);
 
+  // Flows that finish on another screen (password reset) hand the confirmation
+  // copy over as a route param, mirroring the website's /login?message=...
+  const incomingMessage = params.message;
+  useEffect(() => {
+    if (typeof incomingMessage !== "string" || !incomingMessage) return;
+    setMode("login");
+    setNotice({ tone: "info", text: incomingMessage });
+    router.setParams({ message: undefined });
+  }, [incomingMessage, router]);
+
   useEffect(() => {
     Animated.timing(entrance, {
       toValue: 1,
@@ -149,6 +162,29 @@ export default function LoginScreen() {
     );
     return () => clearTimeout(id);
   }, [cooldown]);
+
+  // This screen stays mounted inside the tab navigator, so reset it whenever
+  // it loses focus - the next visit must never resume a stale OTP step.
+  useFocusEffect(
+    useCallback(
+      () => () => {
+        formAnim.stopAnimation();
+        formAnim.setValue(1);
+        endAuthDeferral();
+        setMode("login");
+        setName("");
+        setPassword("");
+        setCode("");
+        setShowPw(false);
+        setPendingEmail("");
+        setFocused(null);
+        setErrors({});
+        setNotice(null);
+        setCooldown(0);
+      },
+      [formAnim],
+    ),
+  );
 
   const applyMode = useCallback(
     (next: Mode, nextNotice?: Notice | null) => {
@@ -187,19 +223,36 @@ export default function LoginScreen() {
   );
 
   const onVerifyCode = useCallback(
-    async (codeValue: string, type: "email" | "signup") => {
+    async (codeValue: string, method: VerifyMethod) => {
       if (busy) return;
+      const origin = verifyOrigin;
       setBusy(true);
       setNotice(null);
-      const result = await verifyEmailOtp(pendingEmail, codeValue, type);
+      const result = await verifyEmailOtp(pendingEmail, codeValue, method);
       setBusy(false);
       if (result.error) {
         setNotice({ tone: "error", text: result.error });
         return;
       }
+
+      if (origin === "signup") {
+        // Match the website: a new account verifies its inbox, then signs in
+        // from the login form instead of landing on the dashboard.
+        await signOut({ local: true });
+        endAuthDeferral();
+        setPassword("");
+        setCode("");
+        switchMode("login", {
+          tone: "info",
+          text: "Account created successfully. Please log in.",
+        });
+        return;
+      }
+
+      endAuthDeferral();
       router.navigate("/");
     },
-    [busy, pendingEmail, router],
+    [busy, pendingEmail, verifyOrigin, router, switchMode],
   );
 
   const onResend = async () => {
@@ -207,9 +260,9 @@ export default function LoginScreen() {
     setBusy(true);
     setNotice(null);
     const result =
-      mode === "signin-code"
-        ? await requestEmailSignInCode(pendingEmail)
-        : await resendConfirmationOtp(pendingEmail);
+      verifyMethod === "signup"
+        ? await resendConfirmationOtp(pendingEmail)
+        : await requestEmailSignInCode(pendingEmail);
     setBusy(false);
     if (result.error) {
       setNotice({ tone: "error", text: result.error });
@@ -222,7 +275,7 @@ export default function LoginScreen() {
   const onSubmit = async () => {
     if (busy) return;
 
-    if (mode === "verify" || mode === "signin-code") {
+    if (mode === "verify") {
       if (code.length !== OTP_LENGTH) {
         setNotice({
           tone: "error",
@@ -230,7 +283,7 @@ export default function LoginScreen() {
         });
         return;
       }
-      await onVerifyCode(code, mode === "verify" ? "signup" : "email");
+      await onVerifyCode(code, verifyMethod);
       return;
     }
 
@@ -241,48 +294,88 @@ export default function LoginScreen() {
 
     const target = email.trim();
 
-    if (mode === "login" && loginMethod === "code") {
-      setErrors({});
+    if (mode === "signup") {
+      const next: Errors = {};
+      if (name.trim().length < 2) {
+        next.name = "Tell us what to call you.";
+      }
+      if (password.length < 8) {
+        next.password = "Use at least 8 characters.";
+      }
+      setErrors(next);
+      if (Object.keys(next).length > 0) return;
+
       setBusy(true);
       setNotice(null);
-      const result = await requestEmailSignInCode(target);
-      setBusy(false);
-      if (result.error) {
-        setNotice({ tone: "error", text: result.error });
+      // Creating the account can sign the user in immediately (when Supabase
+      // email confirmation is off). Defer the navigator reset so this screen
+      // can still walk through the OTP step, exactly like the website.
+      beginAuthDeferral();
+      const created = await signUp(name.trim(), target, password);
+
+      if (created.error) {
+        endAuthDeferral();
+        setBusy(false);
+        if (created.error.includes("already exists")) {
+          switchMode("login", {
+            tone: "info",
+            text: "That email already has an account - log in below.",
+          });
+          return;
+        }
+        setNotice({ tone: "error", text: created.error });
         return;
       }
+
+      let sendError: string | undefined;
+      if (created.needsConfirmation) {
+        setVerifyMethod("signup");
+      } else {
+        // Confirmation is disabled server-side, so no signup code is emailed.
+        // Drop the instant session and request a sign-in code instead.
+        await signOut({ local: true });
+        setVerifyMethod("email");
+        const sendResult = await requestEmailSignInCode(target);
+        sendError = sendResult.error;
+      }
+
+      setBusy(false);
       setPendingEmail(target);
+      setVerifyOrigin("signup");
       setCode("");
+      setPassword("");
+
+      if (sendError) {
+        setCooldown(0);
+        switchMode("verify", { tone: "error", text: sendError });
+        return;
+      }
+
       setCooldown(60);
-      switchMode("signin-code", {
+      switchMode("verify", {
         tone: "info",
-        text: `We emailed an ${OTP_LENGTH}-digit sign-in code to ${target}.`,
+        text: `We emailed an ${OTP_LENGTH}-digit code to ${target}.`,
       });
       return;
     }
 
     const next: Errors = {};
-    if (mode === "signup" && name.trim().length < 2) {
-      next.name = "Tell us what to call you.";
-    }
-    if (password.length < 6) {
-      next.password = "Use at least 6 characters.";
+    if (password.length === 0) {
+      next.password = "Enter your password.";
     }
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
     setBusy(true);
     setNotice(null);
-    const result =
-      mode === "signup"
-        ? await signUp(name.trim(), target, password)
-        : await signIn(target, password);
+    const result = await signIn(target, password);
     setBusy(false);
 
     if (result.error) {
       if (result.unverifiedEmail) {
         setPendingEmail(target);
         setVerifyOrigin("login");
+        setVerifyMethod("signup");
         setCooldown(0);
         switchMode("verify", {
           tone: "info",
@@ -290,25 +383,7 @@ export default function LoginScreen() {
         });
         return;
       }
-      if (mode === "signup" && result.error.includes("already exists")) {
-        switchMode("login", {
-          tone: "info",
-          text: "That email already has an account - log in below.",
-        });
-        return;
-      }
       setNotice({ tone: "error", text: result.error });
-      return;
-    }
-
-    if (result.needsConfirmation) {
-      setPendingEmail(target);
-      setVerifyOrigin("signup");
-      setCooldown(60);
-      switchMode("verify", {
-        tone: "info",
-        text: `We emailed an ${OTP_LENGTH}-digit code to ${target}.`,
-      });
       return;
     }
 
@@ -322,11 +397,6 @@ export default function LoginScreen() {
           title: "Claim your map.",
           subtitle: "Set up your learning OS in under a minute.",
         };
-      case "signin-code":
-        return {
-          title: "Check your inbox.",
-          subtitle: `Enter the ${OTP_LENGTH}-digit sign-in code we sent to ${pendingEmail}.`,
-        };
       case "verify":
         return {
           title: "Verify your email.",
@@ -335,22 +405,17 @@ export default function LoginScreen() {
       default:
         return {
           title: "Welcome back.",
-          subtitle:
-            loginMethod === "code"
-              ? "Enter your email and we'll send you a sign-in code."
-              : "Pick up where the streak left off.",
+          subtitle: "Pick up where the streak left off.",
         };
     }
-  }, [mode, pendingEmail, loginMethod]);
+  }, [mode, pendingEmail]);
 
-  const BadgeIcon =
-    mode === "verify" || mode === "signin-code" ? ShieldCheck : null;
+  const BadgeIcon = mode === "verify" ? ShieldCheck : null;
 
   const showSwitch = mode === "login" || mode === "signup";
-  const otpVisible = mode === "verify" || mode === "signin-code";
+  const otpVisible = mode === "verify";
   const emailVisible = mode === "login" || mode === "signup";
-  const passwordVisible =
-    mode === "signup" || (mode === "login" && loginMethod === "password");
+  const passwordVisible = mode === "login" || mode === "signup";
 
   // With the keyboard open, keep the lowest auth controls reachable. The
   // content padding alone still lets a long form scroll; this also brings the
@@ -367,21 +432,18 @@ export default function LoginScreen() {
         case "signup":
           return "Creating account…";
         case "verify":
-        case "signin-code":
           return "Verifying…";
         default:
-          return loginMethod === "code" ? "Sending code…" : "Signing in…";
+          return "Signing in…";
       }
     }
     switch (mode) {
       case "signup":
         return "Create account";
       case "verify":
-        return "Verify & continue";
-      case "signin-code":
-        return "Verify & sign in";
+        return "Verify";
       default:
-        return loginMethod === "code" ? "Email me a code" : "Enter the dashboard";
+        return "Log in";
     }
   })();
 
@@ -621,10 +683,7 @@ export default function LoginScreen() {
                           value={code}
                           onChange={setCode}
                           onComplete={(value) =>
-                            void onVerifyCode(
-                              value,
-                              mode === "verify" ? "signup" : "email",
-                            )
+                            void onVerifyCode(value, verifyMethod)
                           }
                           autoFocus
                           error={notice?.tone === "error"}
@@ -670,38 +729,15 @@ export default function LoginScreen() {
                       onPress={() => void onSubmit()}
                     />
 
-                    {mode === "login" ? (
-                      <Pressable
-                        accessibilityRole="button"
-                        onPress={() => {
-                          setLoginMethod((value) =>
-                            value === "code" ? "password" : "code",
-                          );
-                          setErrors({});
-                          setNotice(null);
-                          setPassword("");
-                        }}
-                        style={styles.methodLink}
-                        hitSlop={8}
-                      >
-                        <Text style={styles.switchMuted}>
-                          {loginMethod === "code"
-                            ? "Prefer your password? "
-                            : "No password? "}
-                        </Text>
-                        <Text style={styles.switchAccent}>
-                          {loginMethod === "code"
-                            ? "Log in with password"
-                            : "Email me a code"}
-                        </Text>
-                      </Pressable>
-                    ) : null}
                   </View>
 
                   {mode === "verify" ? (
                     <Pressable
                       accessibilityRole="button"
-                      onPress={() => switchMode(verifyOrigin)}
+                      onPress={() => {
+                        endAuthDeferral();
+                        switchMode(verifyOrigin);
+                      }}
                       style={styles.backLink}
                       hitSlop={8}
                     >
@@ -710,21 +746,6 @@ export default function LoginScreen() {
                         Back to{" "}
                         {verifyOrigin === "login" ? "log in" : "sign up"}
                       </Text>
-                    </Pressable>
-                  ) : null}
-
-                  {mode === "signin-code" ? (
-                    <Pressable
-                      accessibilityRole="button"
-                      onPress={() => {
-                        setLoginMethod("code");
-                        switchMode("login");
-                      }}
-                      style={styles.backLink}
-                      hitSlop={8}
-                    >
-                      <ArrowLeft size={14} color={colors.w45} />
-                      <Text style={styles.backText}>Use a different email</Text>
                     </Pressable>
                   ) : null}
 
@@ -1098,12 +1119,6 @@ const styles = StyleSheet.create({
   legalDivider: {
     fontSize: 11.5,
     color: colors.w30,
-  },
-  methodLink: {
-    marginTop: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "center",
   },
   switchLink: {
     marginTop: 22,

@@ -4,12 +4,12 @@ const listeners = new Set<Listener>();
 let active = false;
 
 /**
- * Marks the password-recovery flow as active. Verifying the recovery OTP
- * creates a Supabase session, but the root navigator must keep the current
- * route mounted until the new password is saved. The root layout defers the
- * session-key change while this flag is set.
+ * Marks a multi-step auth flow that creates a Supabase session mid-way.
+ * Signup verification and password recovery both do this, but the root
+ * navigator must keep the current route mounted until the flow finishes.
+ * The root layout defers the session-key change while this flag is set.
  */
-export function beginPasswordRecovery(): void {
+export function beginAuthDeferral(): void {
   if (active) return;
   active = true;
   for (const listener of listeners) {
@@ -21,7 +21,7 @@ export function beginPasswordRecovery(): void {
   }
 }
 
-export function endPasswordRecovery(): void {
+export function endAuthDeferral(): void {
   if (!active) return;
   active = false;
   for (const listener of listeners) {
@@ -33,11 +33,11 @@ export function endPasswordRecovery(): void {
   }
 }
 
-export function isPasswordRecoveryActive(): boolean {
+export function isAuthDeferralActive(): boolean {
   return active;
 }
 
-export function subscribePasswordRecovery(listener: Listener): () => void {
+export function subscribeAuthDeferral(listener: Listener): () => void {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);

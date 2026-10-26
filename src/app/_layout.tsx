@@ -28,9 +28,9 @@ import { hydrateProfileCache } from "../lib/profile-cache";
 import { isHeavyTaskRunning } from "../lib/heavy-task";
 import { getCachedAuthUser, resolveSession, subscribeAuth } from "../lib/auth";
 import {
-  isPasswordRecoveryActive,
-  subscribePasswordRecovery,
-} from "../lib/password-recovery";
+  isAuthDeferralActive,
+  subscribeAuthDeferral,
+} from "../lib/auth-deferral";
 import { refreshAiBaseUrl } from "../lib/api-config";
 import "../lib/sentry";
 import { colors } from "../theme/theme";
@@ -106,8 +106,9 @@ export default function RootLayout() {
   // Every route lives in one flat, always-mounted tab set, so switching
   // sections never remounts a screen (no reloads, no stale data). Keying on
   // the auth owner resets that state on sign-in / sign-out / account switch.
-  // During password recovery the key change is deferred until the new
-  // password is saved, so the reset screen survives the OTP sign-in.
+  // During multi-step auth flows (signup verification, password recovery)
+  // the key change is deferred until the flow finishes, so the auth screen
+  // survives the OTP sign-in.
   const [sessionKey, setSessionKey] = useState(
     () => getCachedAuthUser()?.id ?? "anon",
   );
@@ -153,7 +154,7 @@ export default function RootLayout() {
           setSessionKey((prev) => (prev === "anon" ? prev : "anon"));
           return;
         }
-        if (isPasswordRecoveryActive()) {
+        if (isAuthDeferralActive()) {
           pendingSessionKeyRef.current = next;
           return;
         }
@@ -165,7 +166,7 @@ export default function RootLayout() {
 
   useEffect(
     () =>
-      subscribePasswordRecovery((active) => {
+      subscribeAuthDeferral((active) => {
         if (active) return;
         const pending = pendingSessionKeyRef.current;
         if (!pending) return;

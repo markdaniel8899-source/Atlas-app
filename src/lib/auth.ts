@@ -108,7 +108,7 @@ function readableError(message: string): string {
     return "An account with this email already exists.";
   }
   if (m.includes("at least") && m.includes("password")) {
-    return "Passwords must be at least 6 characters long.";
+    return "Passwords must be at least 8 characters long.";
   }
   if (m.includes("email not confirmed")) {
     return "Confirm your email first, then sign in.";
@@ -151,13 +151,23 @@ export async function signUp(
     supabase.auth.signUp({
       email,
       password,
-      options: { data: { name } },
+      options: { data: { full_name: name } },
     }),
   );
 
   if (error) {
     flagDisabledAccount(error.message);
     return { error: readableError(error.message) };
+  }
+
+  // Supabase returns an obfuscated user with no identities when the address
+  // is already registered and email enumeration protection is on.
+  if (
+    data.user &&
+    Array.isArray(data.user.identities) &&
+    data.user.identities.length === 0
+  ) {
+    return { error: "An account with this email already exists." };
   }
 
   if (data.session && data.user) {
