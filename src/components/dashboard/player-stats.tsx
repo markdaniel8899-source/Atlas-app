@@ -16,6 +16,7 @@ import { RankProgressionModal } from "../gamification/rank-progression-modal";
 import { getRankFromXP } from "../../lib/gamification";
 import type { Profile } from "../../lib/db/types";
 import { useReducedMotion } from "../../hooks/use-reduced-motion";
+import { useResponsive } from "../../hooks/use-responsive";
 import { colors, ease, fonts } from "../../theme/theme";
 
 interface PlayerStatsProps {
@@ -26,6 +27,7 @@ interface PlayerStatsProps {
 function LoadingCard() {
   const pulse = useRef(new Animated.Value(1)).current;
   const reduceMotion = useReducedMotion();
+  const { compact } = useResponsive();
   useEffect(() => {
     if (reduceMotion) {
       pulse.setValue(1);
@@ -54,21 +56,38 @@ function LoadingCard() {
   return (
     <Card>
       <Animated.View style={{ opacity: pulse, gap: 20 }}>
-        <View style={styles.skeletonRow}>
+        <View
+          style={[
+            styles.skeletonRow,
+            compact && styles.skeletonRowCompact,
+          ]}
+        >
           <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 10,
-              flexShrink: 1,
-              minWidth: 0,
-            }}
+            style={[
+              styles.skeletonStreakBlock,
+              compact && styles.skeletonStreakBlockCompact,
+            ]}
           >
-            <View style={styles.skeletonFlameBox} />
+            <View
+              style={[
+                styles.skeletonFlameBox,
+                compact && styles.skeletonFlameBoxCompact,
+              ]}
+            />
             <View style={styles.skeletonCellValue} />
           </View>
-          <View style={styles.skeletonRankBlock}>
-            <View style={styles.skeletonRankBadge} />
+          <View
+            style={[
+              styles.skeletonRankBlock,
+              compact && styles.skeletonRankBlockCompact,
+            ]}
+          >
+            <View
+              style={[
+                styles.skeletonRankBadge,
+                compact && styles.skeletonRankBadgeCompact,
+              ]}
+            />
             <View style={styles.skeletonRankTextCol}>
               <View style={styles.skeletonRankName} />
               <View style={styles.skeletonRankMicro} />
@@ -87,6 +106,7 @@ export function PlayerStats({ profile, loading }: PlayerStatsProps) {
   const [rankModalOpen, setRankModalOpen] = useState(false);
   const bar = useRef(new Animated.Value(0)).current;
   const reduceMotion = useReducedMotion();
+  const { compact } = useResponsive();
 
   useEffect(() => {
     if (loading) return;
@@ -116,30 +136,41 @@ export function PlayerStats({ profile, loading }: PlayerStatsProps) {
           style={styles.cardGlow}
         />
 
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            columnGap: 16,
-            rowGap: 8,
-            flexWrap: "nowrap",
-          }}
-        >
+        <View style={[styles.statsRow, compact && styles.statsRowCompact]}>
           <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 10,
-              minWidth: 0,
-              flexShrink: 1,
-            }}
+            style={[
+              styles.streakBlock,
+              compact && styles.streakBlockCompact,
+            ]}
           >
-            <View style={styles.flameBox}>
-              <Flame size={20} color={colors.flame} />
+            <View
+              style={[styles.flameBox, compact && styles.flameBoxCompact]}
+            >
+              <Flame size={compact ? 18 : 20} color={colors.flame} />
             </View>
-            <View>
-              <Text style={styles.cellValue}>{String(streak)}</Text>
-              <Text style={[styles.micro, styles.microGap]}>day streak</Text>
+            <View style={styles.streakTextCol}>
+              <Text
+                style={[styles.cellValue, compact && styles.cellValueCompact]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.85}
+                maxFontSizeMultiplier={1.2}
+              >
+                {String(streak)}
+              </Text>
+              <Text
+                style={[
+                  styles.micro,
+                  styles.microGap,
+                  compact && styles.microCompact,
+                ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
+                maxFontSizeMultiplier={1.2}
+              >
+                day streak
+              </Text>
             </View>
           </View>
 
@@ -149,17 +180,21 @@ export function PlayerStats({ profile, loading }: PlayerStatsProps) {
             onPress={() => setRankModalOpen(true)}
             style={({ pressed }) => [
               styles.rankBlock,
+              compact && styles.rankBlockCompact,
               pressed && styles.rankBlockPressed,
             ]}
           >
             <RankBadge
               rank={rankData.tier.key}
               tier={rankData.current.step}
-              size={44}
+              size={compact ? 36 : 44}
             />
             <View style={styles.rankTextCol}>
               <Text
-                style={styles.rankName}
+                style={[
+                  styles.rankName,
+                  compact && styles.rankNameCompact,
+                ]}
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.8}
@@ -168,10 +203,15 @@ export function PlayerStats({ profile, loading }: PlayerStatsProps) {
                 {rankData.name}
               </Text>
               <Text
-                style={[styles.micro, styles.microGap]}
+                style={[
+                  styles.micro,
+                  styles.microGap,
+                  compact && styles.microCompact,
+                ]}
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.8}
+                maxFontSizeMultiplier={1.2}
               >
                 current rank
               </Text>
@@ -179,7 +219,7 @@ export function PlayerStats({ profile, loading }: PlayerStatsProps) {
           </Pressable>
         </View>
 
-        <View style={styles.xpBlock}>
+        <View style={[styles.xpBlock, compact && styles.xpBlockCompact]}>
           <Text style={styles.xpValue}>
             {String(rankData.xpInto)}
             <Text style={styles.xpMuted}> / {rankData.xpNeed}</Text>
@@ -190,7 +230,12 @@ export function PlayerStats({ profile, loading }: PlayerStatsProps) {
           </Text>
         </View>
 
-        <View style={styles.progressBlock}>
+        <View
+          style={[
+            styles.progressBlock,
+            compact && styles.progressBlockCompact,
+          ]}
+        >
           <View style={styles.track}>
             <Animated.View
               style={[
@@ -248,6 +293,30 @@ const styles = StyleSheet.create({
     top: -112,
     right: -64,
   },
+  statsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    columnGap: 16,
+    rowGap: 8,
+    flexWrap: "nowrap",
+  },
+  statsRowCompact: {
+    columnGap: 10,
+  },
+  streakBlock: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    minWidth: 0,
+    flexShrink: 1,
+  },
+  streakBlockCompact: {
+    gap: 8,
+  },
+  streakTextCol: {
+    flexShrink: 1,
+    minWidth: 0,
+  },
   topRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -270,11 +339,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  flameBoxCompact: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+  },
   cellValue: {
     fontSize: 20,
     fontFamily: fonts.semibold,
     color: colors.white,
     fontVariant: ["tabular-nums"],
+  },
+  cellValueCompact: {
+    fontSize: 19,
   },
   micro: {
     fontSize: 11,
@@ -282,6 +359,10 @@ const styles = StyleSheet.create({
     letterSpacing: 1.8,
     textTransform: "uppercase",
     color: colors.w35,
+  },
+  microCompact: {
+    fontSize: 10,
+    letterSpacing: 1.2,
   },
   microGap: {
     marginTop: 2,
@@ -294,6 +375,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "transparent",
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  rankBlockCompact: {
+    gap: 8,
+    padding: 3,
   },
   rankBlockPressed: {
     borderColor: colors.w10,
@@ -308,9 +395,15 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semibold,
     color: colors.white,
   },
+  rankNameCompact: {
+    fontSize: 16,
+  },
   xpBlock: {
     marginTop: 24,
     alignItems: "flex-end",
+  },
+  xpBlockCompact: {
+    marginTop: 18,
   },
   xpValue: {
     fontFamily: fonts.mono,
@@ -327,6 +420,9 @@ const styles = StyleSheet.create({
   },
   progressBlock: {
     marginTop: 24,
+  },
+  progressBlockCompact: {
+    marginTop: 18,
   },
   track: {
     height: 10,
@@ -368,11 +464,29 @@ const styles = StyleSheet.create({
     rowGap: 8,
     flexWrap: "nowrap",
   },
+  skeletonRowCompact: {
+    columnGap: 10,
+  },
+  skeletonStreakBlock: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  skeletonStreakBlockCompact: {
+    gap: 8,
+  },
   skeletonFlameBox: {
     width: 44,
     height: 44,
     borderRadius: 12,
     backgroundColor: colors.w06,
+  },
+  skeletonFlameBoxCompact: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
   },
   skeletonCellValue: {
     flexShrink: 1,
@@ -388,12 +502,23 @@ const styles = StyleSheet.create({
     padding: 4,
     borderRadius: 12,
     backgroundColor: colors.w03,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  skeletonRankBlockCompact: {
+    gap: 8,
+    padding: 3,
   },
   skeletonRankBadge: {
     width: 44,
     height: 44,
     borderRadius: 12,
     backgroundColor: colors.w05,
+  },
+  skeletonRankBadgeCompact: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
   },
   skeletonRankTextCol: {
     flexShrink: 1,

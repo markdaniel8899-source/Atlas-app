@@ -9,7 +9,6 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  useWindowDimensions,
   View,
 } from "react-native";
 import { useFocusEffect } from "expo-router";
@@ -28,6 +27,7 @@ import type { LeaderboardEntry } from "../lib/db/leaderboard";
 import { pngAvatarUrl } from "../lib/dicebear";
 import { ensureOnline } from "../lib/net";
 import { useReducedMotion } from "../hooks/use-reduced-motion";
+import { useResponsive } from "../hooks/use-responsive";
 import { colors, fonts } from "../theme/theme";
 
 /** Premium glassy card configs for podium positions (1st, 2nd, 3rd). */
@@ -136,7 +136,9 @@ function Avatar({ entry, size = 48 }: { entry: LeaderboardEntry; size?: number }
         />
       ) : (
         <View style={styles.avatarFallback}>
-          <Text style={styles.avatarInitials}>{entry.initials}</Text>
+          <Text maxFontSizeMultiplier={1.2} style={styles.avatarInitials}>
+            {entry.initials}
+          </Text>
         </View>
       )}
     </View>
@@ -146,22 +148,37 @@ function Avatar({ entry, size = 48 }: { entry: LeaderboardEntry; size?: number }
 function RankChip({
   entry,
   withBadge,
+  compact,
 }: {
   entry: LeaderboardEntry;
   withBadge?: boolean;
+  compact?: boolean;
 }) {
   const rank = getRankFromXP(entry.totalXp);
   return (
     <View
       style={[
         styles.rankChip,
+        compact && styles.rankChipCompact,
         { borderColor: rank.tier.border, backgroundColor: rank.tier.bg },
       ]}
     >
       {withBadge ? (
-        <RankBadge rank={rank.tier.key} tier={rank.current.step} size={24} />
+        <RankBadge
+          rank={rank.tier.key}
+          tier={rank.current.step}
+          size={compact ? 20 : 24}
+        />
       ) : null}
-      <Text style={[styles.rankChipText, { color: rank.tier.text }]}>
+      <Text
+        numberOfLines={1}
+        maxFontSizeMultiplier={1.2}
+        style={[
+          styles.rankChipText,
+          compact && styles.rankChipTextCompact,
+          { color: rank.tier.text },
+        ]}
+      >
         {rank.name}
       </Text>
     </View>
@@ -199,45 +216,101 @@ const LeaderRow = memo(function LeaderRow({
         <PodiumShine tint={podium.shine} anim={shine} />
 
         <View style={[styles.positionCol, compact && styles.positionColCompact]}>
-          <Text style={styles.podiumIcon}>{podium.icon}</Text>
-          <Text style={[styles.podiumNumber, { color: podium.positionColor }]}>
+          <Text
+            maxFontSizeMultiplier={1.2}
+            style={[styles.podiumIcon, compact && styles.podiumIconCompact]}
+          >
+            {podium.icon}
+          </Text>
+          <Text
+            maxFontSizeMultiplier={1.2}
+            style={[
+              styles.podiumNumber,
+              compact && styles.podiumNumberCompact,
+              { color: podium.positionColor },
+            ]}
+          >
             {place}
           </Text>
         </View>
 
-        <Avatar entry={entry} size={compact ? 48 : 52} />
+        <Avatar entry={entry} size={compact ? 42 : 52} />
 
         <View style={styles.identity}>
           <View style={styles.nameRow}>
-            <Text numberOfLines={1} style={styles.name}>
+            <Text
+              numberOfLines={1}
+              maxFontSizeMultiplier={1.2}
+              style={styles.name}
+            >
               {entry.displayName}
             </Text>
             {entry.isYou ? (
               <View style={styles.youChip}>
-                <Text style={styles.youChipText}>You</Text>
+                <Text maxFontSizeMultiplier={1.2} style={styles.youChipText}>
+                  You
+                </Text>
               </View>
             ) : null}
           </View>
           <View style={styles.metaRow}>
-            <Text numberOfLines={1} style={styles.username}>
+            <Text
+              numberOfLines={1}
+              maxFontSizeMultiplier={1.2}
+              style={styles.username}
+            >
               @{entry.username}
             </Text>
-            <RankChip entry={entry} withBadge />
-            <View style={styles.streakChip}>
-              <Flame size={12} color="rgba(252,211,77,0.8)" />
-              <Text style={styles.streakText}>{entry.streak}d</Text>
+            <View
+              style={[styles.metaChips, compact && styles.metaChipsCompact]}
+            >
+              <RankChip entry={entry} withBadge compact={compact} />
+              <View style={styles.streakChip}>
+                <Flame
+                  size={compact ? 11 : 12}
+                  color="rgba(252,211,77,0.8)"
+                />
+                <Text
+                  maxFontSizeMultiplier={1.2}
+                  style={[
+                    styles.streakText,
+                    compact && styles.streakTextCompact,
+                  ]}
+                >
+                  {entry.streak}d
+                </Text>
+              </View>
             </View>
           </View>
         </View>
 
-        <View style={styles.score}>
-          <View style={styles.scoreRow}>
-            <Zap size={16} color={podium.zapColor} />
-            <Text style={styles.scoreValue}>
+        <View style={[styles.score, compact && styles.scoreCompact]}>
+          <View
+            style={[styles.scoreRow, compact && styles.scoreRowCompact]}
+          >
+            <Zap size={compact ? 14 : 16} color={podium.zapColor} />
+            <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+              maxFontSizeMultiplier={1.2}
+              style={[
+                styles.scoreValue,
+                compact && styles.scoreValueCompact,
+              ]}
+            >
               {entry.weeklyXp.toLocaleString()}
             </Text>
           </View>
-          <Text style={[styles.scoreLabel, { color: podium.weeklyColor }]}>
+          <Text
+            numberOfLines={1}
+            maxFontSizeMultiplier={1.2}
+            style={[
+              styles.scoreLabel,
+              compact && styles.scoreLabelCompact,
+              { color: podium.weeklyColor },
+            ]}
+          >
             weekly XP
           </Text>
         </View>
@@ -246,44 +319,93 @@ const LeaderRow = memo(function LeaderRow({
   }
 
   return (
-    <View style={[styles.rowCard, entry.isYou && styles.rowCardYou]}>
-      <View style={styles.positionCol}>
-        <Text style={styles.rowNumber}>{place ?? "-"}</Text>
+    <View
+      style={[
+        styles.rowCard,
+        compact && styles.rowCardCompact,
+        entry.isYou && styles.rowCardYou,
+      ]}
+    >
+      <View style={[styles.positionCol, compact && styles.positionColCompact]}>
+        <Text
+          maxFontSizeMultiplier={1.2}
+          style={[styles.rowNumber, compact && styles.rowNumberCompact]}
+        >
+          {place ?? "-"}
+        </Text>
       </View>
 
-      <Avatar entry={entry} size={48} />
+      <Avatar entry={entry} size={compact ? 40 : 48} />
 
       <View style={styles.identity}>
         <View style={styles.nameRow}>
-          <Text numberOfLines={1} style={styles.name}>
+          <Text
+            numberOfLines={1}
+            maxFontSizeMultiplier={1.2}
+            style={styles.name}
+          >
             {entry.displayName}
           </Text>
           {entry.isYou ? (
             <View style={styles.youChip}>
-              <Text style={styles.youChipText}>You</Text>
+              <Text maxFontSizeMultiplier={1.2} style={styles.youChipText}>
+                You
+              </Text>
             </View>
           ) : null}
         </View>
         <View style={styles.metaRow}>
-          <Text numberOfLines={1} style={styles.username}>
+          <Text
+            numberOfLines={1}
+            maxFontSizeMultiplier={1.2}
+            style={styles.username}
+          >
             @{entry.username}
           </Text>
-          <RankChip entry={entry} />
-          <View style={styles.streakChip}>
-            <Flame size={12} color="rgba(252,211,77,0.8)" />
-            <Text style={styles.streakText}>{entry.streak}d</Text>
+          <View style={[styles.metaChips, compact && styles.metaChipsCompact]}>
+            <RankChip entry={entry} compact={compact} />
+            <View style={styles.streakChip}>
+              <Flame
+                size={compact ? 11 : 12}
+                color="rgba(252,211,77,0.8)"
+              />
+              <Text
+                maxFontSizeMultiplier={1.2}
+                style={[
+                  styles.streakText,
+                  compact && styles.streakTextCompact,
+                ]}
+              >
+                {entry.streak}d
+              </Text>
+            </View>
           </View>
         </View>
       </View>
 
-      <View style={styles.score}>
-        <View style={styles.scoreRow}>
-          <Zap size={16} color="rgba(147,197,253,0.8)" />
-          <Text style={styles.scoreValue}>
+      <View style={[styles.score, compact && styles.scoreCompact]}>
+        <View style={[styles.scoreRow, compact && styles.scoreRowCompact]}>
+          <Zap size={compact ? 14 : 16} color="rgba(147,197,253,0.8)" />
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.75}
+            maxFontSizeMultiplier={1.2}
+            style={[styles.scoreValue, compact && styles.scoreValueCompact]}
+          >
             {entry.weeklyXp.toLocaleString()}
           </Text>
         </View>
-        <Text style={styles.scoreLabelRegular}>weekly XP</Text>
+        <Text
+          numberOfLines={1}
+          maxFontSizeMultiplier={1.2}
+          style={[
+            styles.scoreLabelRegular,
+            compact && styles.scoreLabelCompact,
+          ]}
+        >
+          weekly XP
+        </Text>
       </View>
     </View>
   );
@@ -337,9 +459,8 @@ export default function LeaderboardScreen() {
   );
   const firstFocus = useRef(true);
   const shine = useRef(new Animated.Value(0)).current;
-  const { width } = useWindowDimensions();
   const reduceMotion = useReducedMotion();
-  const compact = width < 360;
+  const { compact } = useResponsive();
 
   // Tabs stay mounted, so re-pull the board (silently, cache stays visible)
   // every time this tab is focused after the first mount.
@@ -479,7 +600,14 @@ export default function LeaderboardScreen() {
   }: {
     item: LeaderboardEntry;
     index: number;
-  }) => <LeaderRow entry={item} place={index + 4} shine={shine} />;
+  }) => (
+    <LeaderRow
+      entry={item}
+      place={index + 4}
+      shine={shine}
+      compact={compact}
+    />
+  );
 
   return (
     <ScreenShell title="Leaderboard" scrollable={false} hideFooter>
@@ -659,7 +787,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   podiumCardCompact: {
-    gap: 10,
+    gap: 8,
     padding: 12,
   },
   shineBand: {
@@ -675,22 +803,32 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   positionColCompact: {
-    width: 36,
+    width: 32,
   },
   podiumIcon: {
     fontSize: 18,
     lineHeight: 22,
+  },
+  podiumIconCompact: {
+    fontSize: 16,
+    lineHeight: 20,
   },
   podiumNumber: {
     fontSize: 17,
     fontFamily: fonts.semibold,
     letterSpacing: -0.4,
   },
+  podiumNumberCompact: {
+    fontSize: 16,
+  },
   rowNumber: {
     fontSize: 16,
     fontFamily: fonts.semibold,
     letterSpacing: -0.4,
     color: colors.w40,
+  },
+  rowNumberCompact: {
+    fontSize: 15,
   },
   avatar: {
     overflow: "hidden",
@@ -719,7 +857,7 @@ const styles = StyleSheet.create({
   nameRow: {
     flexDirection: "row",
     alignItems: "center",
-    flexWrap: "wrap",
+    flexWrap: "nowrap",
     gap: 8,
   },
   name: {
@@ -752,8 +890,20 @@ const styles = StyleSheet.create({
     columnGap: 10,
     rowGap: 4,
   },
+  metaChips: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexShrink: 1,
+    flexWrap: "wrap",
+    gap: 8,
+    rowGap: 4,
+  },
+  metaChipsCompact: {
+    gap: 6,
+  },
   username: {
     flexShrink: 1,
+    minWidth: 0,
     fontSize: 11,
     fontFamily: fonts.regular,
     color: "rgba(255,255,255,0.55)",
@@ -767,9 +917,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
+  rankChipCompact: {
+    gap: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+  },
   rankChipText: {
     fontSize: 11,
     fontFamily: fonts.semibold,
+  },
+  rankChipTextCompact: {
+    fontSize: 10,
   },
   streakChip: {
     flexDirection: "row",
@@ -781,19 +939,33 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     color: "rgba(252,211,77,0.8)",
   },
+  streakTextCompact: {
+    fontSize: 10,
+  },
   score: {
+    width: 78,
+    flexShrink: 0,
     alignItems: "flex-end",
+  },
+  scoreCompact: {
+    width: 68,
   },
   scoreRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
   },
+  scoreRowCompact: {
+    gap: 4,
+  },
   scoreValue: {
     fontSize: 18,
     fontFamily: fonts.semibold,
     letterSpacing: -0.4,
     color: colors.white,
+  },
+  scoreValueCompact: {
+    fontSize: 16,
   },
   scoreLabel: {
     marginTop: 2,
@@ -810,6 +982,10 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     color: colors.w35,
   },
+  scoreLabelCompact: {
+    fontSize: 10,
+    letterSpacing: 0.8,
+  },
   rowCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -819,6 +995,10 @@ const styles = StyleSheet.create({
     borderColor: colors.w10,
     backgroundColor: colors.w05,
     padding: 16,
+  },
+  rowCardCompact: {
+    gap: 8,
+    padding: 12,
   },
   rowCardYou: {
     borderColor: "rgba(157,180,255,0.4)",
