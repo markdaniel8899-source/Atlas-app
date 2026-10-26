@@ -114,6 +114,7 @@ export default function LoginScreen() {
   const scrollRef = useRef<ScrollView | null>(null);
   const entrance = useRef(new Animated.Value(0)).current;
   const formAnim = useRef(new Animated.Value(1)).current;
+  const verifyDoneRef = useRef(false);
 
   const scrollFormIntoView = useCallback(() => {
     setTimeout(() => {
@@ -196,6 +197,7 @@ export default function LoginScreen() {
         useNativeDriver: true,
       }).start(() => {
         setMode(next);
+        if (next === "verify") verifyDoneRef.current = false;
         setErrors({});
         setNotice(nextNotice ?? null);
         setCode("");
@@ -224,7 +226,7 @@ export default function LoginScreen() {
 
   const onVerifyCode = useCallback(
     async (codeValue: string, method: VerifyMethod) => {
-      if (busy) return;
+      if (busy || verifyDoneRef.current) return;
       const origin = verifyOrigin;
       setBusy(true);
       setNotice(null);
@@ -234,6 +236,7 @@ export default function LoginScreen() {
         setNotice({ tone: "error", text: result.error });
         return;
       }
+      verifyDoneRef.current = true;
 
       if (origin === "signup") {
         // Match the website: a new account verifies its inbox, then signs in
