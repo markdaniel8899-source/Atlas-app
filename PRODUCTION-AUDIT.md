@@ -1,7 +1,8 @@
 # ATLAS — Production Audit & Feature Report
 
-> **Date:** 2026-10-18 · **Commit:** `4a6b8f9` · **Branch:** main · **App:** ATLAS (Expo SDK 57 / RN 0.86)
+> **Baseline:** 2026-10-18 (`4a6b8f9`) · **Last update:** 2026-10-27 (`aad102a`) · **Branch:** main · **App:** ATLAS (Expo SDK 57 / RN 0.86, runtime 1.0.2)
 > Ye file app ki current **production readiness**, tamam **shipped features** aur overall **state** ka single source of truth hai. Koi bhi naya session isay pehle parh le.
+> **Update 2026-10-27:** Notes parity batch shipped (bulk download/share/move, sender badge, manual order, collapsible groups, realtime). Per-batch log `AGENTS.md` mein hai; baqi sections 2026-10-18 baseline hain.
 
 ---
 
@@ -28,7 +29,7 @@
 | Focus Timer | ✅ Done | Offline-safe, server-authoritative XP |
 | Roadmap | ✅ Done | Map + builder + AI generation + resources |
 | Courses | ✅ Done | Topics CRUD, progress recompute, user-scoped |
-| Notes | ✅ Done | Rich editor, offline queue, sanitizer |
+| Notes | ✅ Done | Rich editor, offline queue, sanitizer; bulk download/share/move, sender badge, manual order, collapsible groups, realtime |
 | Quiz | ✅ Done | AI generation, tab-switch proof store, honest sync note |
 | AI Assistant | ✅ Done | Thread 24h persist, in-flight survival (backend-dependent) |
 | Leaderboard | ✅ Done | Weekly, honest error/empty states |
@@ -87,7 +88,11 @@
 - WebView navigation gate: sirf inline document load hota hai; bahar wale safe http(s) links system browser mein
 - **Offline queue**: latest-wins per note, temp `local-…` ids + id-swap, retry on edit / 15s interval / foreground; per-account alag (owner-scoped); permanently failing ops (constraint/RLS) drop hoti hain, network/session errors retry
 - Title cap 160 + server-side clamp ("Untitled note" fallback), "Offline · N to sync" indicator, delete confirm
-- **Notes sharing** (`src/lib/db/shares.ts`, `supabase/note-sharing.sql`): editor ke Share2 button se accepted friend picker khulta hai; server RPC ownership + friendship check ke baad note ki copy seedha friend ke `notes` mein insert karta hai (koi naya tab/inbox nahi). **SQL run karna baqi hai** — tab tak feature inert hai.
+- **Notes sharing** (`src/lib/db/shares.ts`, `supabase/note-sharing.sql`): editor ke Share2 button se accepted friend picker khulta hai; server RPC ownership + friendship check ke baad note ki copy seedha friend ke `notes` mein insert karta hai (koi naya tab/inbox nahi). Multi-select bulk share bhi (`bulk-share-modal.tsx`). Shared notes pe "Shared by <name>" badge (`shared_by`/`shared_at`).
+- **Bulk download** (`src/lib/notes-export.ts`): selected notes ek HTML file mein (sanitized content, website jaisa print CSS). Web = Blob download; Android = SAF folder picker; iOS/fallback = lazy `expo-sharing` (native module, next APK).
+- **Manual order**: `notes.sort_order` + local fallback `src/lib/notes-order.ts`; Reorder mode ke up/down arrows; best-effort `updateNoteOrder(ids)` sync; new notes top pe (negative sort).
+- **Groups**: collapsible course/general headers with counts; realtime `notes` subscription (user-filtered, 1800ms debounce).
+- **SQL status:** naya `note-sharing.sql` (columns + RPC + realtime publication) **user ko ek dafa Supabase SQL editor mein run karna hai**; jab tak run nahi, badge/realtime/sort sync DB-side active nahi.
 
 ### 3.7 Quiz (`src/app/quiz.tsx`, `src/lib/quiz-store.ts`)
 - AI generation + auto-grading (backend: qwen3.8-27b)
