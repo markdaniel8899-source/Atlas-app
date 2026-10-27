@@ -19,7 +19,9 @@
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#030305"
       },
-      "permissions": ["android.permission.POST_NOTIFICATIONS"],
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS"
+      ],
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "resize"
     },
@@ -40,11 +42,18 @@
       ],
       "expo-updates",
       "expo-secure-store",
-      ["expo-notifications", { "color": "#cf9eff" }],
+      [
+        "expo-notifications",
+        {
+          "color": "#cf9eff"
+        }
+      ],
       [
         "react-native-android-widget",
         {
-          "fonts": ["./assets/fonts/CreateFuture.otf"],
+          "fonts": [
+            "./assets/fonts/CreateFuture.otf"
+          ],
           "widgets": [
             {
               "name": "AtlasWidget",
@@ -68,7 +77,8 @@
             }
           ]
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true,

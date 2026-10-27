@@ -1,3 +1,4 @@
+import { resolveSession } from "../auth";
 import { supabase } from "../supabase";
 
 export interface ShareResult {
@@ -5,7 +6,15 @@ export interface ShareResult {
   message: string;
 }
 
-function toId(value: string): number | null {
+export interface BulkShareResult {
+  ok: boolean;
+  message: string;
+  sharedCount: number;
+  failedCount: number;
+}
+
+/** Positive safe-integer id (numeric bigint once the note is persisted). */
+export function toShareableId(value: string): number | null {
   const parsed = Number(value);
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
 }
@@ -19,7 +28,7 @@ export async function shareNote(
   noteId: string,
   recipientId: string,
 ): Promise<ShareResult> {
-  const parsed = toId(noteId);
+  const parsed = toShareableId(noteId);
   if (parsed === null) {
     return {
       ok: false,
@@ -63,4 +72,94 @@ export async function shareNote(
       message: err instanceof Error ? err.message : "Network error.",
     };
   }
+}
+
+/**
+ * Share several notes with several accepted friends. Each note is copied
+ * into each recipient's Notes (same server-side `share_note` RPC as the
+ * single-note flow). Returns per-pair success counts so the UI can report
+ * partial failures instead of hiding them.
+ */
+export async function bulkShareNotes(
+  noteIds: string[],
+  recipientIds: string[],
+): Promise<BulkShareResult> {
+  const user = await resolveSession();
+  if (!user) {
+    return {
+      ok: false,
+      message: "You are not signed in.",
+      sharedCount: 0,
+      failedCount: noteIds.length * recipientIds.length,
+    };
+  }
+
+  const validNoteIds = noteIds
+    .map(toShareableId)
+    .filter((id): id is number => id !== null);
+  const recipients = [...new Set(recipientIds.filter(Boolean))];
+
+  if (validNoteIds.length === 0 || recipients.length === 0) {
+    return {
+      ok: false,
+      message: "No valid notes or friends selected.",
+      sharedCount: 0,
+      failedCount: 0,
+    };
+  }
+
+  let sharedCount = 0;
+  let failedCount = 0;
+  let lastError = "";
+
+  for (const noteId of validNoteIds) {
+    for (const recipientId of recipients) {
+      try {
+        const { data, error } = await supabase.rpc("share_note", {
+          p_note_id: noteId,
+          p_recipient_id: recipientId,
+        });
+        if (error) {
+          failedCount += 1;
+          lastError =
+            error.message === "RATE_LIMIT"
+              ? "Daily share limit reached for one friend."
+              : error.message;
+          continue;
+        }
+        const payload = data as { ok?: boolean; message?: string } | null;
+        if (!payload || payload.ok !== true) {
+          failedCount += 1;
+          if (payload?.message) lastError = payload.message;
+          continue;
+        }
+        sharedCount += 1;
+      } catch (err) {
+        failedCount += 1;
+        lastError = err instanceof Error ? err.message : "Network error.";
+      }
+    }
+  }
+
+  const total = validNoteIds.length * recipients.length;
+  if (sharedCount === 0) {
+    return {
+      ok: false,
+      message: lastError || "The notes could not be shared.",
+      sharedCount,
+      failedCount,
+    };
+  }
+
+  return {
+    ok: true,
+    message:
+      failedCount > 0
+        ? `Shared ${sharedCount} of ${total}. ${failedCount} failed${
+            lastError ? ` (${lastError})` : ""
+          }.`
+        : `Shared ${sharedCount} note${sharedCount > 1 ? "s" : ""}.`,
+    sharedCount,
+    failedCount,
+  };
 }

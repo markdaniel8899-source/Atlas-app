@@ -25,6 +25,8 @@ interface QueueOp {
   html: string;
   courseId: number | null;
   topicId: number | null;
+  /** Manual list position; undefined leaves notes.sort_order untouched. */
+  sortOrder?: number | null;
   updatedAt: number;
   /** Account that queued the write; ops never flush into another account. */
   ownerId: string | null;
@@ -159,6 +161,10 @@ async function hydrateQueue() {
                 typeof entry.courseId === "number" ? entry.courseId : null,
               topicId:
                 typeof entry.topicId === "number" ? entry.topicId : null,
+              sortOrder:
+                typeof entry.sortOrder === "number"
+                  ? entry.sortOrder
+                  : undefined,
               updatedAt:
                 typeof entry.updatedAt === "number" ? entry.updatedAt : 0,
               ownerId:
@@ -224,6 +230,7 @@ export function queueNoteUpsert(note: {
   html: string;
   courseId: number | null;
   topicId: number | null;
+  sortOrder?: number | null;
 }) {
   ops.set(note.id, {
     noteId: note.id,
@@ -232,6 +239,7 @@ export function queueNoteUpsert(note: {
     html: note.html,
     courseId: note.courseId,
     topicId: note.topicId,
+    sortOrder: note.sortOrder,
     updatedAt: Date.now(),
     ownerId: currentOwnerId,
   });
@@ -318,6 +326,7 @@ export async function flushNotesQueue(): Promise<void> {
           html: op.html,
           courseId: op.courseId,
           topicId: op.topicId,
+          sortOrder: op.sortOrder,
         });
         if (!created) {
           // Constraint failures can never succeed: drop instead of blocking
@@ -346,6 +355,9 @@ export async function flushNotesQueue(): Promise<void> {
       const result = await updateNote(op.noteId, {
         title: op.title,
         html: op.html,
+        courseId: op.courseId,
+        topicId: op.topicId,
+        sortOrder: op.sortOrder,
       });
       if (!result.ok) {
         if (!result.permanent) break;

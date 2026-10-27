@@ -10,10 +10,13 @@ interface NoteRow {
   updated_at: string;
   course_id: number | null;
   topic_id: number | null;
+  sort_order: number | null;
+  shared_by: string | null;
+  shared_at: string | null;
 }
 
-const NOTE_COLUMNS =
-  "id, title, content, updated_at, course_id, topic_id";
+const BASE_COLUMNS = "id, title, content, updated_at, course_id, topic_id";
+const NOTE_COLUMNS = `${BASE_COLUMNS}, sort_order, shared_by, shared_at`;
 
 function toNote(row: NoteRow): Note {
   return {
@@ -26,8 +29,13 @@ function toNote(row: NoteRow): Note {
     courseId: typeof row.course_id === "number" ? row.course_id : null,
     topicId: typeof row.topic_id === "number" ? row.topic_id : null,
     courseTitle: null,
-    sharedBy: null,
-    sharedAt: null,
+    sortOrder: typeof row.sort_order === "number" ? row.sort_order : null,
+    sharedBy: row.shared_by ?? null,
+    sharedByName: null,
+    sharedAt:
+      row.shared_at && !Number.isNaN(Date.parse(row.shared_at))
+        ? Date.parse(row.shared_at)
+        : null,
   };
 }
 
@@ -105,6 +113,42 @@ async function loadCourseTitles(rows: NoteRow[]): Promise<Map<number, string>> {
   return byNote;
 }
 
+/**
+ * Map each note id to the display name of whoever shared it. One extra
+ * query only when the fetched rows actually contain shared notes.
+ */
+async function loadSenderNames(rows: NoteRow[]): Promise<Map<number, string>> {
+  const byNote = new Map<number, string>();
+  const senderIds = new Set<string>(
+    rows
+      .map((row) => row.shared_by)
+      .filter((id): id is string => typeof id === "string"),
+  );
+  if (senderIds.size === 0) return byNote;
+
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, display_name, username")
+    .in("id", [...senderIds]);
+  if (!Array.isArray(profiles)) return byNote;
+
+  const nameById = new Map<string, string>();
+  for (const profile of profiles as {
+    id: string;
+    display_name: string | null;
+    username: string | null;
+  }[]) {
+    const name = profile.display_name || profile.username;
+    if (name) nameById.set(profile.id, name);
+  }
+  for (const row of rows) {
+    if (!row.shared_by) continue;
+    const name = nameById.get(row.shared_by);
+    if (name) byNote.set(row.id, name);
+  }
+  return byNote;
+}
+
 export interface NotesScope {
   /** Only notes of this course (notes.course_id) - the "course selected" view. */
   courseId?: number;
@@ -118,12 +162,7 @@ export interface NotesScope {
 export async function fetchNotes(scope?: NotesScope): Promise<Note[]> {
   try {
     const user = await resolveSession();
-    console.log("📝 Notes Fetch - User:", user ? "Authenticated" : "NULL", "Session exists:", !!user);
-
-    if (!user) {
-      console.warn("⚠️ fetchNotes aborted: No user session found.");
-      return [];
-    }
+    if (!user) return [];
 
     if (
       scope?.courseId == null &&
@@ -133,39 +172,52 @@ export async function fetchNotes(scope?: NotesScope): Promise<Note[]> {
       return [];
     }
 
-    let query = supabase
-      .from("notes")
-      .select(NOTE_COLUMNS)
-      .eq("user_id", user.id)
-      .order("updated_at", { ascending: false });
+    const run = async (withSortOrder: boolean) => {
+      let query = supabase
+        .from("notes")
+        .select(withSortOrder ? NOTE_COLUMNS : BASE_COLUMNS)
+        .eq("user_id", user.id);
 
-    if (scope?.courseId != null) {
-      if (scope.topicIds && scope.topicIds.length > 0) {
-        // Course view: everything linked to the course directly OR through a
-        // topic (covers rows written before course_id existed).
-        query = query.or(
-          `course_id.eq.${scope.courseId},topic_id.in.(${scope.topicIds.join(",")})`,
-        );
-      } else {
-        query = query.eq("course_id", scope.courseId);
+      if (scope?.courseId != null) {
+        if (scope.topicIds && scope.topicIds.length > 0) {
+          // Course view: everything linked to the course directly OR through a
+          // topic (covers rows written before course_id existed).
+          query = query.or(
+            `course_id.eq.${scope.courseId},topic_id.in.(${scope.topicIds.join(",")})`,
+          );
+        } else {
+          query = query.eq("course_id", scope.courseId);
+        }
+      } else if (scope?.topicIds) {
+        query = query.in("topic_id", scope.topicIds);
       }
-    } else if (scope?.topicIds) {
-      query = query.in("topic_id", scope.topicIds);
-    }
 
-    const { data, error } = await query;
-    console.log("Notes Fetch Response:", { data, error });
+      return withSortOrder
+        ? query
+            .order("sort_order", { ascending: true, nullsFirst: false })
+            .order("updated_at", { ascending: false })
+        : query.order("updated_at", { ascending: false });
+    };
+
+    let { data, error } = await run(true);
+    if (error) {
+      // Older databases without notes.sort_order still load.
+      ({ data, error } = await run(false));
+    }
     if (error || !Array.isArray(data)) return [];
 
     const rows = data as unknown as NoteRow[];
-    const courseByNote = await loadCourseTitles(rows);
+    const [courseByNote, senderByNote] = await Promise.all([
+      loadCourseTitles(rows),
+      loadSenderNames(rows),
+    ]);
     return rows.map((row) => {
       const note = toNote(row);
       note.courseTitle = courseByNote.get(row.id) ?? null;
+      note.sharedByName = senderByNote.get(row.id) ?? null;
       return note;
     });
-  } catch (error) {
-    console.error("❌ Error in fetchNotes:", error);
+  } catch {
     return [];
   }
 }
@@ -197,6 +249,7 @@ export async function insertNote(input: {
   html: string;
   courseId: number | null;
   topicId: number | null;
+  sortOrder?: number | null;
 }): Promise<NoteInsertResult> {
   const user = await resolveSession();
   if (!user) return { note: null, permanent: false };
@@ -211,6 +264,9 @@ export async function insertNote(input: {
   }
   if (typeof input.topicId === "number") {
     payload.topic_id = input.topicId;
+  }
+  if (typeof input.sortOrder === "number") {
+    payload.sort_order = input.sortOrder;
   }
 
   const { data, error } = await supabase
@@ -231,12 +287,14 @@ export async function insertNote(input: {
 export async function createNote(options?: {
   courseId?: number | null;
   topicId?: number | null;
+  sortOrder?: number | null;
 }): Promise<Note | null> {
   const { note } = await insertNote({
     title: "Untitled note",
     html: "",
     courseId: options?.courseId ?? null,
     topicId: options?.topicId ?? null,
+    sortOrder: options?.sortOrder ?? null,
   });
   return note;
 }
@@ -252,6 +310,9 @@ export async function updateNote(
   const values: Record<string, unknown> = {};
   if (patch.title !== undefined) values.title = clampTitle(patch.title);
   if (patch.html !== undefined) values.content = sanitizeHtml(patch.html);
+  if (patch.courseId !== undefined) values.course_id = patch.courseId;
+  if (patch.topicId !== undefined) values.topic_id = patch.topicId;
+  if (patch.sortOrder !== undefined) values.sort_order = patch.sortOrder;
   if (Object.keys(values).length === 0) return { ok: true, permanent: false };
 
   const user = await resolveSession();
@@ -266,6 +327,26 @@ export async function updateNote(
     ok: !error,
     permanent: Boolean(error) && isPermanentWriteError(error?.message),
   };
+}
+
+/**
+ * Persist the manual list order. Best-effort: the Notes screen keeps a local
+ * copy of the order too, so an offline reorder still sticks on this device.
+ */
+export async function updateNoteOrder(ids: string[]): Promise<void> {
+  const user = await resolveSession();
+  if (!user) return;
+  await Promise.all(
+    ids.map(async (id, index) => {
+      const parsed = toId(id);
+      if (parsed === null) return;
+      await supabase
+        .from("notes")
+        .update({ sort_order: index })
+        .eq("id", parsed)
+        .eq("user_id", user.id);
+    }),
+  );
 }
 
 /** `ok: false` means retry later unless `permanent`. */

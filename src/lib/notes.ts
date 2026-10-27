@@ -9,8 +9,12 @@ export interface Note {
   topicId: number | null;
   /** Title of the owning course, used for subject grouping. */
   courseTitle: string | null;
+  /** Manual ordering inside the notes list (notes.sort_order). */
+  sortOrder: number | null;
   /** User ID of who shared this note (if it was shared). */
   sharedBy: string | null;
+  /** Display name/username of who shared this note (for the sender badge). */
+  sharedByName: string | null;
   /** When the note was shared. */
   sharedAt: number | null;
 }

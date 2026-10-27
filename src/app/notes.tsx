@@ -28,10 +28,15 @@ import {
   useRouter,
 } from "expo-router";
 import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   Bold,
   BookOpen,
   Check,
   ChevronDown,
+  ChevronRight,
+  Download,
   Heading2,
   Italic,
   List,
@@ -42,19 +47,29 @@ import {
   StickyNote,
   Trash2,
   Underline,
+  Users,
+  X,
 } from "lucide-react-native";
 import { ScreenHeading, ScreenShell } from "../components/screen-shell";
 import { Card } from "../components/ui/card";
 import { RichNoteEditor } from "../components/notes/rich-note-editor";
 import type { RichNoteEditorHandle } from "../components/notes/rich-note-editor";
 import { ShareNoteModal } from "../components/notes/share-note-modal";
+import { BulkShareModal } from "../components/notes/bulk-share-modal";
+import { MoveNoteModal } from "../components/notes/move-note-modal";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { StaleNotice } from "../components/ui/stale-notice";
 import { useCourses } from "../hooks/use-courses";
 import { readCache, writeCache } from "../lib/data-cache";
-import { createNote, fetchNotes } from "../lib/db/notes";
+import { createNote, fetchNotes, updateNoteOrder } from "../lib/db/notes";
 import { ensureOnline } from "../lib/net";
 import type { Note } from "../lib/notes";
+import { exportNotesFile } from "../lib/notes-export";
+import {
+  applyNoteOrder,
+  readNoteOrder,
+  writeNoteOrder,
+} from "../lib/notes-order";
 import {
   flushNotesQueue,
   getNotesQueueSnapshot,
@@ -66,6 +81,8 @@ import {
   registerNoteIdSwap,
   subscribeNotesQueue,
 } from "../lib/notes-queue";
+import { resolveSession } from "../lib/auth";
+import { supabase } from "../lib/supabase";
 import { inferSubject } from "../lib/subjects";
 import { syncAtlasNotesWidget } from "../lib/widgets/widget-sync";
 import { colors, fonts } from "../theme/theme";
@@ -202,41 +219,125 @@ function CourseSwitcher({
 interface NoteSection {
   subject: string;
   data: Note[];
+  count?: number;
 }
 
 const NoteRow = memo(function NoteRow({
   note,
   active,
   onPress,
+  selectionMode,
+  selected,
+  onToggle,
+  reorderMode,
+  canMoveUp,
+  canMoveDown,
+  onMoveUp,
+  onMoveDown,
 }: {
   note: Note;
   active: boolean;
   onPress: (id: string) => void;
+  selectionMode: boolean;
+  selected: boolean;
+  onToggle: (id: string) => void;
+  reorderMode: boolean;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  onMoveUp: (id: string) => void;
+  onMoveDown: (id: string) => void;
 }) {
+  const sharedLabel = selectionMode
+    ? null
+    : note.sharedByName || (note.sharedBy ? "Shared" : null);
+  const accessibilityLabel = selectionMode
+    ? `${selected ? "Deselect" : "Select"} note ${note.title || "Untitled note"}`
+    : `Open note ${note.title || "Untitled note"}`;
+
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`Open note ${note.title || "Untitled note"}`}
-      onPress={() => onPress(note.id)}
-      style={[styles.noteItem, active && styles.noteItemActive]}
+    <View
+      style={[
+        styles.noteItem,
+        active && !selectionMode && !reorderMode ? styles.noteItemActive : null,
+        selected ? styles.noteItemSelected : null,
+      ]}
     >
-      <View style={styles.noteItemContent}>
-        <Text numberOfLines={1} style={styles.noteItemTitle}>
-          {note.title || "Untitled note"}
-        </Text>
-        <View style={styles.noteItemMeta}>
-          <Text style={styles.noteItemDate}>
-            {new Date(note.updatedAt).toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-            })}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
+        accessibilityState={selectionMode ? { selected } : undefined}
+        onPress={() => (selectionMode ? onToggle(note.id) : onPress(note.id))}
+        style={styles.noteItemMain}
+      >
+        <View style={styles.noteItemContent}>
+          <Text numberOfLines={1} style={styles.noteItemTitle}>
+            {note.title || "Untitled note"}
           </Text>
-          {note.sharedBy ? (
-            <Text style={styles.noteItemShared}>Shared</Text>
-          ) : null}
+          <View style={styles.noteItemMeta}>
+            <Text style={styles.noteItemDate}>
+              {new Date(note.updatedAt).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+              })}
+            </Text>
+            {sharedLabel ? (
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.noteItemShared,
+                  note.sharedByName ? styles.noteItemSender : null,
+                ]}
+              >
+                {sharedLabel}
+              </Text>
+            ) : null}
+          </View>
         </View>
-      </View>
-    </Pressable>
+
+        {selectionMode ? (
+          <View
+            style={[styles.checkbox, selected && styles.checkboxOn]}
+            pointerEvents="none"
+          >
+            {selected ? <Check size={12} color={colors.lilac} /> : null}
+          </View>
+        ) : null}
+      </Pressable>
+
+      {reorderMode ? (
+        <View style={styles.reorderControls}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Move note up"
+            disabled={!canMoveUp}
+            onPress={() => onMoveUp(note.id)}
+            style={({ pressed }) => [
+              styles.reorderButton,
+              !canMoveUp && styles.reorderButtonOff,
+              pressed && canMoveUp ? styles.reorderButtonPressed : null,
+            ]}
+          >
+            <ArrowUp size={16} color={canMoveUp ? colors.lilac : colors.w20} />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Move note down"
+            disabled={!canMoveDown}
+            onPress={() => onMoveDown(note.id)}
+            style={({ pressed }) => [
+              styles.reorderButton,
+              !canMoveDown && styles.reorderButtonOff,
+              pressed && canMoveDown ? styles.reorderButtonPressed : null,
+            ]}
+          >
+            <ArrowDown
+              size={16}
+              color={canMoveDown ? colors.lilac : colors.w20}
+            />
+          </Pressable>
+        </View>
+      ) : null}
+    </View>
   );
 });
 
@@ -268,6 +369,19 @@ export default function NotesScreen() {
   const [stale, setStale] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Website-parity extras: multi-select bulk actions, reorder mode,
+  // collapsible subject groups and moving a note between courses.
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkShareOpen, setBulkShareOpen] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(false);
+  const [moveIds, setMoveIds] = useState<string[]>([]);
+  const [reorderMode, setReorderMode] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
+    new Set(),
+  );
+
   const queue = useSyncExternalStore(
     subscribeNotesQueue,
     getNotesQueueSnapshot,
@@ -285,6 +399,8 @@ export default function NotesScreen() {
   const titleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingTitleRef = useRef<{ id: string; title: string } | null>(null);
   const flushPendingRef = useRef<() => void>(() => {});
+  const noteOrderRef = useRef<string[]>([]);
+  const queueRef = useRef(queue);
 
   const rawCourseId = Array.isArray(params.courseId)
     ? params.courseId[0]
@@ -316,6 +432,11 @@ export default function NotesScreen() {
     }
   }, [coursesLoading, selectedCourseId, selectedCourse, router]);
 
+  const persistNoteOrder = useCallback((ids: string[]) => {
+    noteOrderRef.current = ids;
+    void writeNoteOrder(ids);
+  }, []);
+
   /**
    * Merge rows with any queued offline-created notes so they never
    * disappear while waiting to sync.
@@ -330,7 +451,10 @@ export default function NotesScreen() {
             (activeCourseId == null || note.courseId === activeCourseId),
         );
         const seen = new Set(keep.map((note) => note.id));
-        return [...keep, ...rows.filter((row) => !seen.has(row.id))];
+        return applyNoteOrder(
+          [...keep, ...rows.filter((row) => !seen.has(row.id))],
+          noteOrderRef.current,
+        );
       });
       setActiveId((current) => {
         if (
@@ -367,6 +491,72 @@ export default function NotesScreen() {
     await load();
     setRefreshing(false);
   }, [load]);
+
+  const loadRef = useRef(load);
+  useEffect(() => {
+    loadRef.current = load;
+  }, [load]);
+
+  useEffect(() => {
+    queueRef.current = queue;
+  }, [queue]);
+
+  // Restore the manual order saved by the last reorder on this device.
+  useEffect(() => {
+    let alive = true;
+    void readNoteOrder().then((order) => {
+      if (!alive || order.length === 0) return;
+      noteOrderRef.current = order;
+      setNotes((prev) => applyNoteOrder(prev, order));
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // Live updates: a note shared by a friend (or edited on another device)
+  // appears without a manual refresh. Debounced, and skipped while this
+  // device still has unsynced edits so local keystrokes are never clobbered.
+  useEffect(() => {
+    let alive = true;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let debounce: ReturnType<typeof setTimeout> | null = null;
+
+    const scheduleReload = () => {
+      if (!alive) return;
+      if (debounce) clearTimeout(debounce);
+      debounce = setTimeout(() => {
+        debounce = null;
+        if (!alive) return;
+        if (queueRef.current.pending > 0) return;
+        if (timerRef.current || titleTimerRef.current) return;
+        void loadRef.current();
+      }, 1800);
+    };
+
+    void resolveSession().then((session) => {
+      if (!alive || !session) return;
+      channel = supabase
+        .channel(`notes-realtime-${session.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "notes",
+            filter: `user_id=eq.${session.id}`,
+          },
+          scheduleReload,
+        )
+        .subscribe();
+    });
+
+    return () => {
+      alive = false;
+      if (debounce) clearTimeout(debounce);
+      if (channel) void supabase.removeChannel(channel);
+    };
+  }, []);
 
   // Fetch only the notes of the active context: the selected course's
   // notes when a course is picked, otherwise every note (the list is then
@@ -439,11 +629,37 @@ export default function NotesScreen() {
         ),
       );
       setActiveId((current) => (current === tempId ? realId : current));
+      setSelectedIds((prev) => {
+        if (!prev.has(tempId)) return prev;
+        const next = new Set(prev);
+        next.delete(tempId);
+        next.add(realId);
+        return next;
+      });
+      persistNoteOrder(
+        noteOrderRef.current.map((id) => (id === tempId ? realId : id)),
+      );
     });
-  }, []);
+  }, [persistNoteOrder]);
 
   useEffect(() => {
     notesRef.current = notes;
+  }, [notes]);
+
+  // A realtime delete (or a scope change) must not leave invisible ids in
+  // the bulk selection.
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      if (prev.size === 0) return prev;
+      const visible = new Set(notes.map((note) => note.id));
+      let changed = false;
+      const next = new Set<string>();
+      for (const id of prev) {
+        if (visible.has(id)) next.add(id);
+        else changed = true;
+      }
+      return changed ? next : prev;
+    });
   }, [notes]);
 
   // Keep the home-screen quick-notes widget mirrored (debounced
@@ -468,11 +684,22 @@ export default function NotesScreen() {
   }, [notes, selectedCourseId]);
 
   const sections = useMemo<NoteSection[]>(() => {
-    if (groupedNotes) {
-      return groupedNotes.map(([subject, data]) => ({ subject, data }));
+    // Manual reorder works on one predictable flat list (groups would make
+    // an up/down move jump between sections).
+    if (reorderMode) {
+      return notes.length > 0
+        ? [{ subject: "", data: notes, count: notes.length }]
+        : [];
     }
-    return notes.length > 0 ? [{ subject: "", data: notes }] : [];
-  }, [groupedNotes, notes]);
+    if (groupedNotes) {
+      return groupedNotes.map(([subject, data]) => ({
+        subject,
+        data: collapsedGroups.has(subject) ? [] : data,
+        count: data.length,
+      }));
+    }
+    return notes.length > 0 ? [{ subject: "", data: notes, count: notes.length }] : [];
+  }, [groupedNotes, notes, reorderMode, collapsedGroups]);
 
   useEffect(() => {
     activeRef.current = activeId;
@@ -514,6 +741,8 @@ export default function NotesScreen() {
       courseTitle: null,
       sharedBy: null,
       sharedAt: null,
+      sortOrder: null,
+      sharedByName: null,
       ...current,
       ...patch,
       updatedAt: Date.now(),
@@ -530,6 +759,7 @@ export default function NotesScreen() {
       html: next.html,
       courseId: next.courseId,
       topicId: next.topicId,
+      sortOrder: next.sortOrder,
     });
     markSaved();
   };
@@ -607,22 +837,216 @@ export default function NotesScreen() {
     setActiveId(id);
   }, []);
 
+  const leaveSelection = useCallback(() => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+    setBulkBusy(false);
+  }, []);
+
+  const enterSelection = useCallback(() => {
+    flushPendingRef.current();
+    setReorderMode(false);
+    setSelectionMode(true);
+    setSelectedIds(new Set(activeRef.current ? [activeRef.current] : []));
+  }, []);
+
+  const toggleSelected = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds((prev) =>
+      prev.size === notesRef.current.length
+        ? new Set()
+        : new Set(notesRef.current.map((note) => note.id)),
+    );
+  }, []);
+
+  const enterReorder = useCallback(() => {
+    flushPendingRef.current();
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+    setReorderMode(true);
+  }, []);
+
+  const leaveReorder = useCallback(() => {
+    setReorderMode(false);
+  }, []);
+
+  const moveNote = useCallback(
+    (id: string, direction: -1 | 1) => {
+      const current = notesRef.current;
+      const index = current.findIndex((note) => note.id === id);
+      const target = index + direction;
+      if (index < 0 || target < 0 || target >= current.length) return;
+
+      flushPendingRef.current();
+
+      const next = [...current];
+      const [moved] = next.splice(index, 1);
+      next.splice(target, 0, moved);
+      const ids = next.map((note) => note.id);
+
+      notesRef.current = next;
+      setNotes(next);
+      persistNoteOrder(ids);
+      // Best-effort server sync (same as the website). The local copy above
+      // keeps the order across app restarts even when this request fails.
+      void updateNoteOrder(ids);
+    },
+    [persistNoteOrder],
+  );
+
+  const moveNoteUp = useCallback(
+    (id: string) => moveNote(id, -1),
+    [moveNote],
+  );
+  const moveNoteDown = useCallback(
+    (id: string) => moveNote(id, 1),
+    [moveNote],
+  );
+
+  const selectedNotes = useMemo(
+    () => notes.filter((note) => selectedIds.has(note.id)),
+    [notes, selectedIds],
+  );
+
+  const toggleGrouped = useCallback((subject: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(subject)) next.delete(subject);
+      else next.add(subject);
+      return next;
+    });
+  }, []);
+
+  const downloadSelected = async () => {
+    if (selectedNotes.length === 0 || bulkBusy) return;
+    flushPendingRef.current();
+    setBulkBusy(true);
+    try {
+      const result = await exportNotesFile(
+        selectedNotes.map((note) => ({ title: note.title, html: note.html })),
+      );
+      if (result.ok) {
+        setFlash(result.message);
+        leaveSelection();
+      } else if (!result.cancelled) {
+        Alert.alert("Download failed", result.message);
+      }
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const openBulkSharePicker = async () => {
+    if (selectedNotes.length === 0) return;
+    if (selectedNotes.some((note) => isTempNoteId(note.id))) {
+      Alert.alert(
+        "Still saving",
+        "One of the selected notes is still being saved. Try again in a moment.",
+      );
+      return;
+    }
+    if (!(await ensureOnline("Sharing notes needs an internet connection."))) {
+      return;
+    }
+    flushPendingRef.current();
+    const ids = selectedNotes.map((note) => note.id);
+    if (ids.some((id) => isNoteQueued(id))) {
+      await flushNotesQueue();
+      if (ids.some((id) => isNoteQueued(id))) {
+        Alert.alert(
+          "Not synced yet",
+          "Your latest changes are still syncing. Try again in a moment.",
+        );
+        return;
+      }
+    }
+    setBulkShareOpen(true);
+  };
+
+  const moveNotesToCourse = (courseId: number | null) => {
+    setMoveOpen(false);
+    const ids = new Set(moveIds);
+    setMoveIds([]);
+    if (ids.size === 0) return;
+    flushPendingRef.current();
+
+    const target =
+      courseId == null
+        ? null
+        : (courses.find((course) => course.id === courseId) ?? null);
+    const targetTitle = target?.title ?? null;
+
+    const next = notesRef.current
+      .map((note) =>
+        ids.has(note.id)
+          ? {
+              ...note,
+              courseId,
+              topicId: null,
+              courseTitle: targetTitle,
+            }
+          : note,
+      )
+      .filter((note) => activeCourseId == null || note.courseId === activeCourseId);
+
+    const queued = notesRef.current.filter((note) => ids.has(note.id));
+    for (const note of queued) {
+      queueNoteUpsert({
+        id: note.id,
+        title: note.title,
+        html: note.html,
+        courseId,
+        topicId: null,
+        sortOrder: note.sortOrder,
+      });
+    }
+
+    notesRef.current = next;
+    setNotes(next);
+    if (ids.has(activeRef.current ?? "")) setActiveId(next[0]?.id ?? null);
+    setFlash(
+      `Moved ${ids.size} note${ids.size > 1 ? "s" : ""} to ${
+        targetTitle ?? "General"
+      }`,
+    );
+    leaveSelection();
+  };
+
   const addNote = useCallback(async () => {
     flushPendingRef.current();
     // In a course view the note is owned by the course (and linked to its
     // first topic for subject grouping), so it stays in that course's scope.
     const courseId = selectedCourse?.id ?? null;
     const topicId = selectedCourse?.topics[0]?.id ?? null;
+    // New notes go above the current list (same as the website). The value
+    // is negative when needed so the order stays authoritative in the DB.
+    const topSort =
+      notesRef.current.reduce((min, item) => {
+        if (item.sortOrder == null) return min;
+        return Math.min(min, item.sortOrder);
+      }, 0) - 1;
 
     let note: Note | null = null;
     try {
-      note = await createNote({ courseId, topicId });
+      note = await createNote({ courseId, topicId, sortOrder: topSort });
     } catch {
       note = null;
     }
     if (note) {
       setNotes((prev) => [note, ...prev]);
       setActiveId(note.id);
+      persistNoteOrder([
+        note.id,
+        ...noteOrderRef.current.filter((id) => id !== note.id),
+      ]);
       return;
     }
 
@@ -638,17 +1062,24 @@ export default function NotesScreen() {
       courseTitle: selectedCourse?.title ?? null,
       sharedBy: null,
       sharedAt: null,
+      sortOrder: topSort,
+      sharedByName: null,
     };
     setNotes((prev) => [local, ...prev]);
     setActiveId(local.id);
+    persistNoteOrder([
+      local.id,
+      ...noteOrderRef.current.filter((id) => id !== local.id),
+    ]);
     queueNoteUpsert({
       id: local.id,
       title: local.title,
       html: local.html,
       courseId,
       topicId,
+      sortOrder: topSort,
     });
-  }, [selectedCourse]);
+  }, [selectedCourse, persistNoteOrder]);
 
   // Widget "+" shortcut (atlas://notes?compose=1): create a fresh note once
   // the initial list has loaded so the new note stays selected.
@@ -659,10 +1090,6 @@ export default function NotesScreen() {
     router.setParams({ compose: "" });
     void addNote();
   }, [rawCompose, loading, coursesLoading, addNote, router]);
-
-  const removeNote = (id: string) => {
-    setNoteToDelete(id);
-  };
 
   const confirmDeleteNote = () => {
     if (!noteToDelete) return;
@@ -682,6 +1109,14 @@ export default function NotesScreen() {
     const next = notes.filter((note) => note.id !== id);
     setNotes(next);
     if (activeId === id) setActiveId(next[0]?.id ?? null);
+    if (selectedIds.has(id)) {
+      setSelectedIds((prev) => {
+        const updated = new Set(prev);
+        updated.delete(id);
+        return updated;
+      });
+    }
+    persistNoteOrder(noteOrderRef.current.filter((noteId) => noteId !== id));
     queueNoteDelete(id);
     setNoteToDelete(null);
   };
@@ -757,6 +1192,68 @@ export default function NotesScreen() {
         </Pressable>
       </View>
 
+      <View style={styles.utilityRow}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={
+            selectionMode ? "Finish selecting notes" : "Select notes"
+          }
+          accessibilityState={{ selected: selectionMode }}
+          onPress={selectionMode ? leaveSelection : enterSelection}
+          style={({ pressed }) => [
+            styles.modeButton,
+            selectionMode && styles.modeButtonActive,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Users
+            size={14}
+            color={selectionMode ? colors.lilac : colors.w45}
+          />
+          <Text
+            style={[
+              styles.modeButtonText,
+              selectionMode && styles.modeButtonTextActive,
+            ]}
+          >
+            {selectionMode ? "Finish" : "Select"}
+          </Text>
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={
+            reorderMode ? "Finish reordering notes" : "Reorder notes manually"
+          }
+          accessibilityState={{ selected: reorderMode }}
+          onPress={reorderMode ? leaveReorder : enterReorder}
+          style={({ pressed }) => [
+            styles.modeButton,
+            reorderMode && styles.modeButtonActive,
+            pressed && styles.pressed,
+          ]}
+        >
+          <ArrowUpDown
+            size={14}
+            color={reorderMode ? colors.lilac : colors.w45}
+          />
+          <Text
+            style={[
+              styles.modeButtonText,
+              reorderMode && styles.modeButtonTextActive,
+            ]}
+          >
+            {reorderMode ? "Done" : "Reorder"}
+          </Text>
+        </Pressable>
+
+        {selectionMode ? (
+          <Text style={styles.selectionHint}>
+            {selectedIds.size} selected
+          </Text>
+        ) : null}
+      </View>
+
       <Card padded={false} style={styles.listCard}>
         {loading ? (
           <View style={styles.listContent}>
@@ -786,16 +1283,55 @@ export default function NotesScreen() {
           <SectionList
             sections={sections}
             keyExtractor={(note) => note.id}
-            renderItem={({ item }) => (
+            extraData={{
+              activeId,
+              selectionMode,
+              reorderMode,
+              selectedIds,
+            }}
+            renderItem={({ item, index }) => (
               <NoteRow
                 note={item}
                 active={item.id === activeId}
                 onPress={selectNote}
+                selectionMode={selectionMode}
+                selected={selectedIds.has(item.id)}
+                onToggle={toggleSelected}
+                reorderMode={reorderMode}
+                canMoveUp={index > 0}
+                canMoveDown={index < notes.length - 1}
+                onMoveUp={moveNoteUp}
+                onMoveDown={moveNoteDown}
               />
             )}
             renderSectionHeader={({ section }) =>
               section.subject ? (
-                <Text style={styles.groupLabel}>{section.subject}</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${
+                    collapsedGroups.has(section.subject)
+                      ? "Expand"
+                      : "Collapse"
+                  } ${section.subject}`}
+                  accessibilityState={{
+                    expanded: !collapsedGroups.has(section.subject),
+                  }}
+                  onPress={() => toggleGrouped(section.subject)}
+                  style={({ pressed }) => [
+                    styles.groupHeader,
+                    pressed && styles.groupHeaderPressed,
+                  ]}
+                >
+                  {collapsedGroups.has(section.subject) ? (
+                    <ChevronRight size={13} color={colors.w35} />
+                  ) : (
+                    <ChevronDown size={13} color={colors.w35} />
+                  )}
+                  <Text style={styles.groupLabel}>{section.subject}</Text>
+                  <Text style={styles.groupCount}>
+                    {section.count ?? section.data.length}
+                  </Text>
+                </Pressable>
               ) : null
             }
             ItemSeparatorComponent={NoteSeparator}
@@ -813,7 +1349,194 @@ export default function NotesScreen() {
       </Card>
 
       <Card padded={false} style={styles.editorCard}>
-        {active ? (
+        {selectionMode ? (
+          <View style={styles.bulkPanel}>
+            <View style={styles.bulkHeader}>
+              <View style={styles.bulkIcon}>
+                <Users size={18} color={colors.lilac} />
+              </View>
+              <View style={styles.bulkHeaderText}>
+                <Text style={styles.bulkEyebrow}>Bulk actions</Text>
+                <Text style={styles.bulkTitle}>
+                  {selectedNotes.length} selected
+                </Text>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Cancel selection"
+                onPress={leaveSelection}
+                style={({ pressed }) => [
+                  styles.bulkClose,
+                  pressed && styles.toolButtonPressed,
+                ]}
+              >
+                <X size={18} color={colors.w45} />
+              </Pressable>
+            </View>
+
+            <ScrollView
+              style={styles.bulkListScroll}
+              contentContainerStyle={styles.bulkList}
+              showsVerticalScrollIndicator={false}
+            >
+              {selectedNotes.length === 0 ? (
+                <Text style={styles.listMessage}>
+                  Select notes on the left to act on them together.
+                </Text>
+              ) : (
+                selectedNotes.map((note) => (
+                  <View key={note.id} style={styles.bulkRow}>
+                    <View style={styles.bulkDot} />
+                    <Text numberOfLines={1} style={styles.bulkRowText}>
+                      {note.title || "Untitled note"}
+                    </Text>
+                  </View>
+                ))
+              )}
+            </ScrollView>
+
+            <View style={styles.bulkToolbar}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={
+                  selectedNotes.length === notes.length &&
+                  notes.length > 0
+                    ? "Deselect all notes"
+                    : "Select all notes"
+                }
+                onPress={toggleSelectAll}
+                style={({ pressed }) => [
+                  styles.selectAllButton,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Text style={styles.selectAllText}>
+                  {selectedNotes.length === notes.length && notes.length > 0
+                    ? "Deselect all"
+                    : "Select all"}
+                </Text>
+              </Pressable>
+
+              <View style={styles.bulkActions}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Download selected notes"
+                  disabled={selectedNotes.length === 0 || bulkBusy}
+                  onPress={() => void downloadSelected()}
+                  style={({ pressed }) => [
+                    styles.bulkAction,
+                    (selectedNotes.length === 0 || bulkBusy) &&
+                      styles.bulkActionOff,
+                    pressed &&
+                      selectedNotes.length > 0 &&
+                      !bulkBusy &&
+                      styles.pressed,
+                  ]}
+                >
+                  {bulkBusy ? (
+                    <ActivityIndicator size="small" color={colors.lilac} />
+                  ) : (
+                    <Download size={16} color={colors.lilac} />
+                  )}
+                  <Text numberOfLines={1} style={styles.bulkActionText}>Download</Text>
+                </Pressable>
+
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Share selected notes"
+                  disabled={selectedNotes.length === 0 || bulkBusy}
+                  onPress={() => void openBulkSharePicker()}
+                  style={({ pressed }) => [
+                    styles.bulkAction,
+                    (selectedNotes.length === 0 || bulkBusy) &&
+                      styles.bulkActionOff,
+                    pressed &&
+                      selectedNotes.length > 0 &&
+                      !bulkBusy &&
+                      styles.pressed,
+                  ]}
+                >
+                  <Share2 size={16} color={colors.lilac} />
+                  <Text numberOfLines={1} style={styles.bulkActionText}>Share</Text>
+                </Pressable>
+
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Move selected notes to a course"
+                  disabled={selectedNotes.length === 0 || bulkBusy}
+                  onPress={() => {
+                    setMoveIds(selectedNotes.map((note) => note.id));
+                    setMoveOpen(true);
+                  }}
+                  style={({ pressed }) => [
+                    styles.bulkAction,
+                    (selectedNotes.length === 0 || bulkBusy) &&
+                      styles.bulkActionOff,
+                    pressed &&
+                      selectedNotes.length > 0 &&
+                      !bulkBusy &&
+                      styles.pressed,
+                  ]}
+                >
+                  <BookOpen size={16} color={colors.lilac} />
+                  <Text numberOfLines={1} style={styles.bulkActionText}>Move</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            <Text style={styles.bulkHint}>
+              Download saves one HTML file containing every selected note.
+            </Text>
+          </View>
+        ) : reorderMode ? (
+          <View style={styles.bulkPanel}>
+            <View style={styles.bulkHeader}>
+              <View style={styles.bulkIcon}>
+                <ArrowUpDown size={18} color={colors.lilac} />
+              </View>
+              <View style={styles.bulkHeaderText}>
+                <Text style={styles.bulkEyebrow}>Manual order</Text>
+                <Text style={styles.bulkTitle}>Reorder notes</Text>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Finish reordering notes"
+                onPress={leaveReorder}
+                style={({ pressed }) => [
+                  styles.doneButton,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Text style={styles.doneButtonText}>Done</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.reorderBody}>
+              <View style={styles.reorderBadge}>
+                <ArrowUp size={16} color={colors.lilac} />
+                <ArrowDown size={16} color={colors.lilac} />
+              </View>
+              <Text style={styles.reorderTitle}>
+                Use the arrows next to each note
+              </Text>
+              <Text style={styles.reorderText}>
+                Your order is saved on this device and synced to your account
+                when you are online.
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Finish reordering notes"
+                onPress={leaveReorder}
+                style={({ pressed }) => [
+                  styles.reorderDoneButton,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Text style={styles.reorderDoneText}>Done reordering</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : active ? (
           <>
             <View style={styles.editorHeader}>
               <ScrollView
@@ -845,6 +1568,21 @@ export default function NotesScreen() {
                 <Animated.Text style={[styles.savedText, { opacity: savedAnim }]}>
                   Saved
                 </Animated.Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Move note to a course"
+                  onPress={() => {
+                    flushPendingEdits();
+                    setMoveIds([active.id]);
+                    setMoveOpen(true);
+                  }}
+                  style={({ pressed }) => [
+                    styles.toolButton,
+                    pressed && styles.toolButtonPressed,
+                  ]}
+                >
+                  <BookOpen size={16} color={colors.w40} />
+                </Pressable>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Share note with a friend"
@@ -900,8 +1638,6 @@ export default function NotesScreen() {
           <View style={styles.editorEmpty}>
             <Text style={styles.listMessage}>
               {loading
-                ? "Restoring session…"
-                : loading
                 ? "Loading notes…"
                 : "Pick a note on the left, or start a fresh page."}
             </Text>
@@ -929,6 +1665,36 @@ export default function NotesScreen() {
         onShared={(message) => {
           setShareTarget(null);
           setFlash(message);
+        }}
+      />
+      <BulkShareModal
+        open={bulkShareOpen}
+        noteIds={selectedNotes.map((note) => note.id)}
+        noteCount={selectedNotes.length}
+        onClose={() => setBulkShareOpen(false)}
+        onShared={(message) => {
+          setBulkShareOpen(false);
+          setFlash(message);
+          leaveSelection();
+        }}
+      />
+      <MoveNoteModal
+        open={moveOpen}
+        courses={courses.map((course) => ({
+          id: course.id,
+          title: course.title,
+          accent: course.accent,
+        }))}
+        currentCourseId={
+          moveIds.length === 1
+            ? (notesRef.current.find((note) => note.id === moveIds[0])
+                ?.courseId ?? null)
+            : undefined
+        }
+        onSelect={moveNotesToCourse}
+        onClose={() => {
+          setMoveOpen(false);
+          setMoveIds([]);
         }}
       />
       <ConfirmDialog
@@ -1091,6 +1857,41 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     color: colors.white,
   },
+  utilityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  modeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    minHeight: 36,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.w08,
+    backgroundColor: colors.w03,
+    paddingHorizontal: 12,
+  },
+  modeButtonActive: {
+    borderColor: colors.lilac25,
+    backgroundColor: colors.lilac10,
+  },
+  modeButtonText: {
+    fontSize: 12.5,
+    fontFamily: fonts.medium,
+    color: colors.w45,
+  },
+  modeButtonTextActive: {
+    color: colors.lilac,
+  },
+  selectionHint: {
+    marginLeft: "auto",
+    fontSize: 11.5,
+    fontFamily: fonts.regular,
+    color: colors.w40,
+  },
   listCard: {
     overflow: "hidden",
   },
@@ -1116,20 +1917,44 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     color: colors.star,
   },
-  groupLabel: {
+  groupHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     paddingHorizontal: 14,
     paddingTop: 8,
     paddingBottom: 4,
+  },
+  groupHeaderPressed: {
+    opacity: 0.7,
+  },
+  groupLabel: {
+    flexShrink: 1,
     fontSize: 11,
     fontFamily: fonts.medium,
     letterSpacing: 1.8,
     textTransform: "uppercase",
     color: colors.w35,
   },
+  groupCount: {
+    minWidth: 20,
+    textAlign: "center",
+    fontSize: 10,
+    fontFamily: fonts.medium,
+    color: colors.w40,
+    backgroundColor: colors.w05,
+    borderRadius: 999,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    overflow: "hidden",
+  },
   noteSeparator: {
     height: 6,
   },
   noteItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "transparent",
@@ -1140,9 +1965,52 @@ const styles = StyleSheet.create({
     borderColor: colors.w10,
     backgroundColor: colors.w07,
   },
+  noteItemSelected: {
+    borderColor: colors.lilac25,
+    backgroundColor: colors.lilac10,
+  },
+  noteItemMain: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    minWidth: 0,
+  },
   noteItemContent: {
     flex: 1,
     minWidth: 0,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: colors.w20,
+    backgroundColor: colors.w03,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkboxOn: {
+    borderColor: colors.lilac,
+    backgroundColor: colors.lilac12,
+  },
+  reorderControls: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+  },
+  reorderButton: {
+    width: 32,
+    height: 36,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reorderButtonOff: {
+    opacity: 0.4,
+  },
+  reorderButtonPressed: {
+    backgroundColor: colors.w07,
   },
   noteItemMeta: {
     marginTop: 2,
@@ -1161,6 +2029,7 @@ const styles = StyleSheet.create({
     color: colors.w35,
   },
   noteItemShared: {
+    flexShrink: 1,
     fontSize: 11,
     fontFamily: fonts.medium,
     color: colors.lilac,
@@ -1168,6 +2037,194 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 1,
     borderRadius: 999,
+  },
+  noteItemSender: {
+    maxWidth: "72%",
+  },
+  bulkPanel: {
+    minHeight: 420,
+    padding: 20,
+    gap: 14,
+  },
+  bulkHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  bulkIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.lilac25,
+    backgroundColor: colors.lilac10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  bulkHeaderText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  bulkEyebrow: {
+    fontSize: 10.5,
+    fontFamily: fonts.medium,
+    letterSpacing: 1.7,
+    textTransform: "uppercase",
+    color: colors.w40,
+  },
+  bulkTitle: {
+    marginTop: 3,
+    fontSize: 18,
+    fontFamily: fonts.semibold,
+    letterSpacing: -0.4,
+    color: colors.white,
+  },
+  bulkClose: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  bulkListScroll: {
+    flexGrow: 0,
+    maxHeight: 170,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.w06,
+    backgroundColor: colors.w02,
+  },
+  bulkList: {
+    padding: 10,
+    gap: 6,
+  },
+  bulkRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  bulkDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: colors.lilac,
+  },
+  bulkRowText: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 13,
+    fontFamily: fonts.regular,
+    color: colors.w60,
+  },
+  bulkToolbar: {
+    gap: 10,
+  },
+  selectAllButton: {
+    alignSelf: "flex-start",
+    minHeight: 32,
+    justifyContent: "center",
+  },
+  selectAllText: {
+    fontSize: 12.5,
+    fontFamily: fonts.medium,
+    color: colors.star70,
+  },
+  bulkActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  bulkAction: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    minHeight: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.lilac25,
+    backgroundColor: colors.lilac10,
+    paddingHorizontal: 6,
+  },
+  bulkActionOff: {
+    borderColor: colors.w08,
+    backgroundColor: colors.w03,
+    opacity: 0.45,
+  },
+  bulkActionText: {
+    fontSize: 12,
+    fontFamily: fonts.medium,
+    color: colors.white,
+  },
+  bulkHint: {
+    fontSize: 11.5,
+    lineHeight: 16,
+    fontFamily: fonts.regular,
+    color: colors.w35,
+  },
+  doneButton: {
+    minHeight: 36,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.lilac25,
+    backgroundColor: colors.lilac10,
+    paddingHorizontal: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  doneButtonText: {
+    fontSize: 12.5,
+    fontFamily: fonts.medium,
+    color: colors.lilac,
+  },
+  reorderBody: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 36,
+    gap: 12,
+  },
+  reorderBadge: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.lilac25,
+    backgroundColor: colors.lilac10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+  },
+  reorderTitle: {
+    fontSize: 15,
+    fontFamily: fonts.semibold,
+    color: colors.white,
+    textAlign: "center",
+  },
+  reorderText: {
+    maxWidth: 320,
+    textAlign: "center",
+    fontSize: 12.5,
+    lineHeight: 19,
+    fontFamily: fonts.regular,
+    color: colors.w45,
+  },
+  reorderDoneButton: {
+    marginTop: 6,
+    minHeight: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.lilac25,
+    backgroundColor: colors.lilac12,
+    paddingHorizontal: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reorderDoneText: {
+    fontSize: 13,
+    fontFamily: fonts.medium,
+    color: colors.lilac,
   },
   editorCard: {
     overflow: "hidden",
