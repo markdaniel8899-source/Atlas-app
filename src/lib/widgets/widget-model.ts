@@ -3,14 +3,18 @@ import type { HeatmapDay, Profile } from "../db/types";
 import type { Note } from "../notes";
 import type { AtlasWidgetData, WidgetWeekDay } from "./atlas-widget-data";
 import type { NotesWidgetData, WidgetNote } from "./notes-widget-data";
-import { localDayKey } from "../day";
+import { utcDayKey } from "../day";
 
 const WEEKDAY_LETTERS = ["S", "M", "T", "W", "T", "F", "S"];
 const DAY_MS = 86_400_000;
 export const MAX_NOTES = 5;
 const SNIPPET_LENGTH = 90;
 
-/** Last 7 heatmap days (oldest first, today last) for the chart row. */
+/**
+ * Focus bars for the CURRENT week, Monday through Sunday (UTC, the same day
+ * boundary the heatmap and streak counter use). Future days render as empty
+ * bars and the current day is flagged for the lilac highlight.
+ */
 export function buildWeek(
   heatmap: HeatmapDay[],
   now = Date.now(),
@@ -19,16 +23,26 @@ export function buildWeek(
   for (const day of heatmap) {
     lookup.set(day.day, Math.max(0, Number(day.total_seconds) || 0));
   }
+
+  const today = new Date(now);
+  const todayIndex = (today.getUTCDay() + 6) % 7; // Monday = 0 ... Sunday = 6
+  const mondayMs =
+    Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()) -
+    todayIndex * DAY_MS;
+  const todayKey = utcDayKey(today);
+
   const week: WidgetWeekDay[] = [];
-  for (let offset = 6; offset >= 0; offset -= 1) {
-    const date = new Date(now - offset * DAY_MS);
-    const key = localDayKey(date);
+  for (let index = 0; index < 7; index += 1) {
+    const date = new Date(mondayMs + index * DAY_MS);
+    const key = utcDayKey(date);
     week.push({
-      label: WEEKDAY_LETTERS[date.getDay()],
+      label: WEEKDAY_LETTERS[date.getUTCDay()],
       seconds: lookup.get(key) ?? 0,
+      isToday: index === todayIndex,
     });
   }
-  return { week, todaySeconds: week[week.length - 1]?.seconds ?? 0 };
+
+  return { week, todaySeconds: lookup.get(todayKey) ?? 0 };
 }
 
 export function formatFocus(seconds: number): string {

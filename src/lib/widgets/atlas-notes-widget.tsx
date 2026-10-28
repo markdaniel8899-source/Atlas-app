@@ -9,6 +9,7 @@ import {
 } from "react-native-android-widget";
 import type { WidgetNote } from "./notes-widget-data";
 import { buildFileTextIcon, buildPlusIcon } from "./icons";
+import { buildWidgetMeshSvg } from "./widget-mesh";
 
 const LILAC = "#cf9eff";
 const WHITE = "#ffffff";
@@ -50,33 +51,10 @@ export function AtlasNotesWidget({
         borderColor: CARD_BORDER,
       }}
     >
-      <FlexWidget
-        style={{
-          width: 170,
-          height: 170,
-          borderRadius: 85,
-          marginLeft: Math.max(8, width - 110),
-          marginTop: -58,
-          backgroundGradient: {
-            from: "rgba(207, 158, 255, 0.28)",
-            to: "rgba(207, 158, 255, 0.00)",
-            orientation: "TL_BR",
-          },
-        }}
-      />
-      <FlexWidget
-        style={{
-          width: 150,
-          height: 150,
-          borderRadius: 75,
-          marginLeft: -66,
-          marginTop: Math.max(0, height - 92),
-          backgroundGradient: {
-            from: "rgba(139, 92, 246, 0.24)",
-            to: "rgba(139, 92, 246, 0.00)",
-            orientation: "TL_BR",
-          },
-        }}
+      {/* Mesh gradient: soft radial layers, no visible blob edges. */}
+      <SvgWidget
+        svg={buildWidgetMeshSvg(width, height, "notes")}
+        style={{ width: "match_parent", height: "match_parent" }}
       />
 
       <FlexWidget

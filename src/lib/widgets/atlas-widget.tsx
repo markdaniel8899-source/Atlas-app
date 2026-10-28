@@ -10,6 +10,7 @@ import { getRankFromXP } from "../gamification";
 import type { AtlasWidgetData, WidgetWeekDay } from "./atlas-widget-data";
 import { buildFlameIcon } from "./icons";
 import { buildRankBadgeSvg } from "./rank-badge-svg";
+import { buildWidgetMeshSvg } from "./widget-mesh";
 import { barHeight, formatFocus, formatXp } from "./widget-model";
 
 const WHITE = "#ffffff";
@@ -42,7 +43,7 @@ export function AtlasWidget({
   const maxSeconds = Math.max(1, ...week.map((day) => day.seconds));
   const compact = height < 175;
   const showChart = height >= 195;
-  const showFooter = height >= 250;
+  const showFooter = height >= 240;
 
   const rank = getRankFromXP(data.xp);
   const badgeSize = compact ? 38 : 46;
@@ -63,48 +64,10 @@ export function AtlasWidget({
         borderColor: CARD_BORDER,
       }}
     >
-      {/* Glow spots - layered gradient circles read as an out-of-focus blur. */}
-      <FlexWidget
-        style={{
-          width: 190,
-          height: 190,
-          borderRadius: 95,
-          marginLeft: Math.max(8, width - 120),
-          marginTop: -62,
-          backgroundGradient: {
-            from: "rgba(207, 158, 255, 0.30)",
-            to: "rgba(207, 158, 255, 0.00)",
-            orientation: "TL_BR",
-          },
-        }}
-      />
-      <FlexWidget
-        style={{
-          width: 170,
-          height: 170,
-          borderRadius: 85,
-          marginLeft: -74,
-          marginTop: Math.max(0, height - 104),
-          backgroundGradient: {
-            from: "rgba(139, 92, 246, 0.26)",
-            to: "rgba(139, 92, 246, 0.00)",
-            orientation: "TL_BR",
-          },
-        }}
-      />
-      <FlexWidget
-        style={{
-          width: 120,
-          height: 120,
-          borderRadius: 60,
-          marginLeft: Math.max(0, width - 168),
-          marginTop: Math.max(0, height - 150),
-          backgroundGradient: {
-            from: "rgba(157, 180, 255, 0.18)",
-            to: "rgba(157, 180, 255, 0.00)",
-            orientation: "TL_BR",
-          },
-        }}
+      {/* Mesh gradient: soft radial layers, no visible blob edges. */}
+      <SvgWidget
+        svg={buildWidgetMeshSvg(width, height, "stats")}
+        style={{ width: "match_parent", height: "match_parent" }}
       />
 
       <FlexWidget
@@ -172,24 +135,28 @@ export function AtlasWidget({
             style={{
               flexDirection: "row",
               alignItems: "center",
-              flexGap: compact ? 8 : 10,
+              flexGap: compact ? 9 : 11,
             }}
           >
             <FlexWidget
               style={{
-                width: compact ? 36 : 44,
-                height: compact ? 36 : 44,
-                borderRadius: 14,
+                width: compact ? 38 : 42,
+                height: compact ? 38 : 42,
+                borderRadius: compact ? 14 : 15,
                 alignItems: "center",
                 justifyContent: "center",
-                backgroundColor: "rgba(255, 166, 84, 0.10)",
+                backgroundGradient: {
+                  from: "rgba(255, 176, 96, 0.20)",
+                  to: "rgba(255, 122, 40, 0.05)",
+                  orientation: "TL_BR",
+                },
                 borderWidth: 1,
-                borderColor: "rgba(255, 166, 84, 0.26)",
+                borderColor: "rgba(255, 166, 84, 0.30)",
               }}
             >
               <SvgWidget
-                svg={buildFlameIcon("#ffb35c", compact ? 20 : 24)}
-                style={{ width: compact ? 20 : 24, height: compact ? 20 : 24 }}
+                svg={buildFlameIcon("#ffb35c", compact ? 21 : 24)}
+                style={{ width: compact ? 21 : 24, height: compact ? 21 : 24 }}
               />
             </FlexWidget>
             <FlexWidget style={{ flexDirection: "column" }}>
@@ -252,7 +219,7 @@ export function AtlasWidget({
             }}
           >
             {week.map((day, index) => {
-              const isToday = index === week.length - 1;
+              const isToday = day.isToday === true;
               const h =
                 day.seconds > 0
                   ? Math.max(
@@ -304,9 +271,9 @@ export function AtlasWidget({
                 <TextWidget
                   text={day.label}
                   style={{
-                    fontSize: 8.5,
-                    fontWeight: index === week.length - 1 ? "700" : "500",
-                    color: index === week.length - 1 ? LILAC : FAINT,
+                    fontSize: 9,
+                    fontWeight: day.isToday === true ? "700" : "500",
+                    color: day.isToday === true ? LILAC : FAINT,
                     letterSpacing: 0.3,
                     textAlign: "center",
                   }}
@@ -323,46 +290,98 @@ export function AtlasWidget({
               width: "match_parent",
               flexDirection: "row",
               alignItems: "center",
-              justifyContent: "space-between",
               marginTop: 10,
-              paddingTop: 10,
+              paddingTop: 12,
               borderTopWidth: 1,
               borderTopColor: HAIRLINE,
             }}
           >
-            <FlexWidget style={{ flexDirection: "column" }}>
+            <FlexWidget
+              style={{
+                flex: 1,
+                flexDirection: "column",
+                justifyContent: "center",
+              }}
+            >
               <TextWidget
                 text="FOCUS TODAY"
                 style={{
-                  fontSize: 8.5,
+                  fontSize: 9,
                   fontWeight: "600",
                   color: FAINT,
-                  letterSpacing: 1,
+                  letterSpacing: 1.1,
                 }}
                 maxLines={1}
               />
               <TextWidget
                 text={formatFocus(data.todaySeconds)}
-                style={{ fontSize: 16, fontWeight: "700", color: LILAC }}
-                maxLines={1}
-              />
-            </FlexWidget>
-            <FlexWidget style={{ flexDirection: "column", alignItems: "flex-end" }}>
-              <TextWidget
-                text="THIS WEEK"
                 style={{
-                  fontSize: 8.5,
-                  fontWeight: "600",
-                  color: FAINT,
-                  letterSpacing: 1,
+                  fontSize: 18,
+                  fontWeight: "800",
+                  color: LILAC,
+                  lineHeight: 22,
+                  marginTop: 2,
                 }}
                 maxLines={1}
               />
+            </FlexWidget>
+
+            <FlexWidget
+              style={{
+                width: 1,
+                height: 30,
+                marginHorizontal: 12,
+                backgroundColor: HAIRLINE,
+              }}
+            />
+
+            <FlexWidget
+              style={{
+                flex: 1,
+                flexDirection: "column",
+                alignItems: "flex-end",
+                justifyContent: "center",
+              }}
+            >
               <TextWidget
-                text={`${formatXp(data.weeklyXp)} XP`}
-                style={{ fontSize: 16, fontWeight: "700", color: WHITE }}
+                text="THIS WEEK"
+                style={{
+                  fontSize: 9,
+                  fontWeight: "600",
+                  color: FAINT,
+                  letterSpacing: 1.1,
+                }}
                 maxLines={1}
               />
+              <FlexWidget
+                style={{
+                  flexDirection: "row",
+                  alignItems: "flex-end",
+                  flexGap: 4,
+                  marginTop: 2,
+                }}
+              >
+                <TextWidget
+                  text={formatXp(data.weeklyXp)}
+                  style={{
+                    fontSize: 18,
+                    fontWeight: "800",
+                    color: WHITE,
+                    lineHeight: 22,
+                  }}
+                  maxLines={1}
+                />
+                <TextWidget
+                  text="XP"
+                  style={{
+                    fontSize: 9,
+                    fontWeight: "600",
+                    color: FAINT,
+                    lineHeight: 22,
+                  }}
+                  maxLines={1}
+                />
+              </FlexWidget>
             </FlexWidget>
           </FlexWidget>
         )}

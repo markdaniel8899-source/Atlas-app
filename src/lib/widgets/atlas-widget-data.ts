@@ -3,11 +3,13 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 /** Registered widget name - must match app.json (config plugin). */
 export const ATLAS_WIDGET_NAME = "AtlasWidget";
 
-/** One bar of the 7-day focus chart (oldest first, today last). */
+/** One bar of the weekly focus chart (Monday first, Sunday last). */
 export interface WidgetWeekDay {
   /** Weekday letter shown under the bar (S, M, T...). */
   label: string;
   seconds: number;
+  /** True for the current day (lilac highlight). */
+  isToday?: boolean;
 }
 
 export interface AtlasWidgetData {
