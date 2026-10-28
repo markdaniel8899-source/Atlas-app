@@ -2,8 +2,8 @@ import { useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { colors, fonts } from "../../theme/theme";
 
-/** Supabase is configured for 8-digit email OTPs. */
-export const OTP_LENGTH = 8;
+/** Supabase is configured for 6-digit email OTPs (matches the website). */
+export const OTP_LENGTH = 6;
 
 interface OtpInputProps {
   value: string;

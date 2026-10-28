@@ -27,6 +27,7 @@ import { initNotifications } from "../lib/notifications";
 import { hydrateProfileCache } from "../lib/profile-cache";
 import { isHeavyTaskRunning } from "../lib/heavy-task";
 import { getCachedAuthUser, resolveSession, subscribeAuth } from "../lib/auth";
+import { startRealtime, stopRealtime } from "../lib/realtime";
 import {
   isAuthDeferralActive,
   subscribeAuthDeferral,
@@ -175,6 +176,18 @@ export default function RootLayout() {
       }),
     [],
   );
+
+  // One live socket per signed-in session: friend requests, shared notes,
+  // courses, roadmaps, sessions and leaderboard changes arrive without a
+  // manual refresh. Torn down on sign-out and account switches.
+  useEffect(() => {
+    if (sessionKey === "anon") {
+      stopRealtime();
+      return;
+    }
+    startRealtime(sessionKey);
+    return () => stopRealtime();
+  }, [sessionKey]);
 
   useEffect(() => {
     setPreloadStage(0);

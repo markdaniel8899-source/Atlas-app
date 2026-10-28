@@ -204,7 +204,7 @@ export async function signIn(
 }
 
 /**
- * Emails an 8-digit sign-in code. Existing accounts only - signing in must
+ * Emails a 6-digit sign-in code. Existing accounts only - signing in must
  * never silently create a new user.
  */
 export async function requestEmailSignInCode(
@@ -227,7 +227,7 @@ export async function requestEmailSignInCode(
 }
 
 /**
- * Verifies the 8-digit email code from Supabase - a sign-in code, the signup
+ * Verifies the 6-digit email code from Supabase - a sign-in code, the signup
  * confirmation code, or the password-recovery code.
  */
 export async function verifyEmailOtp(

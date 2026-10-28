@@ -57,7 +57,7 @@ export function initNotifications(): void {
     });
     if (Platform.OS === "android") {
       void N.setNotificationChannelAsync(CHANNEL_ID, {
-        name: "Session alerts",
+        name: "ATLAS alerts",
         importance: N.AndroidImportance.HIGH,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: "#cf9eff",
@@ -86,6 +86,15 @@ async function ensurePermission(): Promise<boolean> {
     permissionGranted = false;
   }
   return permissionGranted === true;
+}
+
+/**
+ * Asks for notification permission once per app session (called after sign-in
+ * so friend-request and shared-note alerts can actually appear). Never blocks
+ * the caller.
+ */
+export async function ensureNotificationPermission(): Promise<boolean> {
+  return ensurePermission();
 }
 
 /**
@@ -271,4 +280,29 @@ export async function scheduleCustomNotification(
   trigger: Parameters<NotificationsModule["scheduleNotificationAsync"]>[0]["trigger"],
 ): Promise<string | null> {
   return scheduleNotificationWithSound(title, body, trigger);
+}
+
+/**
+ * Presents an alert immediately (friend request, shared note). Only fires when
+ * permission was already granted; callers never trigger a permission prompt.
+ */
+export async function sendInstantNotification(
+  title: string,
+  body: string,
+): Promise<boolean> {
+  const N = getNotifications();
+  if (!N) return false;
+  initNotifications();
+  try {
+    const existing = await N.getPermissionsAsync();
+    if (!existing.granted) return false;
+    permissionGranted = true;
+    await N.scheduleNotificationAsync({
+      content: { title, body, sound: CUSTOM_SOUND },
+      trigger: { channelId: CHANNEL_ID },
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }

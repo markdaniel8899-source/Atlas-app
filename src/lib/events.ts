@@ -9,6 +9,9 @@ export const PROFILE_CHANGED_EVENT = "atlas:profile-changed";
 export const COURSES_CHANGED_EVENT = "atlas:courses-changed";
 export const FOCUS_CHANGED_EVENT = "atlas:focus-changed";
 export const ROADMAPS_CHANGED_EVENT = "atlas:roadmaps-changed";
+export const FRIENDS_CHANGED_EVENT = "atlas:friends-changed";
+export const NOTES_CHANGED_EVENT = "atlas:notes-changed";
+export const LEADERBOARD_CHANGED_EVENT = "atlas:leaderboard-changed";
 
 /** Bursts inside this window reach listeners once. */
 export const EVENT_COALESCE_MS = 250;
@@ -50,4 +53,16 @@ export function notifyFocusChanged(): void {
 
 export function notifyRoadmapsChanged(): void {
   emit(ROADMAPS_CHANGED_EVENT);
+}
+
+export function notifyFriendsChanged(): void {
+  emit(FRIENDS_CHANGED_EVENT);
+}
+
+export function notifyNotesChanged(): void {
+  emit(NOTES_CHANGED_EVENT);
+}
+
+export function notifyLeaderboardChanged(): void {
+  emit(LEADERBOARD_CHANGED_EVENT);
 }

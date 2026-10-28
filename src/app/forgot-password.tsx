@@ -40,6 +40,7 @@ import {
   beginAuthDeferral,
   endAuthDeferral,
 } from "../lib/auth-deferral";
+import { clearPendingVerification } from "../lib/verify-pending";
 import { colors, ease, fonts } from "../theme/theme";
 
 const BRAND_ICON = require("../../assets/formicon.png");
@@ -194,7 +195,7 @@ export default function ForgotPasswordScreen() {
     setCooldown(60);
     changePhase("code", {
       tone: "info",
-      text: `We emailed an ${OTP_LENGTH}-digit reset code to ${target}.`,
+        text: `We emailed a ${OTP_LENGTH}-digit reset code to ${target}.`,
     });
   }, [busy, email, changePhase]);
 
@@ -239,6 +240,7 @@ export default function ForgotPasswordScreen() {
       setPasswordError(null);
       setConfirmError(null);
       setNotice(null);
+      await clearPendingVerification(email.trim());
       changePhase("password");
     },
     [busy, email, changePhase],
@@ -290,8 +292,7 @@ export default function ForgotPasswordScreen() {
       default:
         return {
           title: "Forgot your password?",
-          subtitle:
-            "Enter your account email and we’ll send an 8-digit reset code.",
+          subtitle: `Enter your account email and we’ll send a ${OTP_LENGTH}-digit reset code.`,
         };
     }
   })();

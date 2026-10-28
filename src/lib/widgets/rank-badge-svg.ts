@@ -66,7 +66,6 @@ export function buildRankBadgeSvg(
   const t = Math.min(Math.max(tier, 1), 4);
   const [mLight, mMid, mDark] = METAL[rank];
   const [iLight, iDark] = ICON[rank];
-  const isConqueror = rank === "conqueror";
 
   const stack = [25, 19, 13];
   const chevrons: [number, number][] = [];

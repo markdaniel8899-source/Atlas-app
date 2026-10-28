@@ -21,11 +21,13 @@ import {
 } from "../components/screen-shell";
 import { RankBadge } from "../components/gamification/rank-badge";
 import { readCache, writeCache } from "../lib/data-cache";
+import { LEADERBOARD_CHANGED_EVENT } from "../lib/events";
 import { getRankFromXP } from "../lib/gamification";
 import { fetchWeeklyLeaderboard } from "../lib/db/leaderboard";
 import type { LeaderboardEntry } from "../lib/db/leaderboard";
 import { pngAvatarUrl } from "../lib/dicebear";
 import { ensureOnline } from "../lib/net";
+import { useFocusedEvent } from "../hooks/use-focused-event";
 import { useReducedMotion } from "../hooks/use-reduced-motion";
 import { useResponsive } from "../hooks/use-responsive";
 import { colors, fonts } from "../theme/theme";
@@ -507,8 +509,7 @@ export default function LeaderboardScreen() {
     let cancelled = false;
     if (readCache<LeaderboardEntry[]>(CACHE_KEY) === null) setLoading(true);
     setFailed(false);
-    fetchWeeklyLeaderboard(50)
-      .then((result) => {
+    fetchWeeklyLeaderboard(50)      .then((result) => {
         if (cancelled) return;
         if (result.ok) {
           const cached = readCache<LeaderboardEntry[]>(CACHE_KEY);
@@ -530,6 +531,12 @@ export default function LeaderboardScreen() {
       cancelled = true;
     };
   }, [reloadKey]);
+
+  // Live XP/rank updates from the realtime socket keep the visible board
+  // current without a pull-to-refresh.
+  useFocusedEvent(LEADERBOARD_CHANGED_EVENT, () =>
+    setReloadKey((key) => key + 1),
+  );
 
   const retry = () => {
     void (async () => {

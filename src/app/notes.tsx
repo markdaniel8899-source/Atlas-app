@@ -81,8 +81,7 @@ import {
   registerNoteIdSwap,
   subscribeNotesQueue,
 } from "../lib/notes-queue";
-import { resolveSession } from "../lib/auth";
-import { supabase } from "../lib/supabase";
+import { listen, NOTES_CHANGED_EVENT } from "../lib/events";
 import { inferSubject } from "../lib/subjects";
 import { syncAtlasNotesWidget } from "../lib/widgets/widget-sync";
 import { colors, fonts } from "../theme/theme";
@@ -514,12 +513,12 @@ export default function NotesScreen() {
     };
   }, []);
 
-  // Live updates: a note shared by a friend (or edited on another device)
-  // appears without a manual refresh. Debounced, and skipped while this
-  // device still has unsynced edits so local keystrokes are never clobbered.
+  // Live updates: the single app-wide realtime socket emits this event when a
+  // note shared by a friend (or edited on another device) lands. Debounced,
+  // and skipped while this device still has unsynced edits so local
+  // keystrokes are never clobbered.
   useEffect(() => {
     let alive = true;
-    let channel: ReturnType<typeof supabase.channel> | null = null;
     let debounce: ReturnType<typeof setTimeout> | null = null;
 
     const scheduleReload = () => {
@@ -534,27 +533,12 @@ export default function NotesScreen() {
       }, 1800);
     };
 
-    void resolveSession().then((session) => {
-      if (!alive || !session) return;
-      channel = supabase
-        .channel(`notes-realtime-${session.id}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "notes",
-            filter: `user_id=eq.${session.id}`,
-          },
-          scheduleReload,
-        )
-        .subscribe();
-    });
+    const unwatch = listen(NOTES_CHANGED_EVENT, scheduleReload);
 
     return () => {
       alive = false;
+      unwatch();
       if (debounce) clearTimeout(debounce);
-      if (channel) void supabase.removeChannel(channel);
     };
   }, []);
 

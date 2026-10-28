@@ -42,6 +42,11 @@ import {
   verifyEmailOtp,
 } from "../lib/auth";
 import { beginAuthDeferral, endAuthDeferral } from "../lib/auth-deferral";
+import {
+  clearPendingVerification,
+  isPendingVerification,
+  markPendingVerification,
+} from "../lib/verify-pending";
 import { isSupabaseConfigured } from "../lib/supabase";
 import { colors, ease, fonts } from "../theme/theme";
 
@@ -237,6 +242,7 @@ export default function LoginScreen() {
         return;
       }
       verifyDoneRef.current = true;
+      await clearPendingVerification(pendingEmail);
 
       if (origin === "signup") {
         // Match the website: a new account verifies its inbox, then signs in
@@ -341,6 +347,7 @@ export default function LoginScreen() {
         const sendResult = await requestEmailSignInCode(target);
         sendError = sendResult.error;
       }
+      await markPendingVerification(target);
 
       setBusy(false);
       setPendingEmail(target);
@@ -357,7 +364,7 @@ export default function LoginScreen() {
       setCooldown(60);
       switchMode("verify", {
         tone: "info",
-        text: `We emailed an ${OTP_LENGTH}-digit code to ${target}.`,
+        text: `We emailed a ${OTP_LENGTH}-digit code to ${target}.`,
       });
       return;
     }
@@ -368,6 +375,30 @@ export default function LoginScreen() {
     }
     setErrors(next);
     if (Object.keys(next).length > 0) return;
+
+    // An account created on this device must finish its OTP step before the
+    // password login is accepted (Supabase "Confirm email" is currently off,
+    // so the server alone would let it through).
+    if (await isPendingVerification(target)) {
+      setBusy(true);
+      setNotice(null);
+      setPendingEmail(target);
+      setVerifyOrigin("login");
+      setVerifyMethod("email");
+      setCooldown(0);
+      const sendResult = await requestEmailSignInCode(target);
+      setBusy(false);
+      if (sendResult.error) {
+        switchMode("verify", { tone: "error", text: sendResult.error });
+        return;
+      }
+      setCooldown(60);
+      switchMode("verify", {
+        tone: "info",
+        text: `Verify your email to finish setting up your account. Enter the ${OTP_LENGTH}-digit code sent to ${target}.`,
+      });
+      return;
+    }
 
     setBusy(true);
     setNotice(null);

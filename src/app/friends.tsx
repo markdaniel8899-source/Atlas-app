@@ -33,7 +33,7 @@ import {
 import type { SquadMember, SquadStatus } from "../lib/db/squad";
 import { pngAvatarUrl } from "../lib/dicebear";
 import { getRankFromXP } from "../lib/gamification";
-import { PROFILE_CHANGED_EVENT } from "../lib/events";
+import { FRIENDS_CHANGED_EVENT, PROFILE_CHANGED_EVENT } from "../lib/events";
 import { useFocusedEvent } from "../hooks/use-focused-event";
 import { ensureOnline } from "../lib/net";
 import { StaleNotice } from "../components/ui/stale-notice";
@@ -364,6 +364,9 @@ export default function FriendsScreen() {
   );
 
   useFocusedEvent(PROFILE_CHANGED_EVENT, () => void load());
+  // Realtime pushes every friendship change (new request, accept, removal) so
+  // the list updates on its own while this tab is open.
+  useFocusedEvent(FRIENDS_CHANGED_EVENT, () => void load());
 
   const friends = useMemo(
     () => members.filter((m) => m.relationship === "friend"),
