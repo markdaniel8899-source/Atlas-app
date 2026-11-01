@@ -11,7 +11,7 @@ import type { AtlasWidgetData, WidgetWeekDay } from "./atlas-widget-data";
 import { buildFlameIcon } from "./icons";
 import { buildRankBadgeSvg } from "./rank-badge-svg";
 import { buildWidgetMeshSvg } from "./widget-mesh";
-import { barHeight, formatFocus, formatXp } from "./widget-model";
+import { barHeight, formatXp } from "./widget-model";
 
 const WHITE = "#ffffff";
 const LILAC = "#cf9eff";
@@ -19,7 +19,6 @@ const LILAC_DEEP = "#8b5cf6";
 const MUTED = "rgba(255, 255, 255, 0.52)";
 const FAINT = "rgba(255, 255, 255, 0.32)";
 const TRACK = "rgba(255, 255, 255, 0.08)";
-const HAIRLINE = "rgba(255, 255, 255, 0.07)";
 const CARD_BG = "#05050a";
 const CARD_BORDER = "rgba(255, 255, 255, 0.085)";
 
@@ -43,7 +42,6 @@ export function AtlasWidget({
   const maxSeconds = Math.max(1, ...week.map((day) => day.seconds));
   const compact = height < 175;
   const showChart = height >= 195;
-  const showFooter = height >= 240;
 
   const rank = getRankFromXP(data.xp);
   const badgeSize = compact ? 38 : 46;
@@ -211,177 +209,81 @@ export function AtlasWidget({
           <FlexWidget
             style={{
               width: "match_parent",
-              height: chartHeight,
-              flexDirection: "row",
-              alignItems: "flex-end",
-              flexGap: 6,
+              flexDirection: "column",
               marginTop: 10,
-            }}
-          >
-            {week.map((day, index) => {
-              const isToday = day.isToday === true;
-              const h =
-                day.seconds > 0
-                  ? Math.max(
-                      8,
-                      Math.round(
-                        (barHeight(day.seconds, maxSeconds) / 22) * chartHeight,
-                      ),
-                    )
-                  : 4;
-              return (
-                <FlexWidget
-                  key={`${day.label}-${index}`}
-                  style={{
-                    flex: 1,
-                    height: h,
-                    borderRadius: 3,
-                    ...(isToday
-                      ? {
-                          backgroundGradient: {
-                            from: LILAC,
-                            to: LILAC_DEEP,
-                            orientation: "TOP_BOTTOM" as const,
-                          },
-                        }
-                      : {
-                          backgroundColor:
-                            day.seconds > 0
-                              ? "rgba(207, 158, 255, 0.46)"
-                              : TRACK,
-                        }),
-                  }}
-                />
-              );
-            })}
-          </FlexWidget>
-        )}
-
-        {showChart && (
-          <FlexWidget
-            style={{
-              width: "match_parent",
-              flexDirection: "row",
-              justifyContent: "space-between",
-              marginTop: 5,
-            }}
-          >
-            {week.map((day, index) => (
-              <FlexWidget key={`${day.label}-${index}`} style={{ flex: 1 }}>
-                <TextWidget
-                  text={day.label}
-                  style={{
-                    fontSize: 9,
-                    fontWeight: day.isToday === true ? "700" : "500",
-                    color: day.isToday === true ? LILAC : FAINT,
-                    letterSpacing: 0.3,
-                    textAlign: "center",
-                  }}
-                  maxLines={1}
-                />
-              </FlexWidget>
-            ))}
-          </FlexWidget>
-        )}
-
-        {showFooter && (
-          <FlexWidget
-            style={{
-              width: "match_parent",
-              flexDirection: "row",
-              alignItems: "center",
-              marginTop: 10,
-              paddingTop: 12,
-              borderTopWidth: 1,
-              borderTopColor: HAIRLINE,
             }}
           >
             <FlexWidget
               style={{
-                flex: 1,
-                flexDirection: "column",
-                justifyContent: "center",
+                width: "match_parent",
+                height: chartHeight,
+                flexDirection: "row",
+                alignItems: "flex-end",
+                flexGap: 6,
               }}
             >
-              <TextWidget
-                text="FOCUS TODAY"
-                style={{
-                  fontSize: 9,
-                  fontWeight: "600",
-                  color: FAINT,
-                  letterSpacing: 1.1,
-                }}
-                maxLines={1}
-              />
-              <TextWidget
-                text={formatFocus(data.todaySeconds)}
-                style={{
-                  fontSize: 18,
-                  fontWeight: "800",
-                  color: LILAC,
-                  lineHeight: 22,
-                  marginTop: 2,
-                }}
-                maxLines={1}
-              />
+              {week.map((day, index) => {
+                const isToday = day.isToday === true;
+                const h =
+                  day.seconds > 0
+                    ? Math.max(
+                        8,
+                        Math.round(
+                          (barHeight(day.seconds, maxSeconds) / 22) *
+                            chartHeight,
+                        ),
+                      )
+                    : 4;
+                return (
+                  <FlexWidget
+                    key={`${day.label}-${index}`}
+                    style={{
+                      flex: 1,
+                      height: h,
+                      borderRadius: 3,
+                      ...(isToday
+                        ? {
+                            backgroundGradient: {
+                              from: LILAC,
+                              to: LILAC_DEEP,
+                              orientation: "TOP_BOTTOM" as const,
+                            },
+                          }
+                        : {
+                            backgroundColor:
+                              day.seconds > 0
+                                ? "rgba(207, 158, 255, 0.46)"
+                                : TRACK,
+                          }),
+                    }}
+                  />
+                );
+              })}
             </FlexWidget>
 
             <FlexWidget
               style={{
-                width: 1,
-                height: 30,
-                marginHorizontal: 12,
-                backgroundColor: HAIRLINE,
-              }}
-            />
-
-            <FlexWidget
-              style={{
-                flex: 1,
-                flexDirection: "column",
-                alignItems: "flex-end",
-                justifyContent: "center",
+                width: "match_parent",
+                flexDirection: "row",
+                justifyContent: "space-between",
+                marginTop: 5,
               }}
             >
-              <TextWidget
-                text="THIS WEEK"
-                style={{
-                  fontSize: 9,
-                  fontWeight: "600",
-                  color: FAINT,
-                  letterSpacing: 1.1,
-                }}
-                maxLines={1}
-              />
-              <FlexWidget
-                style={{
-                  flexDirection: "row",
-                  alignItems: "flex-end",
-                  flexGap: 4,
-                  marginTop: 2,
-                }}
-              >
-                <TextWidget
-                  text={formatXp(data.weeklyXp)}
-                  style={{
-                    fontSize: 18,
-                    fontWeight: "800",
-                    color: WHITE,
-                    lineHeight: 22,
-                  }}
-                  maxLines={1}
-                />
-                <TextWidget
-                  text="XP"
-                  style={{
-                    fontSize: 9,
-                    fontWeight: "600",
-                    color: FAINT,
-                    lineHeight: 22,
-                  }}
-                  maxLines={1}
-                />
-              </FlexWidget>
+              {week.map((day, index) => (
+                <FlexWidget key={`${day.label}-${index}`} style={{ flex: 1 }}>
+                  <TextWidget
+                    text={day.label}
+                    style={{
+                      fontSize: 9,
+                      fontWeight: day.isToday === true ? "700" : "500",
+                      color: day.isToday === true ? LILAC : FAINT,
+                      letterSpacing: 0.3,
+                      textAlign: "center",
+                    }}
+                    maxLines={1}
+                  />
+                </FlexWidget>
+              ))}
             </FlexWidget>
           </FlexWidget>
         )}
