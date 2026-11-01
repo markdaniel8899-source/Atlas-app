@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, InteractionManager, StyleSheet, View } from "react-native";
+import { InteractionManager, StyleSheet, View } from "react-native";
 import { DarkTheme, Tabs, ThemeProvider } from "expo-router";
 import Head from "expo-router/head";
 import { StatusBar } from "expo-status-bar";
@@ -47,8 +47,8 @@ initNotifications();
 // header avatar never falls back while booting.
 void hydrateProfileCache();
 
-// Resolve the local Supabase session early so ScreenShell can render its
-// chrome on the first frame instead of waiting for an async read.
+// Resolve the local Supabase session early (non-blocking) so ScreenShell can
+// render its chrome on the first frame instead of waiting for an async read.
 void resolveSession();
 
 // Fetch the AI base URL from app_config (non-blocking; falls back to env).
@@ -99,11 +99,6 @@ export default function RootLayout() {
     CreateFuture: require("../../assets/fonts/CreateFuture.otf"),
   });
 
-  // Global session gate: prevents any app UI from rendering until SecureStore
-  // session restoration is complete. This eliminates the race condition where
-  // API calls fire before the auth token is available.
-  const [isSessionReady, setIsSessionReady] = useState(false);
-
   // Every route lives in one flat, always-mounted tab set, so switching
   // sections never remounts a screen (no reloads, no stale data). Keying on
   // the auth owner resets that state on sign-in / sign-out / account switch.
@@ -131,18 +126,36 @@ export default function RootLayout() {
     }
   }, [loaded, error]);
 
+  // Cold starts hold the branded splash (not a spinner) until the local
+  // session read settles, so no screen mounts or fetches with an empty auth
+  // token. Warm starts already know the user and render immediately. The cap
+  // keeps a stuck storage read from trapping the app on the splash.
   useEffect(() => {
     let active = true;
+    const cap = setTimeout(() => {
+      if (active) setSessionSettled(true);
+    }, 2500);
     void resolveSession()
+      .then((user) => {
+        if (!active || !user) return;
+        // Set the tab key before the splash lifts so the navigator mounts
+        // once with the right owner instead of remounting anon -> user.
+        if (isAuthDeferralActive()) {
+          pendingSessionKeyRef.current = user.id;
+          return;
+        }
+        setSessionKey((prev) => (prev === user.id ? prev : user.id));
+      })
       .catch(() => undefined)
       .finally(() => {
+        clearTimeout(cap);
         if (active) {
           setSessionSettled(true);
-          setIsSessionReady(true);
         }
       });
     return () => {
       active = false;
+      clearTimeout(cap);
     };
   }, []);
 
@@ -191,6 +204,8 @@ export default function RootLayout() {
 
   useEffect(() => {
     setPreloadStage(0);
+    // Preloading only starts once the navigator is actually on screen.
+    if (!sessionSettled) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
     let stage = 0;
@@ -216,19 +231,9 @@ export default function RootLayout() {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [sessionKey]);
+  }, [sessionKey, sessionSettled]);
 
   if (!loaded && !error) return null;
-
-  // Global session gate: do not render the app until SecureStore session is restored.
-  // This prevents premature API calls (AI, notes, roadmap, etc.) from firing with empty auth headers.
-  if (!isSessionReady) {
-    return (
-      <View style={styles.sessionLoading}>
-        <ActivityIndicator color="#9db4ff" size="large" />
-      </View>
-    );
-  }
 
   const preloadedRoutes =
     sessionKey !== "anon" && preloadStage > 0
@@ -259,20 +264,25 @@ export default function RootLayout() {
               content="ATLAS is a gamified study companion: focus sessions, courses, roadmaps, quizzes, a weekly leaderboard and an AI tutor that keeps your streak alive."
             />
           </Head>
-          <ThemeProvider value={NAVIGATION_THEME}>
-            <Tabs
-              key={sessionKey}
-              backBehavior="history"
-              tabBar={() => null}
-              detachInactiveScreens={false}
-              screenOptions={({ route }) => ({
-                headerShown: false,
-                sceneStyle: { backgroundColor: "transparent" },
-                lazy: !preloadedRoutes?.has(route.name),
-                ...tabTransitionOptions(),
-              })}
-            />
-          </ThemeProvider>
+          {/* Mount the navigator only once the local session is known: the
+              mesh and branded splash paint immediately, while screens wait for
+              a real auth token instead of firing empty-header requests. */}
+          {sessionSettled ? (
+            <ThemeProvider value={NAVIGATION_THEME}>
+              <Tabs
+                key={sessionKey}
+                backBehavior="history"
+                tabBar={() => null}
+                detachInactiveScreens={false}
+                screenOptions={({ route }) => ({
+                  headerShown: false,
+                  sceneStyle: { backgroundColor: "transparent" },
+                  lazy: !preloadedRoutes?.has(route.name),
+                  ...tabTransitionOptions(),
+                })}
+              />
+            </ThemeProvider>
+          ) : null}
           <GlobalDrawer />
           <SplashOverlay ready={sessionSettled || Boolean(error)} />
           <AccountDisabledOverlay />
@@ -287,11 +297,5 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.appBg,
-  },
-  sessionLoading: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#0a0a0a",
   },
 });

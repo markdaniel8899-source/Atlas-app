@@ -36,6 +36,8 @@ export const CONFIG_ERROR =
 
 let cached: AuthUser | null = null;
 let lastAuthId: string | null | undefined;
+let sessionRead: Promise<AuthUser | null> | null = null;
+let sessionEpoch = 0;
 
 supabase.auth.onAuthStateChange((_event, session) => {
   cached = session?.user ? toAuthUser(session.user) : null;
@@ -301,6 +303,8 @@ export async function signOut(
   options: { local?: boolean } = {},
 ): Promise<void> {
   const ownerId = cached?.id ?? null;
+  sessionEpoch += 1;
+  sessionRead = null;
   cached = null;
   try {
     if (isSupabaseConfigured) {
@@ -330,18 +334,41 @@ export async function signOut(
   }
 }
 
-/** Restores the persisted session on load and refreshes the cached user. */
+/** One shared SecureStore read, so cold-start callers never race each other. */
+async function readSession(): Promise<AuthUser | null> {
+  const epoch = sessionEpoch;
+  try {
+    const { data } = await supabase.auth.getSession();
+    // A sign-out while the read was in flight must win: never resurrect the
+    // previous account from a stale storage snapshot.
+    if (epoch === sessionEpoch) {
+      cached = data.session?.user ? toAuthUser(data.session.user) : null;
+    }
+  } catch {
+    // A failed local read is not a sign-out: keep the last known user.
+  } finally {
+    if (epoch === sessionEpoch) sessionRead = null;
+  }
+  return cached;
+}
+
+/**
+ * Restores the persisted session on load and returns the signed-in user.
+ * A warm cache answers on the next tick; a cold start shares one storage read
+ * between every caller and never reports "signed out" before that read has
+ * finished (that race caused the empty-token 403s and login flashes).
+ */
 export async function resolveSession(): Promise<AuthUser | null> {
   if (!isSupabaseConfigured) {
     cached = null;
     return null;
   }
 
-  const { data } = await supabase.auth.getSession();
-  const sessionUser = data.session?.user;
+  if (cached) return cached;
+  if (sessionRead) return sessionRead;
 
-  cached = sessionUser ? toAuthUser(sessionUser) : null;
-  return cached;
+  sessionRead = readSession();
+  return sessionRead;
 }
 
 /**

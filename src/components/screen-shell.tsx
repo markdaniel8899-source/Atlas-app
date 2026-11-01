@@ -4,7 +4,6 @@ import {
   BackHandler,
   Keyboard,
   Pressable,
-  RefreshControl,
   RefreshControlProps,
   ScrollView,
   StyleSheet,
@@ -100,11 +99,12 @@ export function ScreenShell({
   }, [keyboardHeight, scrollOnKeyboard]);
 
   useEffect(() => {
+    if (publicPage) return;
     let active = true;
     void (async () => {
       const user = await resolveSession();
       if (!active) return;
-      if (!user && !publicPage) {
+      if (!user) {
         router.navigate("/login");
         return;
       }

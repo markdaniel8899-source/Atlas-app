@@ -21,7 +21,7 @@ import { SessionCompleteCard } from "../components/session-complete-card";
 import { RevealText } from "../components/ui/reveal-text";
 import { useDashboard } from "../hooks/use-dashboard";
 import { StaleNotice } from "../components/ui/stale-notice";
-import { getCachedAuthUser } from "../lib/auth";
+import { getCachedAuthUser, resolveSession } from "../lib/auth";
 import { closeDrawer, isDrawerOpen, openDrawer } from "../lib/drawer-store";
 import { hasSeenOnboarding } from "../lib/onboarding";
 import { colors, fonts } from "../theme/theme";
@@ -61,13 +61,16 @@ export default function DashboardScreen() {
   useEffect(() => {
     if (loading) return;
     let cancelled = false;
-    void hasSeenOnboarding().then((seen) => {
+    void Promise.all([
+      hasSeenOnboarding(),
+      resolveSession().catch(() => getCachedAuthUser()),
+    ]).then(([seen, sessionUser]) => {
       if (cancelled) return;
       // A resolved or warmed session means this tab is signed in; never
       // bounce to login while the async session read is still settling - the
       // Android stack remounts the root screen for a frame during pops, and
       // redirecting there made the login form flash over the dashboard.
-      if (user || getCachedAuthUser()) return;
+      if (user || sessionUser || getCachedAuthUser()) return;
       router.navigate((seen ? "/login" : "/onboarding") as Href);
     });
     return () => {

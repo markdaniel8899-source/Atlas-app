@@ -3,15 +3,17 @@ import { Animated, Easing, Image, StyleSheet } from "react-native";
 
 const LOCKUP = require("../../assets/splash-lockup.png");
 
-const MAX_HOLD_MS = 650;
+const MAX_HOLD_MS = 3000;
 const EXIT_MS = 450;
 
 /**
  * Branded launch splash drawn above the navigator. It shows the exact same
  * lockup as the native splash (same image width, same flat base color), so
  * the native splash fades into it without any visible step. It leaves as soon
- * as fonts and the first session resolution are ready - never later than
- * 650 ms - then fades out to reveal the app (no gradient, no zoom).
+ * as fonts and the first session resolution are ready, then fades out to
+ * reveal the app (no gradient, no zoom). The hold is only a last-resort cap:
+ * the root layout already releases it after the session read settles or
+ * times out, so a slow read never reveals an empty frame.
  */
 export function SplashOverlay({ ready }: { ready: boolean }) {
   const [done, setDone] = useState(false);
