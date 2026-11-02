@@ -19,7 +19,6 @@ import {
   SectionList,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import {
@@ -31,28 +30,20 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
-  Bold,
   BookOpen,
   Check,
   ChevronDown,
   ChevronRight,
   Download,
-  Heading2,
-  Italic,
-  List,
-  ListOrdered,
   Plus,
-  Quote,
   Share2,
   StickyNote,
-  Trash2,
-  Underline,
   Users,
   X,
 } from "lucide-react-native";
 import { ScreenHeading, ScreenShell } from "../components/screen-shell";
 import { Card } from "../components/ui/card";
-import { RichNoteEditor } from "../components/notes/rich-note-editor";
+import { NoteEditorModal } from "../components/notes/note-editor-modal";
 import type { RichNoteEditorHandle } from "../components/notes/rich-note-editor";
 import { ShareNoteModal } from "../components/notes/share-note-modal";
 import { BulkShareModal } from "../components/notes/bulk-share-modal";
@@ -61,7 +52,11 @@ import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { StaleNotice } from "../components/ui/stale-notice";
 import { useCourses } from "../hooks/use-courses";
 import { readCache, writeCache } from "../lib/data-cache";
-import { createNote, fetchNotes, updateNoteOrder } from "../lib/db/notes";
+import {
+  createNote,
+  fetchNotesWithStatus,
+  updateNoteOrder,
+} from "../lib/db/notes";
 import { ensureOnline } from "../lib/net";
 import type { Note } from "../lib/notes";
 import { exportNotesFile } from "../lib/notes-export";
@@ -73,6 +68,7 @@ import {
 import {
   flushNotesQueue,
   getNotesQueueSnapshot,
+  getQueuedNoteWrites,
   isNoteQueued,
   isTempNoteId,
   makeTempNoteId,
@@ -82,24 +78,8 @@ import {
   subscribeNotesQueue,
 } from "../lib/notes-queue";
 import { listen, NOTES_CHANGED_EVENT } from "../lib/events";
-import { inferSubject } from "../lib/subjects";
 import { syncAtlasNotesWidget } from "../lib/widgets/widget-sync";
 import { colors, fonts } from "../theme/theme";
-
-const TOOLS: {
-  label: string;
-  icon: typeof Bold;
-  command: string;
-  value?: string;
-}[] = [
-  { label: "Bold", icon: Bold, command: "bold" },
-  { label: "Italic", icon: Italic, command: "italic" },
-  { label: "Underline", icon: Underline, command: "underline" },
-  { label: "Heading", icon: Heading2, command: "formatBlock", value: "h2" },
-  { label: "Quote", icon: Quote, command: "formatBlock", value: "blockquote" },
-  { label: "Bullet list", icon: List, command: "insertUnorderedList" },
-  { label: "Numbered list", icon: ListOrdered, command: "insertOrderedList" },
-];
 
 /**
  * Same behaviour as the Roadmap course switcher: pick a course to scope the
@@ -116,7 +96,7 @@ function CourseSwitcher({
 }) {
   const [open, setOpen] = useState(false);
 
-  const items: { id: number | null; title: string; icon: typeof Bold }[] = [
+  const items: { id: number | null; title: string; icon: typeof StickyNote }[] = [
     { id: null, title: "All notes", icon: StickyNote },
     ...courses.map((course) => ({
       id: course.id,
@@ -216,6 +196,9 @@ function CourseSwitcher({
 }
 
 interface NoteSection {
+  /** Stable group id: "general" or "course-<id>" (website parity). */
+  key: string;
+  /** Display title: "General" or the course title. */
   subject: string;
   data: Note[];
   count?: number;
@@ -274,10 +257,13 @@ const NoteRow = memo(function NoteRow({
           </Text>
           <View style={styles.noteItemMeta}>
             <Text style={styles.noteItemDate}>
-              {new Date(note.updatedAt).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-              })}
+              {new Date(note.createdAt || note.updatedAt).toLocaleDateString(
+                "en-US",
+                {
+                  month: "short",
+                  day: "numeric",
+                },
+              )}
             </Text>
             {sharedLabel ? (
               <Text
@@ -357,6 +343,8 @@ export default function NotesScreen() {
   const [title, setTitle] = useState("");
   const [loading, setLoading] = useState(true);
   const [editorReady, setEditorReady] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [downloadingNote, setDownloadingNote] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
 
   const [shareTarget, setShareTarget] = useState<{
@@ -400,6 +388,7 @@ export default function NotesScreen() {
   const flushPendingRef = useRef<() => void>(() => {});
   const noteOrderRef = useRef<string[]>([]);
   const queueRef = useRef(queue);
+  const loadSeqRef = useRef(0);
 
   const rawCourseId = Array.isArray(params.courseId)
     ? params.courseId[0]
@@ -437,32 +426,59 @@ export default function NotesScreen() {
   }, []);
 
   /**
-   * Merge rows with any queued offline-created notes so they never
-   * disappear while waiting to sync.
+   * Merge fetched rows with queued writes so a background reload can never
+   * clobber unsynced keystrokes, resurrect a note queued for deletion, or
+   * drop an offline-created note that is still waiting for its insert.
    */
   const applyRows = useCallback(
     (rows: Note[]) => {
       const pendingTemp = new Set(getNotesQueueSnapshot().tempIds);
+      const pendingWrites = getQueuedNoteWrites();
+      const inScope = (note: Note) =>
+        activeCourseId == null ||
+        note.courseId === activeCourseId ||
+        (note.courseId == null && note.topicId != null);
+
+      const merged = rows
+        .filter((row) => !pendingWrites.get(row.id)?.deleted)
+        .map((row) => {
+          const pending = pendingWrites.get(row.id);
+          if (!pending || pending.deleted) return row;
+          return {
+            ...row,
+            title: pending.title,
+            html: pending.html,
+            courseId: pending.courseId,
+            topicId: pending.topicId,
+            courseTitle:
+              pending.courseId === row.courseId ? row.courseTitle : null,
+            sortOrder:
+              pending.sortOrder !== undefined
+                ? pending.sortOrder
+                : row.sortOrder,
+            updatedAt: pending.updatedAt || row.updatedAt,
+          };
+        })
+        .filter(inScope);
+
       setNotes((prev) => {
         const keep = prev.filter(
-          (note) =>
-            pendingTemp.has(note.id) &&
-            (activeCourseId == null || note.courseId === activeCourseId),
+          (note) => pendingTemp.has(note.id) && inScope(note),
         );
         const seen = new Set(keep.map((note) => note.id));
         return applyNoteOrder(
-          [...keep, ...rows.filter((row) => !seen.has(row.id))],
+          [...keep, ...merged.filter((row) => !seen.has(row.id))],
           noteOrderRef.current,
         );
       });
       setActiveId((current) => {
         if (
           current &&
-          (rows.some((row) => row.id === current) || pendingTemp.has(current))
+          (merged.some((row) => row.id === current) || pendingTemp.has(current))
         ) {
           return current;
         }
-        return rows[0]?.id ?? current ?? null;
+        return merged[0]?.id ?? current ?? null;
       });
     },
     [activeCourseId],
@@ -470,20 +486,20 @@ export default function NotesScreen() {
 
   /** Fetch the active scope and merge in queued offline notes. */
   const load = useCallback(async () => {
+    const seq = ++loadSeqRef.current;
     const scope =
       activeCourseId != null ? { courseId: activeCourseId } : undefined;
-    let rows: Note[] | null = null;
-    try {
-      rows = await fetchNotes(scope);
-      setStale(false);
-    } catch {
-      rows = null;
-      setStale(notes.length > 0);
+    const result = await fetchNotesWithStatus(scope);
+    // A newer scope/refresh already started: never let a stale response win.
+    if (seq !== loadSeqRef.current) return;
+    if (!result.ok) {
+      setStale(notesRef.current.length > 0);
+      return;
     }
-    if (!rows) return;
-    writeCache(`notes:${activeCourseId ?? "all"}`, rows);
-    applyRows(rows);
-  }, [activeCourseId, applyRows, notes.length]);
+    setStale(false);
+    writeCache(`notes:${activeCourseId ?? "all"}`, result.notes);
+    applyRows(result.notes);
+  }, [activeCourseId, applyRows]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -653,36 +669,51 @@ export default function NotesScreen() {
     return () => clearTimeout(timer);
   }, [notes]);
 
-  // Subject groups for the "All notes" view; null in a course view (flat).
+  // Course groups for the "All notes" view (website parity: notes.course_id
+  // decides the group, not an inferred subject); null in a course view.
   const groupedNotes = useMemo(() => {
     if (selectedCourseId != null) return null;
-    const groups = new Map<string, Note[]>();
+    const groups = new Map<string, { title: string; notes: Note[] }>();
     for (const note of notes) {
-      const text = `${note.title} ${note.html.replace(/<[^>]+>/g, " ")}`;
-      const subject = inferSubject(text) ?? note.courseTitle ?? "General";
-      const list = groups.get(subject);
-      if (list) list.push(note);
-      else groups.set(subject, [note]);
+      const key = note.courseId == null ? "general" : `course-${note.courseId}`;
+      const course =
+        note.courseId == null
+          ? null
+          : (courses.find((item) => item.id === note.courseId) ?? null);
+      const title =
+        note.courseId == null
+          ? "General"
+          : (course?.title ?? note.courseTitle ?? "Course");
+      const group = groups.get(key);
+      if (group) group.notes.push(note);
+      else groups.set(key, { title, notes: [note] });
     }
-    return Array.from(groups.entries());
-  }, [notes, selectedCourseId]);
+    return Array.from(groups.entries()).sort(([keyA, a], [keyB, b]) => {
+      if (keyA === "general") return -1;
+      if (keyB === "general") return 1;
+      return a.title.localeCompare(b.title);
+    });
+  }, [notes, selectedCourseId, courses]);
 
   const sections = useMemo<NoteSection[]>(() => {
     // Manual reorder works on one predictable flat list (groups would make
     // an up/down move jump between sections).
     if (reorderMode) {
       return notes.length > 0
-        ? [{ subject: "", data: notes, count: notes.length }]
+        ? [{ key: "reorder", subject: "", data: notes, count: notes.length }]
         : [];
     }
     if (groupedNotes) {
-      return groupedNotes.map(([subject, data]) => ({
-        subject,
-        data: collapsedGroups.has(subject) ? [] : data,
-        count: data.length,
+      return groupedNotes.map(([key, group]) => ({
+        key,
+        subject: group.title,
+        data: collapsedGroups.has(key) ? [] : group.notes,
+        count: group.notes.length,
       }));
     }
-    return notes.length > 0 ? [{ subject: "", data: notes, count: notes.length }] : [];
+    return notes.length > 0
+      ? [{ key: "flat", subject: "", data: notes, count: notes.length }]
+      : [];
   }, [groupedNotes, notes, reorderMode, collapsedGroups]);
 
   useEffect(() => {
@@ -690,6 +721,12 @@ export default function NotesScreen() {
     const note = notes.find((item) => item.id === activeId);
     if (note) setTitle(note.title);
   }, [activeId, notes]);
+
+  // The open note was removed (remote delete, scope change): close the editor
+  // instead of leaving an invisible modal flag behind.
+  useEffect(() => {
+    if (editorOpen && !loading && !active) setEditorOpen(false);
+  }, [editorOpen, loading, active]);
 
   useEffect(() => {
     return () => {
@@ -720,6 +757,7 @@ export default function NotesScreen() {
       id,
       title: "",
       html: "",
+      createdAt: Date.now(),
       courseId: null,
       topicId: null,
       courseTitle: null,
@@ -818,7 +856,15 @@ export default function NotesScreen() {
 
   const selectNote = useCallback((id: string) => {
     flushPendingRef.current();
+    const note = notesRef.current.find((item) => item.id === id);
+    if (note) setTitle(note.title);
     setActiveId(id);
+    setEditorOpen(true);
+  }, []);
+
+  const closeEditor = useCallback(() => {
+    flushPendingRef.current();
+    setEditorOpen(false);
   }, []);
 
   const leaveSelection = useCallback(() => {
@@ -912,10 +958,12 @@ export default function NotesScreen() {
   const downloadSelected = async () => {
     if (selectedNotes.length === 0 || bulkBusy) return;
     flushPendingRef.current();
+    const ids = new Set(selectedNotes.map((note) => note.id));
+    const rows = notesRef.current.filter((note) => ids.has(note.id));
     setBulkBusy(true);
     try {
       const result = await exportNotesFile(
-        selectedNotes.map((note) => ({ title: note.title, html: note.html })),
+        rows.map((note) => ({ title: note.title, html: note.html })),
       );
       if (result.ok) {
         setFlash(result.message);
@@ -925,6 +973,29 @@ export default function NotesScreen() {
       }
     } finally {
       setBulkBusy(false);
+    }
+  };
+
+  /** Save the open note as a single HTML file (editor overflow menu). */
+  const downloadActive = async () => {
+    if (downloadingNote) return;
+    flushPendingRef.current();
+    const note = notesRef.current.find(
+      (item) => item.id === activeRef.current,
+    );
+    if (!note) return;
+    setDownloadingNote(true);
+    try {
+      const result = await exportNotesFile([
+        { title: note.title, html: note.html },
+      ]);
+      if (result.ok) {
+        setFlash(result.message);
+      } else if (!result.cancelled) {
+        Alert.alert("Download failed", result.message);
+      }
+    } finally {
+      setDownloadingNote(false);
     }
   };
 
@@ -1027,6 +1098,7 @@ export default function NotesScreen() {
     if (note) {
       setNotes((prev) => [note, ...prev]);
       setActiveId(note.id);
+      setEditorOpen(true);
       persistNoteOrder([
         note.id,
         ...noteOrderRef.current.filter((id) => id !== note.id),
@@ -1040,6 +1112,7 @@ export default function NotesScreen() {
       id: makeTempNoteId(),
       title: "Untitled note",
       html: "",
+      createdAt: Date.now(),
       updatedAt: Date.now(),
       courseId,
       topicId,
@@ -1051,6 +1124,7 @@ export default function NotesScreen() {
     };
     setNotes((prev) => [local, ...prev]);
     setActiveId(local.id);
+    setEditorOpen(true);
     persistNoteOrder([
       local.id,
       ...noteOrderRef.current.filter((id) => id !== local.id),
@@ -1092,7 +1166,10 @@ export default function NotesScreen() {
     }
     const next = notes.filter((note) => note.id !== id);
     setNotes(next);
-    if (activeId === id) setActiveId(next[0]?.id ?? null);
+    if (activeId === id) {
+      setActiveId(next[0]?.id ?? null);
+      setEditorOpen(false);
+    }
     if (selectedIds.has(id)) {
       setSelectedIds((prev) => {
         const updated = new Set(prev);
@@ -1293,20 +1370,20 @@ export default function NotesScreen() {
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={`${
-                    collapsedGroups.has(section.subject)
+                    collapsedGroups.has(section.key)
                       ? "Expand"
                       : "Collapse"
                   } ${section.subject}`}
                   accessibilityState={{
-                    expanded: !collapsedGroups.has(section.subject),
+                    expanded: !collapsedGroups.has(section.key),
                   }}
-                  onPress={() => toggleGrouped(section.subject)}
+                  onPress={() => toggleGrouped(section.key)}
                   style={({ pressed }) => [
                     styles.groupHeader,
                     pressed && styles.groupHeaderPressed,
                   ]}
                 >
-                  {collapsedGroups.has(section.subject) ? (
+                  {collapsedGroups.has(section.key) ? (
                     <ChevronRight size={13} color={colors.w35} />
                   ) : (
                     <ChevronDown size={13} color={colors.w35} />
@@ -1332,8 +1409,8 @@ export default function NotesScreen() {
         )}
       </Card>
 
-      <Card padded={false} style={styles.editorCard}>
-        {selectionMode ? (
+      {selectionMode ? (
+        <Card padded={false} style={styles.actionCard}>
           <View style={styles.bulkPanel}>
             <View style={styles.bulkHeader}>
               <View style={styles.bulkIcon}>
@@ -1351,40 +1428,90 @@ export default function NotesScreen() {
                 onPress={leaveSelection}
                 style={({ pressed }) => [
                   styles.bulkClose,
-                  pressed && styles.toolButtonPressed,
+                  pressed && styles.bulkClosePressed,
                 ]}
               >
                 <X size={18} color={colors.w45} />
               </Pressable>
             </View>
 
-            <ScrollView
-              style={styles.bulkListScroll}
-              contentContainerStyle={styles.bulkList}
-              showsVerticalScrollIndicator={false}
-            >
-              {selectedNotes.length === 0 ? (
-                <Text style={styles.listMessage}>
-                  Select notes on the left to act on them together.
+            <View style={styles.bulkActions}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Download selected notes"
+                disabled={selectedNotes.length === 0 || bulkBusy}
+                onPress={() => void downloadSelected()}
+                style={({ pressed }) => [
+                  styles.bulkAction,
+                  (selectedNotes.length === 0 || bulkBusy) &&
+                    styles.bulkActionOff,
+                  pressed &&
+                    selectedNotes.length > 0 &&
+                    !bulkBusy &&
+                    styles.pressed,
+                ]}
+              >
+                {bulkBusy ? (
+                  <ActivityIndicator size="small" color={colors.lilac} />
+                ) : (
+                  <Download size={16} color={colors.lilac} />
+                )}
+                <Text numberOfLines={1} style={styles.bulkActionText}>
+                  Download
                 </Text>
-              ) : (
-                selectedNotes.map((note) => (
-                  <View key={note.id} style={styles.bulkRow}>
-                    <View style={styles.bulkDot} />
-                    <Text numberOfLines={1} style={styles.bulkRowText}>
-                      {note.title || "Untitled note"}
-                    </Text>
-                  </View>
-                ))
-              )}
-            </ScrollView>
+              </Pressable>
 
-            <View style={styles.bulkToolbar}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Share selected notes"
+                disabled={selectedNotes.length === 0 || bulkBusy}
+                onPress={() => void openBulkSharePicker()}
+                style={({ pressed }) => [
+                  styles.bulkAction,
+                  (selectedNotes.length === 0 || bulkBusy) &&
+                    styles.bulkActionOff,
+                  pressed &&
+                    selectedNotes.length > 0 &&
+                    !bulkBusy &&
+                    styles.pressed,
+                ]}
+              >
+                <Share2 size={16} color={colors.lilac} />
+                <Text numberOfLines={1} style={styles.bulkActionText}>
+                  Share
+                </Text>
+              </Pressable>
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Move selected notes to a course"
+                disabled={selectedNotes.length === 0 || bulkBusy}
+                onPress={() => {
+                  setMoveIds(selectedNotes.map((note) => note.id));
+                  setMoveOpen(true);
+                }}
+                style={({ pressed }) => [
+                  styles.bulkAction,
+                  (selectedNotes.length === 0 || bulkBusy) &&
+                    styles.bulkActionOff,
+                  pressed &&
+                    selectedNotes.length > 0 &&
+                    !bulkBusy &&
+                    styles.pressed,
+                ]}
+              >
+                <BookOpen size={16} color={colors.lilac} />
+                <Text numberOfLines={1} style={styles.bulkActionText}>
+                  Move
+                </Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.bulkFooter}>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={
-                  selectedNotes.length === notes.length &&
-                  notes.length > 0
+                  selectedNotes.length === notes.length && notes.length > 0
                     ? "Deselect all notes"
                     : "Select all notes"
                 }
@@ -1400,242 +1527,38 @@ export default function NotesScreen() {
                     : "Select all"}
                 </Text>
               </Pressable>
-
-              <View style={styles.bulkActions}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Download selected notes"
-                  disabled={selectedNotes.length === 0 || bulkBusy}
-                  onPress={() => void downloadSelected()}
-                  style={({ pressed }) => [
-                    styles.bulkAction,
-                    (selectedNotes.length === 0 || bulkBusy) &&
-                      styles.bulkActionOff,
-                    pressed &&
-                      selectedNotes.length > 0 &&
-                      !bulkBusy &&
-                      styles.pressed,
-                  ]}
-                >
-                  {bulkBusy ? (
-                    <ActivityIndicator size="small" color={colors.lilac} />
-                  ) : (
-                    <Download size={16} color={colors.lilac} />
-                  )}
-                  <Text numberOfLines={1} style={styles.bulkActionText}>Download</Text>
-                </Pressable>
-
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Share selected notes"
-                  disabled={selectedNotes.length === 0 || bulkBusy}
-                  onPress={() => void openBulkSharePicker()}
-                  style={({ pressed }) => [
-                    styles.bulkAction,
-                    (selectedNotes.length === 0 || bulkBusy) &&
-                      styles.bulkActionOff,
-                    pressed &&
-                      selectedNotes.length > 0 &&
-                      !bulkBusy &&
-                      styles.pressed,
-                  ]}
-                >
-                  <Share2 size={16} color={colors.lilac} />
-                  <Text numberOfLines={1} style={styles.bulkActionText}>Share</Text>
-                </Pressable>
-
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Move selected notes to a course"
-                  disabled={selectedNotes.length === 0 || bulkBusy}
-                  onPress={() => {
-                    setMoveIds(selectedNotes.map((note) => note.id));
-                    setMoveOpen(true);
-                  }}
-                  style={({ pressed }) => [
-                    styles.bulkAction,
-                    (selectedNotes.length === 0 || bulkBusy) &&
-                      styles.bulkActionOff,
-                    pressed &&
-                      selectedNotes.length > 0 &&
-                      !bulkBusy &&
-                      styles.pressed,
-                  ]}
-                >
-                  <BookOpen size={16} color={colors.lilac} />
-                  <Text numberOfLines={1} style={styles.bulkActionText}>Move</Text>
-                </Pressable>
-              </View>
-            </View>
-
-            <Text style={styles.bulkHint}>
-              Download saves one HTML file containing every selected note.
-            </Text>
-          </View>
-        ) : reorderMode ? (
-          <View style={styles.bulkPanel}>
-            <View style={styles.bulkHeader}>
-              <View style={styles.bulkIcon}>
-                <ArrowUpDown size={18} color={colors.lilac} />
-              </View>
-              <View style={styles.bulkHeaderText}>
-                <Text style={styles.bulkEyebrow}>Manual order</Text>
-                <Text style={styles.bulkTitle}>Reorder notes</Text>
-              </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Finish reordering notes"
-                onPress={leaveReorder}
-                style={({ pressed }) => [
-                  styles.doneButton,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Text style={styles.doneButtonText}>Done</Text>
-              </Pressable>
-            </View>
-
-            <View style={styles.reorderBody}>
-              <View style={styles.reorderBadge}>
-                <ArrowUp size={16} color={colors.lilac} />
-                <ArrowDown size={16} color={colors.lilac} />
-              </View>
-              <Text style={styles.reorderTitle}>
-                Use the arrows next to each note
+              <Text numberOfLines={2} style={styles.bulkHint}>
+                Download saves one HTML file for every selected note.
               </Text>
-              <Text style={styles.reorderText}>
-                Your order is saved on this device and synced to your account
-                when you are online.
-              </Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Finish reordering notes"
-                onPress={leaveReorder}
-                style={({ pressed }) => [
-                  styles.reorderDoneButton,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Text style={styles.reorderDoneText}>Done reordering</Text>
-              </Pressable>
             </View>
           </View>
-        ) : active ? (
-          <>
-            <View style={styles.editorHeader}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                keyboardShouldPersistTaps="always"
-                style={styles.toolbarScroll}
-                contentContainerStyle={styles.toolbar}
-              >
-                {TOOLS.map((tool) => {
-                  const Icon = tool.icon;
-                  return (
-                    <Pressable
-                      key={tool.label}
-                      accessibilityRole="button"
-                      accessibilityLabel={tool.label}
-                      onPress={() => editorRef.current?.run(tool.command, tool.value)}
-                      style={({ pressed }) => [
-                        styles.toolButton,
-                        pressed && styles.toolButtonPressed,
-                      ]}
-                    >
-                      <Icon size={16} color={colors.w45} />
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-              <View style={styles.editorHeaderRight}>
-                <Animated.Text style={[styles.savedText, { opacity: savedAnim }]}>
-                  Saved
-                </Animated.Text>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Move note to a course"
-                  onPress={() => {
-                    flushPendingEdits();
-                    setMoveIds([active.id]);
-                    setMoveOpen(true);
-                  }}
-                  style={({ pressed }) => [
-                    styles.toolButton,
-                    pressed && styles.toolButtonPressed,
-                  ]}
-                >
-                  <BookOpen size={16} color={colors.w40} />
-                </Pressable>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Share note with a friend"
-                  onPress={() => void openSharePicker()}
-                  style={({ pressed }) => [
-                    styles.toolButton,
-                    pressed && styles.toolButtonPressed,
-                  ]}
-                >
-                  <Share2 size={16} color={colors.w40} />
-                </Pressable>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Delete note"
-                  onPress={() => setNoteToDelete(active.id)}
-                  style={({ pressed }) => [
-                    styles.toolButton,
-                    pressed && styles.toolButtonPressed,
-                  ]}
-                >
-                  <Trash2 size={16} color={colors.w40} />
-                </Pressable>
-              </View>
+        </Card>
+      ) : reorderMode ? (
+        <Card padded={false} style={styles.actionCard}>
+          <View style={styles.reorderBar}>
+            <View style={styles.bulkIcon}>
+              <ArrowUpDown size={18} color={colors.lilac} />
             </View>
-
-            <View style={styles.titleRow}>
-              <TextInput
-                keyboardAppearance="dark"
-                value={title}
-                onChangeText={handleTitleChange}
-                onBlur={flushPendingTitle}
-                placeholder="Untitled note"
-                placeholderTextColor={colors.w30}
-                maxLength={160}
-                style={styles.titleInput}
-              />
+            <View style={styles.bulkHeaderText}>
+              <Text style={styles.bulkEyebrow}>Manual order</Text>
+              <Text style={styles.reorderInlineText}>
+                Use the arrows next to each note.
+              </Text>
             </View>
-
-            {editorReady ? (
-              <RichNoteEditor
-                ref={editorRef}
-                noteId={active.id}
-                html={active.html}
-                onChange={handleEditorChange}
-              />
-            ) : (
-              <View style={styles.editorPlaceholder}>
-                <ActivityIndicator size="small" color={colors.lilac} />
-              </View>
-            )}
-          </>
-        ) : (
-          <View style={styles.editorEmpty}>
-            <Text style={styles.listMessage}>
-              {loading
-                ? "Loading notes…"
-                : "Pick a note on the left, or start a fresh page."}
-            </Text>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Create a new note"
-              onPress={() => void addNote()}
-              hitSlop={12}
+              accessibilityLabel="Finish reordering notes"
+              onPress={leaveReorder}
+              style={({ pressed }) => [
+                styles.doneButton,
+                pressed && styles.pressed,
+              ]}
             >
-              <Text style={styles.editorEmptyLink}>+ New note</Text>
+              <Text style={styles.doneButtonText}>Done</Text>
             </Pressable>
           </View>
-        )}
-      </Card>
+        </Card>
+      ) : null}
 
       <Text style={styles.footnote}>
         Content is sanitized before saving and saved as you type.
@@ -1689,6 +1612,30 @@ export default function NotesScreen() {
         onConfirm={confirmDeleteNote}
         onCancel={() => setNoteToDelete(null)}
       />
+      <NoteEditorModal
+        visible={editorOpen && active !== null}
+        note={active}
+        title={title}
+        savedAnim={savedAnim}
+        editorRef={editorRef}
+        editorReady={editorReady}
+        downloading={downloadingNote}
+        onClose={closeEditor}
+        onTitleChange={handleTitleChange}
+        onTitleBlur={flushPendingTitle}
+        onChangeHtml={handleEditorChange}
+        onShare={() => void openSharePicker()}
+        onMove={() => {
+          if (!active) return;
+          flushPendingEdits();
+          setMoveIds([active.id]);
+          setMoveOpen(true);
+        }}
+        onDownload={() => void downloadActive()}
+        onDelete={() => {
+          if (active) setNoteToDelete(active.id);
+        }}
+      />
     </ScreenShell>
   );
 }
@@ -1713,11 +1660,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: fonts.medium,
     color: colors.lilac,
-  },
-  editorPlaceholder: {
-    height: 340,
-    alignItems: "center",
-    justifyContent: "center",
   },
   switcherTrigger: {
     flexDirection: "row",
@@ -1880,7 +1822,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   listScroll: {
-    maxHeight: 320,
+    maxHeight: 460,
   },
   listContent: {
     padding: 12,
@@ -2025,10 +1967,12 @@ const styles = StyleSheet.create({
   noteItemSender: {
     maxWidth: "72%",
   },
+  actionCard: {
+    overflow: "hidden",
+  },
   bulkPanel: {
-    minHeight: 420,
-    padding: 20,
-    gap: 14,
+    padding: 18,
+    gap: 12,
   },
   bulkHeader: {
     flexDirection: "row",
@@ -2070,38 +2014,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  bulkListScroll: {
-    flexGrow: 0,
-    maxHeight: 170,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.w06,
-    backgroundColor: colors.w02,
+  bulkClosePressed: {
+    backgroundColor: colors.w07,
   },
-  bulkList: {
-    padding: 10,
-    gap: 6,
-  },
-  bulkRow: {
+  bulkFooter: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-  },
-  bulkDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: colors.lilac,
-  },
-  bulkRowText: {
-    flex: 1,
-    minWidth: 0,
-    fontSize: 13,
-    fontFamily: fonts.regular,
-    color: colors.w60,
-  },
-  bulkToolbar: {
-    gap: 10,
+    justifyContent: "space-between",
+    gap: 12,
   },
   selectAllButton: {
     alignSelf: "flex-start",
@@ -2141,6 +2061,8 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   bulkHint: {
+    flexShrink: 1,
+    textAlign: "right",
     fontSize: 11.5,
     lineHeight: 16,
     fontFamily: fonts.regular,
@@ -2161,126 +2083,18 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     color: colors.lilac,
   },
-  reorderBody: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 36,
-    gap: 12,
-  },
-  reorderBadge: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.lilac25,
-    backgroundColor: colors.lilac10,
+  reorderBar: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 2,
+    gap: 12,
+    padding: 16,
   },
-  reorderTitle: {
-    fontSize: 15,
-    fontFamily: fonts.semibold,
-    color: colors.white,
-    textAlign: "center",
-  },
-  reorderText: {
-    maxWidth: 320,
-    textAlign: "center",
+  reorderInlineText: {
+    marginTop: 2,
     fontSize: 12.5,
-    lineHeight: 19,
+    lineHeight: 18,
     fontFamily: fonts.regular,
     color: colors.w45,
-  },
-  reorderDoneButton: {
-    marginTop: 6,
-    minHeight: 44,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.lilac25,
-    backgroundColor: colors.lilac12,
-    paddingHorizontal: 22,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  reorderDoneText: {
-    fontSize: 13,
-    fontFamily: fonts.medium,
-    color: colors.lilac,
-  },
-  editorCard: {
-    overflow: "hidden",
-    minHeight: 420,
-  },
-  editorHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    flexWrap: "wrap",
-    gap: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.w07,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  toolbarScroll: {
-    flexGrow: 1,
-    flexShrink: 1,
-    minWidth: 0,
-  },
-  toolbar: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 2,
-  },
-  toolButton: {
-    minWidth: 44,
-    minHeight: 44,
-    borderRadius: 8,
-    padding: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  toolButtonPressed: {
-    backgroundColor: colors.w07,
-  },
-  editorHeaderRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  savedText: {
-    fontSize: 12,
-    fontFamily: fonts.regular,
-    color: colors.lilac70,
-  },
-  titleRow: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.w07,
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-  },
-  titleInput: {
-    padding: 0,
-    fontSize: 22,
-    fontFamily: fonts.semibold,
-    letterSpacing: -0.6,
-    color: colors.white,
-  },
-  editorEmpty: {
-    flex: 1,
-    minHeight: 420,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 16,
-    padding: 40,
-  },
-  editorEmptyLink: {
-    fontSize: 14,
-    fontFamily: fonts.regular,
-    color: colors.star,
   },
   footnote: {
     fontSize: 12,

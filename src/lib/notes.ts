@@ -2,6 +2,8 @@ export interface Note {
   id: string;
   title: string;
   html: string;
+  /** Creation time (notes.created_at), shown in the list like the website. */
+  createdAt: number;
   updatedAt: number;
   /** Course this note belongs to (notes.course_id); null = unlinked. */
   courseId: number | null;
@@ -25,19 +27,43 @@ const ALLOWED_TAGS = new Set([
   "b",
   "blockquote",
   "br",
+  "code",
   "div",
   "em",
   "h2",
   "h3",
+  "hr",
   "i",
   "li",
   "ol",
   "p",
+  "pre",
   "s",
+  "span",
   "strong",
   "u",
   "ul",
 ]);
+
+/** Syntax-highlight token classes emitted by the website's code blocks. */
+const TOKEN_CLASSES = new Set([
+  "cb-tok-keyword",
+  "cb-tok-string",
+  "cb-tok-comment",
+  "cb-tok-number",
+  "cb-tok-type",
+  "cb-tok-function",
+  "cb-tok-variable",
+  "cb-tok-constant",
+  "cb-tok-tag",
+  "cb-tok-attribute",
+  "cb-tok-operator",
+  "cb-tok-meta",
+  "cb-tok-invalid",
+]);
+
+const SAFE_TOKEN_RE = /^[a-zA-Z0-9+#._-]{1,40}$/;
+const SAFE_BLOCK_ID_RE = /^[a-zA-Z0-9_-]{1,80}$/;
 
 /** Elements whose entire content is dropped (never just unwrapped). */
 const DROPPED_BLOCKS =
@@ -52,7 +78,36 @@ function decodeEntities(value: string): string {
       String.fromCharCode(parseInt(dec, 10)),
     )
     .replace(/&colon;/gi, ":")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&");
+}
+
+/** Reads an attribute value from a raw attribute string. */
+function attrValue(attrs: string, name: string): string | null {
+  const match = new RegExp(
+    `\\b${name}\\s*=\\s*("[^"]*"|'[^']*'|[^\\s>]+)`,
+    "i",
+  ).exec(attrs);
+  if (!match) return null;
+  return match[1].replace(/^["']|["']$/g, "");
+}
+
+/** Re-encodes a value for safe use inside a double-quoted attribute. */
+function escapeAttr(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function classTokens(attrs: string): string[] {
+  const raw = attrValue(attrs, "class");
+  return raw ? raw.split(/\s+/).filter(Boolean) : [];
 }
 
 /** Returns a safe href (https/http/mailto only) or null. */
@@ -97,11 +152,64 @@ export function sanitizeHtml(html: string): string {
     (match, rawName: string, rawAttrs: string) => {
       const name = rawName.toLowerCase();
       if (!ALLOWED_TAGS.has(name)) return "";
-      if (match.startsWith("</")) return `</${name}>`;
+      if (match.startsWith("</")) return name === "br" ? "" : `</${name}>`;
       if (name === "br") return "<br/>";
+      if (name === "hr") return "<hr/>";
       if (name === "a") {
         const href = safeHref(rawAttrs);
         return href ? `<a href="${href}">` : "<a>";
+      }
+      if (name === "div") {
+        if (!classTokens(rawAttrs).includes("atomic-code-block")) {
+          return "<div>";
+        }
+        const id = attrValue(rawAttrs, "data-code-block-id");
+        const language = attrValue(rawAttrs, "data-language");
+        const rawCode = attrValue(rawAttrs, "data-code");
+        const code = rawCode == null ? "" : decodeEntities(rawCode);
+        const safeId =
+          id && SAFE_BLOCK_ID_RE.test(id.trim()) ? id.trim() : "";
+        const safeLanguage =
+          language && SAFE_TOKEN_RE.test(language.trim())
+            ? language.trim()
+            : "plaintext";
+        return (
+          `<div class="atomic-code-block"` +
+          (safeId ? ` data-code-block-id="${escapeAttr(safeId)}"` : "") +
+          ` data-language="${escapeAttr(safeLanguage)}"` +
+          ` data-code="${escapeAttr(code)}">`
+        );
+      }
+      if (name === "pre") {
+        const keepClass = classTokens(rawAttrs).includes(
+          "atomic-code-block-pre",
+        );
+        const language = attrValue(rawAttrs, "data-language");
+        const safeLanguage =
+          language && SAFE_TOKEN_RE.test(language.trim())
+            ? language.trim()
+            : null;
+        return (
+          `<pre${keepClass ? ' class="atomic-code-block-pre"' : ""}` +
+          (safeLanguage
+            ? ` data-language="${escapeAttr(safeLanguage)}"`
+            : "") +
+          ">"
+        );
+      }
+      if (name === "code") {
+        const keepClass = classTokens(rawAttrs).includes(
+          "atomic-code-block-code",
+        );
+        return keepClass
+          ? '<code class="atomic-code-block-code">'
+          : "<code>";
+      }
+      if (name === "span") {
+        const token = classTokens(rawAttrs).find((value) =>
+          TOKEN_CLASSES.has(value),
+        );
+        return token ? `<span class="${token}">` : "<span>";
       }
       return `<${name}>`;
     },

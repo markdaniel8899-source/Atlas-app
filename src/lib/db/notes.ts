@@ -7,6 +7,7 @@ interface NoteRow {
   id: number;
   title: string;
   content: string;
+  created_at: string;
   updated_at: string;
   course_id: number | null;
   topic_id: number | null;
@@ -15,7 +16,8 @@ interface NoteRow {
   shared_at: string | null;
 }
 
-const BASE_COLUMNS = "id, title, content, updated_at, course_id, topic_id";
+const BASE_COLUMNS =
+  "id, title, content, created_at, updated_at, course_id, topic_id";
 const NOTE_COLUMNS = `${BASE_COLUMNS}, sort_order, shared_by, shared_at`;
 
 function toNote(row: NoteRow): Note {
@@ -23,6 +25,9 @@ function toNote(row: NoteRow): Note {
     id: String(row.id),
     title: row.title,
     html: sanitizeHtml(row.content),
+    createdAt: Number.isNaN(Date.parse(row.created_at))
+      ? Date.now()
+      : Date.parse(row.created_at),
     updatedAt: Number.isNaN(Date.parse(row.updated_at))
       ? Date.now()
       : Date.parse(row.updated_at),
@@ -159,17 +164,29 @@ export interface NotesScope {
   topicIds?: number[];
 }
 
-export async function fetchNotes(scope?: NotesScope): Promise<Note[]> {
+export interface NotesFetchResult {
+  ok: boolean;
+  notes: Note[];
+}
+
+/**
+ * Fetch notes and report whether the request actually succeeded. Screens use
+ * this to keep the last good list instead of wiping it on a network failure;
+ * `fetchNotes` below stays as the simple array-returning helper.
+ */
+export async function fetchNotesWithStatus(
+  scope?: NotesScope,
+): Promise<NotesFetchResult> {
   try {
     const user = await resolveSession();
-    if (!user) return [];
+    if (!user) return { ok: true, notes: [] };
 
     if (
       scope?.courseId == null &&
       scope?.topicIds &&
       scope.topicIds.length === 0
     ) {
-      return [];
+      return { ok: true, notes: [] };
     }
 
     const run = async (withSortOrder: boolean) => {
@@ -204,22 +221,30 @@ export async function fetchNotes(scope?: NotesScope): Promise<Note[]> {
       // Older databases without notes.sort_order still load.
       ({ data, error } = await run(false));
     }
-    if (error || !Array.isArray(data)) return [];
+    if (error || !Array.isArray(data)) return { ok: false, notes: [] };
 
     const rows = data as unknown as NoteRow[];
     const [courseByNote, senderByNote] = await Promise.all([
       loadCourseTitles(rows),
       loadSenderNames(rows),
     ]);
-    return rows.map((row) => {
-      const note = toNote(row);
-      note.courseTitle = courseByNote.get(row.id) ?? null;
-      note.sharedByName = senderByNote.get(row.id) ?? null;
-      return note;
-    });
+    return {
+      ok: true,
+      notes: rows.map((row) => {
+        const note = toNote(row);
+        note.courseTitle = courseByNote.get(row.id) ?? null;
+        note.sharedByName = senderByNote.get(row.id) ?? null;
+        return note;
+      }),
+    };
   } catch {
-    return [];
+    return { ok: false, notes: [] };
   }
+}
+
+/** Array-only helper (quiz setup and other read-only callers). */
+export async function fetchNotes(scope?: NotesScope): Promise<Note[]> {
+  return (await fetchNotesWithStatus(scope)).notes;
 }
 
 /**

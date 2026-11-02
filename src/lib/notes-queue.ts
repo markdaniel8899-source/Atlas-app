@@ -215,6 +215,41 @@ export function isNoteQueued(id: string): boolean {
   return Boolean(op && op.ownerId === currentOwnerId);
 }
 
+export interface QueuedNoteWrite {
+  id: string;
+  deleted: boolean;
+  title: string;
+  html: string;
+  courseId: number | null;
+  topicId: number | null;
+  sortOrder: number | null | undefined;
+  updatedAt: number;
+}
+
+/**
+ * The signed-in owner's unsynced writes, keyed by note id. The Notes screen
+ * overlays these on a fresh fetch so a background reload can never replace
+ * local keystrokes (or resurrect a note that is queued for deletion).
+ */
+export function getQueuedNoteWrites(): Map<string, QueuedNoteWrite> {
+  const result = new Map<string, QueuedNoteWrite>();
+  if (!currentOwnerId) return result;
+  for (const op of ops.values()) {
+    if (op.ownerId !== currentOwnerId) continue;
+    result.set(op.noteId, {
+      id: op.noteId,
+      deleted: op.op === "delete",
+      title: op.title,
+      html: op.html,
+      courseId: op.courseId,
+      topicId: op.topicId,
+      sortOrder: op.sortOrder,
+      updatedAt: op.updatedAt,
+    });
+  }
+  return result;
+}
+
 export function registerNoteIdSwap(
   handler: (tempId: string, realId: string) => void,
 ): () => void {
