@@ -229,6 +229,14 @@
   - Widget polish round 2: glow spots replaced by `src/lib/widgets/widget-mesh.ts` (oversized radial-gradient ellipses fading to transparent, rendered as one full-card `SvgWidget`) so no blob edges show. Week chart is now the CURRENT UTC week Monday to Sunday with an explicit `isToday` flag (`widget-model.ts`), future days render empty; footer enlarged/aligned with a divider (FOCUS TODAY | THIS WEEK XP, labels 9, values 18); streak flame box 42dp with 24dp icon and amber gradient.
   - Verified `npx tsc --noEmit` + `npx expo lint` (only 4 pre-existing warnings). JS-only (OTA-able); widget preview images/splash/icon still need the next `eas build`.
 
+- **Notes editor + drag reorder (2026-11-03, no OTA):**
+  - New `src/lib/code-highlight.ts`: 22 languages (JS/TS/TSX, Python, HTML, CSS, JSON, SQL, Bash, C/C++/C#/Java/Go/Rust/Kotlin/Swift, Markdown, YAML, PHP, Ruby, plaintext) + aliases, generic/highlight engine emitting `cb-tok-*` classes, `renderHighlightedCodeBlock`, `EDITOR_LANGUAGES`; plaintext is HTML-escaped without tokenizing.
+  - `rich-note-editor.tsx`: embedded JS copy of the tokenizer/lang data; every code block renders a `.cb-head` language chip + highlighted `<pre><code>`; fixed `.cb-menu` picker (22 items, pointerdown capture, closes on outside tap); focusout re-highlights; `serializeHtml()` clones the editor and strips `.cb-head` so saved notes keep only `data-code`/`data-language` (+ existing `cb-tok-*` classes survive `sanitizeHtml`). Code sync reads `innerText` (not `textContent`) so Enter/`<div>`/`<br>` line breaks are not lost; empty/legacy blocks default to `javascript`.
+  - `notes-export.ts`: dark website-style export (`#0a0a12`, lilac accents); code blocks are re-highlighted at export time from `data-code`; HTML escaped. Web Blob / Android SAF / expo-sharing unchanged.
+  - `notes.tsx`: reorder-mode button + up/down arrows removed; **long-press drag reorder** (260ms + `Vibration.vibrate(10)`, PanResponder claims after 6px, scroll locked during drag, drop-target highlight, swap by rounded row step, `persistNoteOrder` + best-effort `updateNoteOrder`); release-without-drag swallows the follow-up press (500ms timeout guard); selecting notes cancels drag.
+  - `note-editor-modal.tsx` redesigned: `MeshBackground`, rounded glass header actions, "Note" + saved dot, floating formatting toolbar, `LinearGradient` editor card, grouped actions sheet with handle + delete divider.
+  - Verified: `npx tsc --noEmit`, `npx expo lint` (only the 3 pre-existing warnings), `npx expo export --platform web` (20 static routes), Node unit checks for the highlighter/export, and an Edge headless DOM harness for the editor JS (tokens, picker, serialize, multiline `innerText`, plaintext escaping). Drag reorder still needs a device pass. No OTA published.
+
 ## Workflow Preferences (user)
 - User communicates in **Roman Urdu** — reply concisely in Roman Urdu.
 - Do not ask for confirmation mid-task; finish the task, then report.

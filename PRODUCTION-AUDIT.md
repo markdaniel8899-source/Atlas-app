@@ -1,8 +1,8 @@
 # ATLAS — Production Audit & Feature Report
 
-> **Baseline:** 2026-10-18 (`4a6b8f9`) · **Last update:** 2026-10-27 (`aad102a`) · **Branch:** main · **App:** ATLAS (Expo SDK 57 / RN 0.86, runtime 1.0.2)
+> **Baseline:** 2026-10-18 (`4a6b8f9`) · **Last update:** 2026-11-03 · **Branch:** main · **App:** ATLAS (Expo SDK 57 / RN 0.86, runtime 1.0.2)
 > Ye file app ki current **production readiness**, tamam **shipped features** aur overall **state** ka single source of truth hai. Koi bhi naya session isay pehle parh le.
-> **Update 2026-10-27:** Notes parity batch shipped (bulk download/share/move, sender badge, manual order, collapsible groups, realtime). Per-batch log `AGENTS.md` mein hai; baqi sections 2026-10-18 baseline hain.
+> **Update 2026-11-03:** Notes editor code blocks ab website jaisa syntax-highlighted hain (22 languages + language picker), dark export, long-press drag reorder (arrows/reorder-mode hata diye), aur note editor modal redesign. Per-batch log `AGENTS.md` mein hai; baqi sections 2026-10-18 baseline hain.
 
 ---
 
@@ -29,7 +29,7 @@
 | Focus Timer | ✅ Done | Offline-safe, server-authoritative XP |
 | Roadmap | ✅ Done | Map + builder + AI generation + resources |
 | Courses | ✅ Done | Topics CRUD, progress recompute, user-scoped |
-| Notes | ✅ Done | Rich editor, offline queue, sanitizer; bulk download/share/move, sender badge, manual order, collapsible groups, realtime |
+| Notes | ✅ Done | Rich editor with highlighted code blocks + language picker, offline queue, sanitizer; bulk download/share/move, sender badge, long-press drag order, collapsible groups, realtime |
 | Quiz | ✅ Done | AI generation, tab-switch proof store, honest sync note |
 | AI Assistant | ✅ Done | Thread 24h persist, in-flight survival (backend-dependent) |
 | Leaderboard | ✅ Done | Weekly, honest error/empty states |
@@ -89,10 +89,12 @@
 - **Offline queue**: latest-wins per note, temp `local-…` ids + id-swap, retry on edit / 15s interval / foreground; per-account alag (owner-scoped); permanently failing ops (constraint/RLS) drop hoti hain, network/session errors retry
 - Title cap 160 + server-side clamp ("Untitled note" fallback), "Offline · N to sync" indicator, delete confirm
 - **Notes sharing** (`src/lib/db/shares.ts`, `supabase/note-sharing.sql`): editor ke Share2 button se accepted friend picker khulta hai; server RPC ownership + friendship check ke baad note ki copy seedha friend ke `notes` mein insert karta hai (koi naya tab/inbox nahi). Multi-select bulk share bhi (`bulk-share-modal.tsx`). Shared notes pe "Shared by <name>" badge (`shared_by`/`shared_at`).
-- **Bulk download** (`src/lib/notes-export.ts`): selected notes ek HTML file mein (sanitized content, website jaisa print CSS). Web = Blob download; Android = SAF folder picker; iOS/fallback = lazy `expo-sharing` (native module, next APK).
-- **Manual order**: `notes.sort_order` + local fallback `src/lib/notes-order.ts`; Reorder mode ke up/down arrows; best-effort `updateNoteOrder(ids)` sync; new notes top pe (negative sort).
+- **Code blocks** (`src/lib/code-highlight.ts`, `src/components/notes/rich-note-editor.tsx`): website jaisa syntax highlighting - 22 languages (JS/TS/TSX, Python, HTML, CSS, JSON, SQL, Bash, C/C++/C#/Java/Go/Rust/Kotlin/Swift, Markdown, YAML, PHP, Ruby, plaintext) + aliases, token classes `cb-tok-*`, floating language picker chip, Enter/newline safe sync (`innerText`), sanitizer `cb-tok-*` classes + `data-code`/`data-language` preserve karta hai.
+- **Bulk download** (`src/lib/notes-export.ts`): selected notes ek **dark-themed** HTML file mein (website jaisa layout, code blocks export ke waqt re-highlight). Web = Blob download; Android = SAF folder picker; iOS/fallback = lazy `expo-sharing` (native module, next APK).
+- **Manual order**: `notes.sort_order` + local fallback `src/lib/notes-order.ts`; **long-press drag** se reorder (260ms arm + haptic, drop highlight, scroll lock), best-effort `updateNoteOrder(ids)` sync; new notes top pe (negative sort). Purana arrows/reorder-mode UI hata diya.
+- **Editor modal** (`src/components/notes/note-editor-modal.tsx`): themed sheet - mesh backdrop, rounded glass header actions, saved dot, floating formatting toolbar, gradient editor card, grouped actions menu.
 - **Groups**: collapsible course/general headers with counts; realtime `notes` subscription (user-filtered, 1800ms debounce).
-- **SQL status:** naya `note-sharing.sql` (columns + RPC + realtime publication) **user ko ek dafa Supabase SQL editor mein run karna hai**; jab tak run nahi, badge/realtime/sort sync DB-side active nahi.
+- **SQL status:** `note-sharing.sql` (columns + RPC + realtime publication) user ne 2026-10-19 ko run kar diya; live probe: `share_note` anon → 401, old `note_shares` objects 404.
 
 ### 3.7 Quiz (`src/app/quiz.tsx`, `src/lib/quiz-store.ts`)
 - AI generation + auto-grading (backend: qwen3.8-27b)

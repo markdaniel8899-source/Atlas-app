@@ -13,6 +13,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   BookOpen,
@@ -33,6 +34,7 @@ import {
 } from "lucide-react-native";
 import type { Note } from "../../lib/notes";
 import { colors, fonts } from "../../theme/theme";
+import { MeshBackground } from "../mesh-background";
 import { RichNoteEditor } from "./rich-note-editor";
 import type {
   EditorCommandState,
@@ -193,7 +195,9 @@ export function NoteEditorModal({
         behavior="padding"
         keyboardVerticalOffset={0}
       >
-        <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
+        <MeshBackground />
+
+        <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Close note editor"
@@ -203,16 +207,19 @@ export function NoteEditorModal({
               pressed && styles.headerButtonPressed,
             ]}
           >
-            <ChevronLeft size={22} color={colors.w70} />
+            <ChevronLeft size={21} color={colors.w80} />
           </Pressable>
 
           <View style={styles.headerCenter}>
             <Text style={styles.headerEyebrow}>Note</Text>
-            <Animated.Text
-              style={[styles.savedText, { opacity: savedAnim }]}
-            >
-              Saved
-            </Animated.Text>
+            <View style={styles.savedRow}>
+              <View style={styles.savedDot} />
+              <Animated.Text
+                style={[styles.savedText, { opacity: savedAnim }]}
+              >
+                Saved
+              </Animated.Text>
+            </View>
           </View>
 
           <Pressable
@@ -224,11 +231,11 @@ export function NoteEditorModal({
               pressed && styles.headerButtonPressed,
             ]}
           >
-            <MoreHorizontal size={22} color={colors.w70} />
+            <MoreHorizontal size={21} color={colors.w80} />
           </Pressable>
         </View>
 
-        <View style={styles.toolbarWrap}>
+        <View style={styles.toolbarCard}>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -257,7 +264,7 @@ export function NoteEditorModal({
                     ]}
                   >
                     <Icon
-                      size={17}
+                      size={16}
                       color={active ? colors.lilac : colors.w45}
                     />
                   </Pressable>
@@ -267,7 +274,8 @@ export function NoteEditorModal({
           </ScrollView>
         </View>
 
-        <View style={styles.titleRow}>
+        <View style={styles.titleBlock}>
+          <Text style={styles.titleEyebrow}>Title</Text>
           <TextInput
             keyboardAppearance="dark"
             value={title}
@@ -280,21 +288,39 @@ export function NoteEditorModal({
           />
         </View>
 
-        <View style={[styles.editorArea, { paddingBottom: insets.bottom }]}>
-          {note && visible && editorReady ? (
-            <RichNoteEditor
-              ref={editorRef}
-              noteId={note.id}
-              html={note.html}
-              onChange={onChangeHtml}
-              onStateChange={setToolState}
-              fill
+        <View
+          style={[
+            styles.editorArea,
+            { paddingBottom: Math.max(insets.bottom, 10) },
+          ]}
+        >
+          <View style={styles.editorCard}>
+            <LinearGradient
+              colors={[
+                "rgba(207,158,255,0.38)",
+                "rgba(207,158,255,0.10)",
+                "transparent",
+              ]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.editorAccent}
+              pointerEvents="none"
             />
-          ) : (
-            <View style={styles.editorPlaceholder}>
-              <ActivityIndicator size="small" color={colors.lilac} />
-            </View>
-          )}
+            {note && visible && editorReady ? (
+              <RichNoteEditor
+                ref={editorRef}
+                noteId={note.id}
+                html={note.html}
+                onChange={onChangeHtml}
+                onStateChange={setToolState}
+                fill
+              />
+            ) : (
+              <View style={styles.editorPlaceholder}>
+                <ActivityIndicator size="small" color={colors.lilac} />
+              </View>
+            )}
+          </View>
         </View>
 
         {menuOpen ? (
@@ -311,8 +337,9 @@ export function NoteEditorModal({
                 { paddingBottom: insets.bottom + 14 },
               ]}
             >
+              <View style={styles.menuHandle} />
               <View style={styles.menuHeader}>
-                <Text style={styles.menuTitle}>Note options</Text>
+                <Text style={styles.menuTitle}>Note actions</Text>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Close note options"
@@ -380,6 +407,8 @@ export function NoteEditorModal({
                 </View>
               </Pressable>
 
+              <View style={styles.menuDivider} />
+
               <Pressable
                 accessibilityRole="button"
                 onPress={() => runAction(onDelete)}
@@ -414,88 +443,129 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 10,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.w06,
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingBottom: 6,
   },
   headerButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 42,
+    height: 42,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.w06,
+    backgroundColor: colors.w04,
     alignItems: "center",
     justifyContent: "center",
   },
   headerButtonPressed: {
-    backgroundColor: colors.w07,
+    backgroundColor: colors.w08,
   },
   headerCenter: {
     flex: 1,
     minWidth: 0,
     alignItems: "center",
-    flexDirection: "row",
     justifyContent: "center",
-    gap: 8,
+    gap: 2,
   },
   headerEyebrow: {
-    fontSize: 10.5,
+    fontSize: 9.5,
     fontFamily: fonts.medium,
-    letterSpacing: 2.2,
+    letterSpacing: 2.4,
     textTransform: "uppercase",
     color: colors.w40,
   },
+  savedRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    height: 14,
+  },
+  savedDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.lilac,
+  },
   savedText: {
-    fontSize: 11.5,
+    fontSize: 11,
     fontFamily: fonts.medium,
     color: colors.lilac70,
   },
-  toolbarWrap: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.w06,
+  toolbarCard: {
+    marginHorizontal: 14,
+    marginTop: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.w06,
+    backgroundColor: "rgba(255,255,255,0.03)",
+    overflow: "hidden",
   },
   toolbar: {
     flexDirection: "row",
     alignItems: "center",
     gap: 2,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 5,
   },
   toolDivider: {
     width: 1,
-    height: 20,
+    height: 18,
     marginHorizontal: 5,
     backgroundColor: colors.w08,
   },
   toolButton: {
-    width: 40,
-    height: 40,
+    width: 38,
+    height: 38,
     borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "transparent",
     alignItems: "center",
     justifyContent: "center",
   },
   toolButtonActive: {
+    borderColor: colors.lilac25,
     backgroundColor: colors.lilac12,
   },
   toolButtonPressed: {
-    backgroundColor: colors.w07,
+    backgroundColor: colors.w05,
   },
-  titleRow: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.w06,
+  titleBlock: {
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingTop: 16,
+    paddingBottom: 10,
+  },
+  titleEyebrow: {
+    marginBottom: 4,
+    fontSize: 9.5,
+    fontFamily: fonts.medium,
+    letterSpacing: 2.2,
+    textTransform: "uppercase",
+    color: colors.w30,
   },
   titleInput: {
     padding: 0,
-    fontSize: 21,
+    fontSize: 24,
     fontFamily: fonts.semibold,
-    letterSpacing: -0.5,
+    letterSpacing: -0.6,
     color: colors.white,
   },
   editorArea: {
     flex: 1,
     minHeight: 0,
+    paddingHorizontal: 14,
+  },
+  editorCard: {
+    flex: 1,
+    minHeight: 0,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.w08,
+    backgroundColor: "rgba(7,7,14,0.62)",
+    overflow: "hidden",
+  },
+  editorAccent: {
+    height: 1.5,
+    width: "100%",
   },
   editorPlaceholder: {
     flex: 1,
@@ -511,15 +581,15 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   menuBackdrop: {
-    backgroundColor: "rgba(0,0,0,0.55)",
+    backgroundColor: "rgba(0,0,0,0.62)",
   },
   menuSheet: {
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     borderWidth: 1,
     borderBottomWidth: 0,
     borderColor: colors.w10,
-    backgroundColor: "#0c0c16",
+    backgroundColor: "#0a0a13",
     paddingTop: 8,
     paddingHorizontal: 8,
     shadowColor: "#000000",
@@ -528,12 +598,27 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -10 },
     elevation: 24,
   },
+  menuHandle: {
+    alignSelf: "center",
+    width: 38,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.w15,
+    marginTop: 2,
+    marginBottom: 10,
+  },
   menuHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 6,
+  },
+  menuDivider: {
+    height: 1,
+    marginHorizontal: 12,
+    marginVertical: 6,
+    backgroundColor: colors.w06,
   },
   menuTitle: {
     fontSize: 11,
@@ -561,8 +646,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.w05,
   },
   menuIcon: {
-    width: 38,
-    height: 38,
+    width: 40,
+    height: 40,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.lilac25,
@@ -571,7 +656,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   menuIconDanger: {
-    borderColor: "rgba(248,113,113,0.25)",
+    borderColor: "rgba(248,113,113,0.28)",
     backgroundColor: "rgba(239,68,68,0.10)",
   },
   menuText: {

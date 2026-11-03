@@ -12,6 +12,7 @@ import {
   Alert,
   Animated,
   Modal,
+  PanResponder,
   Platform,
   Pressable,
   RefreshControl,
@@ -19,6 +20,7 @@ import {
   SectionList,
   StyleSheet,
   Text,
+  Vibration,
   View,
 } from "react-native";
 import {
@@ -27,9 +29,6 @@ import {
   useRouter,
 } from "expo-router";
 import {
-  ArrowDown,
-  ArrowUp,
-  ArrowUpDown,
   BookOpen,
   Check,
   ChevronDown,
@@ -211,11 +210,15 @@ const NoteRow = memo(function NoteRow({
   selectionMode,
   selected,
   onToggle,
-  reorderMode,
-  canMoveUp,
-  canMoveDown,
-  onMoveUp,
-  onMoveDown,
+  sectionKey,
+  index,
+  count,
+  dragging,
+  dropTarget,
+  onDragArm,
+  onDragOver,
+  onDragDrop,
+  onDragAbort,
 }: {
   note: Note;
   active: boolean;
@@ -223,11 +226,15 @@ const NoteRow = memo(function NoteRow({
   selectionMode: boolean;
   selected: boolean;
   onToggle: (id: string) => void;
-  reorderMode: boolean;
-  canMoveUp: boolean;
-  canMoveDown: boolean;
-  onMoveUp: (id: string) => void;
-  onMoveDown: (id: string) => void;
+  sectionKey: string;
+  index: number;
+  count: number;
+  dragging: boolean;
+  dropTarget: boolean;
+  onDragArm: (id: string, sectionKey: string, index: number) => void;
+  onDragOver: (id: string, to: number) => void;
+  onDragDrop: () => void;
+  onDragAbort: () => void;
 }) {
   const sharedLabel = selectionMode
     ? null
@@ -236,19 +243,141 @@ const NoteRow = memo(function NoteRow({
     ? `${selected ? "Deselect" : "Select"} note ${note.title || "Untitled note"}`
     : `Open note ${note.title || "Untitled note"}`;
 
+  const dragY = useRef(new Animated.Value(0)).current;
+  const [armed, setArmed] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const armedRef = useRef(false);
+  const draggingRef = useRef(false);
+  const suppressPressRef = useRef(false);
+  const stepRef = useRef(66);
+  const liveRef = useRef({
+    id: note.id,
+    sectionKey,
+    index,
+    count,
+    selectionMode,
+    onDragArm,
+    onDragOver,
+    onDragDrop,
+    onDragAbort,
+  });
+  liveRef.current = {
+    id: note.id,
+    sectionKey,
+    index,
+    count,
+    selectionMode,
+    onDragArm,
+    onDragOver,
+    onDragDrop,
+    onDragAbort,
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_event, gesture) => {
+        if (!armedRef.current) return false;
+        return Math.abs(gesture.dy) > 6;
+      },
+      onMoveShouldSetPanResponderCapture: (_event, gesture) => {
+        if (!armedRef.current) return false;
+        return Math.abs(gesture.dy) > 6;
+      },
+      onPanResponderGrant: () => {
+        if (!armedRef.current) return;
+        const live = liveRef.current;
+        draggingRef.current = true;
+        setIsDragging(true);
+        dragY.setValue(0);
+        live.onDragArm(live.id, live.sectionKey, live.index);
+      },
+      onPanResponderMove: (_event, gesture) => {
+        const live = liveRef.current;
+        dragY.setValue(gesture.dy);
+        const offset = Math.round(gesture.dy / stepRef.current);
+        const to = Math.max(0, Math.min(live.count - 1, live.index + offset));
+        live.onDragOver(live.id, to);
+      },
+      onPanResponderRelease: () => {
+        draggingRef.current = false;
+        armedRef.current = false;
+        suppressPressRef.current = false;
+        setIsDragging(false);
+        setArmed(false);
+        dragY.setValue(0);
+        liveRef.current.onDragDrop();
+      },
+      onPanResponderTerminate: () => {
+        draggingRef.current = false;
+        armedRef.current = false;
+        suppressPressRef.current = false;
+        setIsDragging(false);
+        setArmed(false);
+        dragY.setValue(0);
+        liveRef.current.onDragAbort();
+      },
+      onPanResponderTerminationRequest: () => false,
+    }),
+  ).current;
+
+  const armDrag = () => {
+    if (selectionMode || armedRef.current) return;
+    armedRef.current = true;
+    suppressPressRef.current = true;
+    setArmed(true);
+    Vibration.vibrate(10);
+    onDragArm(note.id, sectionKey, index);
+  };
+
+  const releaseArm = () => {
+    if (draggingRef.current) return;
+    const wasArmed = armedRef.current;
+    armedRef.current = false;
+    setArmed(false);
+    if (!wasArmed) return;
+    onDragAbort();
+    setTimeout(() => {
+      suppressPressRef.current = false;
+    }, 500);
+  };
+
   return (
-    <View
+    <Animated.View
+      {...panResponder.panHandlers}
+      onLayout={(event) => {
+        stepRef.current = event.nativeEvent.layout.height + 6;
+      }}
       style={[
         styles.noteItem,
-        active && !selectionMode && !reorderMode ? styles.noteItemActive : null,
+        active && !selectionMode ? styles.noteItemActive : null,
         selected ? styles.noteItemSelected : null,
+        armed && !isDragging ? styles.noteItemArmed : null,
+        isDragging ? styles.noteItemDragging : null,
+        dropTarget && !isDragging ? styles.noteItemDropTarget : null,
+        {
+          transform: [
+            { translateY: dragY },
+            { scale: isDragging ? 1.02 : armed ? 1.01 : 1 },
+          ],
+        },
       ]}
     >
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
         accessibilityState={selectionMode ? { selected } : undefined}
-        onPress={() => (selectionMode ? onToggle(note.id) : onPress(note.id))}
+        delayLongPress={260}
+        onLongPress={armDrag}
+        onPressOut={releaseArm}
+        onPress={() => {
+          if (suppressPressRef.current) {
+            suppressPressRef.current = false;
+            return;
+          }
+          if (selectionMode) onToggle(note.id);
+          else onPress(note.id);
+        }}
         style={styles.noteItemMain}
       >
         <View style={styles.noteItemContent}>
@@ -288,41 +417,7 @@ const NoteRow = memo(function NoteRow({
           </View>
         ) : null}
       </Pressable>
-
-      {reorderMode ? (
-        <View style={styles.reorderControls}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Move note up"
-            disabled={!canMoveUp}
-            onPress={() => onMoveUp(note.id)}
-            style={({ pressed }) => [
-              styles.reorderButton,
-              !canMoveUp && styles.reorderButtonOff,
-              pressed && canMoveUp ? styles.reorderButtonPressed : null,
-            ]}
-          >
-            <ArrowUp size={16} color={canMoveUp ? colors.lilac : colors.w20} />
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Move note down"
-            disabled={!canMoveDown}
-            onPress={() => onMoveDown(note.id)}
-            style={({ pressed }) => [
-              styles.reorderButton,
-              !canMoveDown && styles.reorderButtonOff,
-              pressed && canMoveDown ? styles.reorderButtonPressed : null,
-            ]}
-          >
-            <ArrowDown
-              size={16}
-              color={canMoveDown ? colors.lilac : colors.w20}
-            />
-          </Pressable>
-        </View>
-      ) : null}
-    </View>
+    </Animated.View>
   );
 });
 
@@ -356,7 +451,7 @@ export default function NotesScreen() {
   const [stale, setStale] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Website-parity extras: multi-select bulk actions, reorder mode,
+  // Website-parity extras: multi-select bulk actions, long-press ordering,
   // collapsible subject groups and moving a note between courses.
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -364,7 +459,12 @@ export default function NotesScreen() {
   const [bulkShareOpen, setBulkShareOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [moveIds, setMoveIds] = useState<string[]>([]);
-  const [reorderMode, setReorderMode] = useState(false);
+  const [drag, setDrag] = useState<{
+    id: string;
+    sectionKey: string;
+    from: number;
+    to: number;
+  } | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
     new Set(),
   );
@@ -389,6 +489,8 @@ export default function NotesScreen() {
   const noteOrderRef = useRef<string[]>([]);
   const queueRef = useRef(queue);
   const loadSeqRef = useRef(0);
+  const dragRef = useRef<typeof drag>(null);
+  const sectionsRef = useRef<NoteSection[]>([]);
 
   const rawCourseId = Array.isArray(params.courseId)
     ? params.courseId[0]
@@ -696,13 +798,6 @@ export default function NotesScreen() {
   }, [notes, selectedCourseId, courses]);
 
   const sections = useMemo<NoteSection[]>(() => {
-    // Manual reorder works on one predictable flat list (groups would make
-    // an up/down move jump between sections).
-    if (reorderMode) {
-      return notes.length > 0
-        ? [{ key: "reorder", subject: "", data: notes, count: notes.length }]
-        : [];
-    }
     if (groupedNotes) {
       return groupedNotes.map(([key, group]) => ({
         key,
@@ -714,7 +809,11 @@ export default function NotesScreen() {
     return notes.length > 0
       ? [{ key: "flat", subject: "", data: notes, count: notes.length }]
       : [];
-  }, [groupedNotes, notes, reorderMode, collapsedGroups]);
+  }, [groupedNotes, notes, collapsedGroups]);
+
+  useEffect(() => {
+    sectionsRef.current = sections;
+  }, [sections]);
 
   useEffect(() => {
     activeRef.current = activeId;
@@ -875,7 +974,8 @@ export default function NotesScreen() {
 
   const enterSelection = useCallback(() => {
     flushPendingRef.current();
-    setReorderMode(false);
+    setDrag(null);
+    dragRef.current = null;
     setSelectionMode(true);
     setSelectedIds(new Set(activeRef.current ? [activeRef.current] : []));
   }, []);
@@ -897,49 +997,64 @@ export default function NotesScreen() {
     );
   }, []);
 
-  const enterReorder = useCallback(() => {
+  /** Long press armed (scroll paused before the finger moves). */
+  const armDrag = useCallback((id: string, sectionKey: string, index: number) => {
     flushPendingRef.current();
-    setSelectionMode(false);
-    setSelectedIds(new Set());
-    setReorderMode(true);
+    if (dragRef.current) return;
+    const next = { id, sectionKey, from: index, to: index };
+    dragRef.current = next;
+    setDrag(next);
   }, []);
 
-  const leaveReorder = useCallback(() => {
-    setReorderMode(false);
+  const overDrag = useCallback((id: string, to: number) => {
+    const current = dragRef.current;
+    if (!current || current.id !== id || current.to === to) return;
+    const next = { ...current, to };
+    dragRef.current = next;
+    setDrag(next);
   }, []);
 
-  const moveNote = useCallback(
-    (id: string, direction: -1 | 1) => {
-      const current = notesRef.current;
-      const index = current.findIndex((note) => note.id === id);
-      const target = index + direction;
-      if (index < 0 || target < 0 || target >= current.length) return;
+  const abortDrag = useCallback(() => {
+    dragRef.current = null;
+    setDrag(null);
+  }, []);
 
-      flushPendingRef.current();
+  /** Drop: move the note to the hovered slot inside its own group. */
+  const finishDrag = useCallback(() => {
+    const current = dragRef.current;
+    dragRef.current = null;
+    setDrag(null);
+    if (!current) return;
 
-      const next = [...current];
-      const [moved] = next.splice(index, 1);
-      next.splice(target, 0, moved);
-      const ids = next.map((note) => note.id);
+    const section = sectionsRef.current.find(
+      (item) => item.key === current.sectionKey,
+    );
+    const ids = section?.data.map((note) => note.id) ?? [];
+    const from = ids.indexOf(current.id);
+    const to = Math.max(0, Math.min(ids.length - 1, current.to));
+    if (from < 0 || ids.length === 0 || from === to) return;
 
-      notesRef.current = next;
-      setNotes(next);
-      persistNoteOrder(ids);
-      // Best-effort server sync (same as the website). The local copy above
-      // keeps the order across app restarts even when this request fails.
-      void updateNoteOrder(ids);
-    },
-    [persistNoteOrder],
-  );
+    const ordered = [...ids];
+    const [moved] = ordered.splice(from, 1);
+    ordered.splice(to, 0, moved);
+    const sectionIds = new Set(ordered);
 
-  const moveNoteUp = useCallback(
-    (id: string) => moveNote(id, -1),
-    [moveNote],
-  );
-  const moveNoteDown = useCallback(
-    (id: string) => moveNote(id, 1),
-    [moveNote],
-  );
+    const byId = new Map(notesRef.current.map((note) => [note.id, note]));
+    let cursor = 0;
+    const next = notesRef.current.map((note) => {
+      if (!sectionIds.has(note.id)) return note;
+      const nextId = ordered[cursor++];
+      return byId.get(nextId) ?? note;
+    });
+    const allIds = next.map((note) => note.id);
+
+    notesRef.current = next;
+    setNotes(next);
+    persistNoteOrder(allIds);
+    // Best-effort server sync (same as the website). The local copy above
+    // keeps the order across app restarts even when this request fails.
+    void updateNoteOrder(allIds);
+  }, [persistNoteOrder]);
 
   const selectedNotes = useMemo(
     () => notes.filter((note) => selectedIds.has(note.id)),
@@ -1281,37 +1396,12 @@ export default function NotesScreen() {
           </Text>
         </Pressable>
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={
-            reorderMode ? "Finish reordering notes" : "Reorder notes manually"
-          }
-          accessibilityState={{ selected: reorderMode }}
-          onPress={reorderMode ? leaveReorder : enterReorder}
-          style={({ pressed }) => [
-            styles.modeButton,
-            reorderMode && styles.modeButtonActive,
-            pressed && styles.pressed,
-          ]}
-        >
-          <ArrowUpDown
-            size={14}
-            color={reorderMode ? colors.lilac : colors.w45}
-          />
-          <Text
-            style={[
-              styles.modeButtonText,
-              reorderMode && styles.modeButtonTextActive,
-            ]}
-          >
-            {reorderMode ? "Done" : "Reorder"}
-          </Text>
-        </Pressable>
-
         {selectionMode ? (
           <Text style={styles.selectionHint}>
             {selectedIds.size} selected
           </Text>
+        ) : notes.length > 1 ? (
+          <Text style={styles.reorderHint}>Hold a note to reorder</Text>
         ) : null}
       </View>
 
@@ -1347,10 +1437,10 @@ export default function NotesScreen() {
             extraData={{
               activeId,
               selectionMode,
-              reorderMode,
               selectedIds,
+              drag,
             }}
-            renderItem={({ item, index }) => (
+            renderItem={({ item, index, section }) => (
               <NoteRow
                 note={item}
                 active={item.id === activeId}
@@ -1358,11 +1448,20 @@ export default function NotesScreen() {
                 selectionMode={selectionMode}
                 selected={selectedIds.has(item.id)}
                 onToggle={toggleSelected}
-                reorderMode={reorderMode}
-                canMoveUp={index > 0}
-                canMoveDown={index < notes.length - 1}
-                onMoveUp={moveNoteUp}
-                onMoveDown={moveNoteDown}
+                sectionKey={section.key}
+                index={index}
+                count={section.data.length}
+                dragging={drag?.id === item.id}
+                dropTarget={
+                  drag != null &&
+                  drag.sectionKey === section.key &&
+                  drag.id !== item.id &&
+                  drag.to === index
+                }
+                onDragArm={armDrag}
+                onDragOver={overDrag}
+                onDragDrop={finishDrag}
+                onDragAbort={abortDrag}
               />
             )}
             renderSectionHeader={({ section }) =>
@@ -1401,10 +1500,11 @@ export default function NotesScreen() {
             showsVerticalScrollIndicator={false}
             stickySectionHeadersEnabled={false}
             nestedScrollEnabled
+            scrollEnabled={drag == null}
             initialNumToRender={12}
             maxToRenderPerBatch={10}
             windowSize={7}
-            removeClippedSubviews={Platform.OS === "android"}
+            removeClippedSubviews={Platform.OS === "android" && drag == null}
           />
         )}
       </Card>
@@ -1531,31 +1631,6 @@ export default function NotesScreen() {
                 Download saves one HTML file for every selected note.
               </Text>
             </View>
-          </View>
-        </Card>
-      ) : reorderMode ? (
-        <Card padded={false} style={styles.actionCard}>
-          <View style={styles.reorderBar}>
-            <View style={styles.bulkIcon}>
-              <ArrowUpDown size={18} color={colors.lilac} />
-            </View>
-            <View style={styles.bulkHeaderText}>
-              <Text style={styles.bulkEyebrow}>Manual order</Text>
-              <Text style={styles.reorderInlineText}>
-                Use the arrows next to each note.
-              </Text>
-            </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Finish reordering notes"
-              onPress={leaveReorder}
-              style={({ pressed }) => [
-                styles.doneButton,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text style={styles.doneButtonText}>Done</Text>
-            </Pressable>
           </View>
         </Card>
       ) : null}
@@ -1818,6 +1893,12 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     color: colors.w40,
   },
+  reorderHint: {
+    marginLeft: "auto",
+    fontSize: 11.5,
+    fontFamily: fonts.regular,
+    color: colors.w30,
+  },
   listCard: {
     overflow: "hidden",
   },
@@ -1880,12 +1961,9 @@ const styles = StyleSheet.create({
   noteItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "transparent",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
   },
   noteItemActive: {
     borderColor: colors.w10,
@@ -1895,12 +1973,33 @@ const styles = StyleSheet.create({
     borderColor: colors.lilac25,
     backgroundColor: colors.lilac10,
   },
+  noteItemArmed: {
+    borderColor: "rgba(207,158,255,0.30)",
+    backgroundColor: "rgba(207,158,255,0.06)",
+  },
+  noteItemDragging: {
+    zIndex: 30,
+    elevation: 18,
+    borderColor: "rgba(207,158,255,0.50)",
+    backgroundColor: "#171425",
+    shadowColor: "#000000",
+    shadowOpacity: 0.55,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+  },
+  noteItemDropTarget: {
+    borderColor: "rgba(207,158,255,0.38)",
+    borderStyle: "dashed",
+    backgroundColor: "rgba(207,158,255,0.05)",
+  },
   noteItemMain: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
     minWidth: 0,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
   noteItemContent: {
     flex: 1,
@@ -1919,24 +2018,6 @@ const styles = StyleSheet.create({
   checkboxOn: {
     borderColor: colors.lilac,
     backgroundColor: colors.lilac12,
-  },
-  reorderControls: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 2,
-  },
-  reorderButton: {
-    width: 32,
-    height: 36,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  reorderButtonOff: {
-    opacity: 0.4,
-  },
-  reorderButtonPressed: {
-    backgroundColor: colors.w07,
   },
   noteItemMeta: {
     marginTop: 2,
@@ -2067,34 +2148,6 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     fontFamily: fonts.regular,
     color: colors.w35,
-  },
-  doneButton: {
-    minHeight: 36,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.lilac25,
-    backgroundColor: colors.lilac10,
-    paddingHorizontal: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  doneButtonText: {
-    fontSize: 12.5,
-    fontFamily: fonts.medium,
-    color: colors.lilac,
-  },
-  reorderBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    padding: 16,
-  },
-  reorderInlineText: {
-    marginTop: 2,
-    fontSize: 12.5,
-    lineHeight: 18,
-    fontFamily: fonts.regular,
-    color: colors.w45,
   },
   footnote: {
     fontSize: 12,

@@ -1,5 +1,10 @@
 import { Platform } from "react-native";
 import type * as ExpoFileSystem from "expo-file-system/legacy";
+import {
+  escapeCodeAttribute,
+  normalizeLanguageId,
+  renderHighlightedCodeBlock,
+} from "./code-highlight";
 import { sanitizeHtml } from "./notes";
 
 export interface ExportNote {
@@ -22,89 +27,281 @@ function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
+function decodeEntities(value: string): string {
+  return value
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex: string) =>
+      String.fromCharCode(parseInt(hex, 16)),
+    )
+    .replace(/&#(\d+);/g, (_, dec: string) =>
+      String.fromCharCode(parseInt(dec, 10)),
+    )
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&");
+}
+
+function attrValue(attrs: string, name: string): string | null {
+  const match = new RegExp(
+    `\\b${name}\\s*=\\s*("([^"]*)"|'([^']*)')`,
+    "i",
+  ).exec(attrs);
+  if (!match) return null;
+  return match[2] ?? match[3] ?? "";
+}
+
+const BLOCK_OPEN =
+  /<div class="atomic-code-block"([^>]*)>/g;
+
+/** Index just past the matching `</div>` of the block that starts at `from`. */
+function findBlockEnd(html: string, from: number): number {
+  let depth = 1;
+  const tag = /<\/?div\b[^>]*>/gi;
+  tag.lastIndex = from;
+  let match: RegExpExecArray | null;
+  while ((match = tag.exec(html))) {
+    if (match[0].startsWith("</")) depth -= 1;
+    else depth += 1;
+    if (depth === 0) return match.index + match[0].length;
+  }
+  return -1;
+}
+
+function stripTags(value: string): string {
+  return decodeEntities(value.replace(/<[^>]*>/g, ""));
+}
+
+/**
+ * Replace every persisted atomic code block with the website's highlighted
+ * view (line numbers + `cb-tok-*` colours). Stored blocks keep their raw
+ * source in `data-code`, so the exported file always re-highlights cleanly.
+ */
+function renderCodeBlocks(html: string): string {
+  let out = "";
+  let cursor = 0;
+  BLOCK_OPEN.lastIndex = 0;
+
+  let match: RegExpExecArray | null;
+  while ((match = BLOCK_OPEN.exec(html))) {
+    const start = match.index;
+    if (start < cursor) continue;
+    const innerStart = BLOCK_OPEN.lastIndex;
+    const blockEnd = findBlockEnd(html, innerStart);
+    if (blockEnd < 0) continue;
+
+    const attrs = match[1] ?? "";
+    const language = normalizeLanguageId(
+      attrValue(attrs, "data-language") ?? "plaintext",
+    );
+    const rawCode = attrValue(attrs, "data-code");
+    const code =
+      rawCode != null ? decodeEntities(rawCode) : stripTags(html.slice(innerStart, blockEnd));
+
+    out += html.slice(cursor, start);
+    out +=
+      `<div class="atomic-code-block"` +
+      ` data-language="${escapeCodeAttribute(language)}"` +
+      ` data-code="${escapeCodeAttribute(code)}"` +
+      ` contenteditable="false">` +
+      renderHighlightedCodeBlock(code, language) +
+      `</div>`;
+
+    cursor = blockEnd;
+    BLOCK_OPEN.lastIndex = blockEnd;
+  }
+
+  out += html.slice(cursor);
+  return out;
+}
+
+/** Website-parity dark document (theme.css from the web notes exporter). */
 const EXPORT_STYLE = `
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { background: #0a0a12; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    line-height: 1.6;
-    color: #333;
-    max-width: 800px;
-    margin: 40px auto;
-    padding: 20px;
-    background: #ffffff;
-  }
-  h1, h2, h3, h4, h5, h6 {
-    color: #111;
-    margin-top: 24px;
-    margin-bottom: 12px;
-    line-height: 1.3;
-  }
-  h1 { font-size: 2.5rem; border-bottom: 2px solid #eaeaea; padding-bottom: 8px; }
-  h2 { font-size: 1.8rem; }
-  h3 { font-size: 1.4rem; }
-  p { margin: 12px 0; }
-  ul, ol { margin: 12px 0; padding-left: 24px; }
-  li { margin: 6px 0; }
-  code {
-    background: #f4f4f4;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-family: "SF Mono", "Fira Code", "Monaco", monospace;
-    font-size: 0.9em;
-  }
-  pre {
-    background: #1e1e1e;
+    margin: 0;
     color: #d4d4d4;
-    padding: 16px;
-    border-radius: 8px;
-    overflow-x: auto;
-    margin: 16px 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
   }
-  pre code { background: none; padding: 0; color: inherit; font-size: 0.9rem; }
-  blockquote {
-    border-left: 4px solid #cf9eff;
-    padding-left: 16px;
+  main.notes-export {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+  .export-note + .export-note {
+    margin-top: 56px;
+    padding-top: 40px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.16);
+  }
+  .export-note h1,
+  .export-note h2,
+  .export-note h3,
+  .export-note h4,
+  .export-note h5,
+  .export-note h6 {
+    margin: 28px 0 12px;
+    color: #f5f5f8;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+  }
+  .export-note h1 { margin-top: 0; font-size: 2rem; }
+  .export-note h2 { font-size: 1.5rem; }
+  .export-note h3 { font-size: 1.2rem; }
+  .export-note p { margin: 12px 0; }
+  .export-note ul,
+  .export-note ol { margin: 12px 0; padding-left: 26px; }
+  .export-note li { margin: 6px 0; }
+  .export-note strong { color: #f0f0f5; font-weight: 600; }
+  .export-note em { font-style: italic; }
+  .export-note a { color: #cf9eff; text-decoration: none; }
+  .export-note a:hover { text-decoration: underline; }
+  .export-note blockquote {
     margin: 16px 0;
-    color: #666;
+    padding: 2px 0 2px 16px;
+    border-left: 3px solid rgba(207, 158, 255, 0.5);
+    color: #a7a7b4;
     font-style: italic;
   }
-  a { color: #7c5cf0; text-decoration: none; }
-  a:hover { text-decoration: underline; }
-  hr { border: none; border-top: 1px solid #eaeaea; margin: 24px 0; }
-  strong { font-weight: 600; }
-  em { font-style: italic; }
-  u { text-decoration: underline; }
-  .note-separator {
-    border-top: 2px dashed #cf9eff;
-    margin: 40px 0;
-    padding-top: 20px;
+  .export-note hr {
+    margin: 28px 0;
+    border: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+  }
+  .export-note img { max-width: 100%; height: auto; }
+  .export-note code {
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.07);
+    color: #e8e8e8;
+    font-family: "Fira Code", "Cascadia Code", Consolas, "SFMono-Regular", Menlo, monospace;
+    font-size: 0.9em;
+  }
+  .export-note .atomic-code-block code {
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    color: inherit;
+    font-size: inherit;
+  }
+  @media print {
+    body { background: #0a0a12; }
+    main.notes-export { max-width: none; padding: 0; }
+  }
+  .atomic-code-block {
+    position: relative;
+    margin: 14px 0;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 10px;
+    background: #1e1e1e;
+    color: #d4d4d4;
+    font-family: "Fira Code", "Cascadia Code", Consolas, "SFMono-Regular", Menlo, monospace;
+    font-size: 13px;
+    line-height: 21px;
+    text-align: left;
+    overflow: hidden;
+  }
+  .atomic-code-block .atomic-code-block-view {
+    display: flex;
+    align-items: stretch;
+    max-width: 100%;
+    border-radius: 9px;
+    overflow: hidden;
+    background: #1e1e1e;
+  }
+  .atomic-code-block .atomic-code-block-gutter {
+    flex: 0 0 auto;
+    padding: 14px 10px 14px 16px;
+    background: #1e1e1e;
+    border-right: 1px solid rgba(255, 255, 255, 0.045);
+    color: #5f5f5f;
+    font: inherit;
+    line-height: 21px;
+    text-align: right;
+    white-space: pre;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .atomic-code-block .atomic-code-block-pre {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    padding: 14px 18px;
+    background: transparent;
+    color: #d4d4d4;
+    font: inherit;
+    line-height: 21px;
+    white-space: pre;
+    overflow-x: auto;
+    overflow-y: hidden;
+    tab-size: 2;
+    -moz-tab-size: 2;
+    scrollbar-width: thin;
+    scrollbar-color: #4a4a4a #1e1e1e;
+  }
+  .atomic-code-block .atomic-code-block-code {
+    display: block;
+    min-width: max-content;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    line-height: inherit;
+    white-space: pre;
+  }
+  .atomic-code-block .cb-tok-keyword { color: #569cd6; }
+  .atomic-code-block .cb-tok-string { color: #ce9178; }
+  .atomic-code-block .cb-tok-comment { color: #6a9955; font-style: italic; }
+  .atomic-code-block .cb-tok-number { color: #b5cea8; }
+  .atomic-code-block .cb-tok-type { color: #4ec9b0; }
+  .atomic-code-block .cb-tok-function { color: #dcdcaa; }
+  .atomic-code-block .cb-tok-variable { color: #9cdcfe; }
+  .atomic-code-block .cb-tok-constant { color: #4fc1ff; }
+  .atomic-code-block .cb-tok-tag { color: #569cd6; }
+  .atomic-code-block .cb-tok-attribute { color: #9cdcfe; }
+  .atomic-code-block .cb-tok-operator { color: #d4d4d4; }
+  .atomic-code-block .cb-tok-meta { color: #c586c0; }
+  .atomic-code-block .cb-tok-invalid {
+    color: #f44747;
+    background: rgba(244, 71, 71, 0.1);
+    text-decoration: underline wavy;
   }
 `;
 
-/** One self-contained HTML document containing every selected note. */
+/** One self-contained, dark-themed HTML document with every selected note. */
 export function buildNotesExportHtml(notes: ExportNote[]): string {
   const body = notes
     .map((note) => {
       const title = escapeHtml(note.title.trim() || "Untitled note");
-      return `
-  <h1>${title}</h1>
-  <div>${sanitizeHtml(note.html)}</div>`;
+      const content = renderCodeBlocks(sanitizeHtml(note.html));
+      return `<article class="export-note"><h1>${title}</h1>${content}</article>`;
     })
-    .join('\n  <div class="note-separator"></div>');
+    .join("\n");
+
+  const documentTitle =
+    notes.length === 1
+      ? notes[0].title.trim() || "Untitled note"
+      : "ATLAS notes";
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${escapeHtml(
-    notes.length === 1
-      ? notes[0].title.trim() || "Untitled note"
-      : "ATLAS notes",
-  )}</title>
+  <title>${escapeHtml(documentTitle)}</title>
   <style>${EXPORT_STYLE}</style>
 </head>
 <body>
+<main class="notes-export">
 ${body}
+</main>
 </body>
 </html>
 `;
