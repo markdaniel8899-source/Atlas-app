@@ -123,6 +123,7 @@ export function ActivityHeatmap({ days, weeks = 53 }: ActivityHeatmapProps) {
   const hours = Math.round((totalSeconds / 3600) * 10) / 10;
   const scrollRef = useRef<ScrollView>(null);
   const scrolledToToday = useRef(false);
+  const gridWidth = columns.length * CELL + Math.max(0, columns.length - 1) * GAP;
 
   return (
     <Card>
@@ -176,14 +177,15 @@ export function ActivityHeatmap({ days, weeks = 53 }: ActivityHeatmapProps) {
               horizontal
               showsHorizontalScrollIndicator={false}
               style={styles.gridScroll}
+              contentContainerStyle={styles.scrollContent}
               onContentSizeChange={() => {
                 if (scrolledToToday.current) return;
                 scrolledToToday.current = true;
                 scrollRef.current?.scrollToEnd({ animated: false });
               }}
             >
-              <View>
-                <View style={styles.monthsRow}>
+              <View style={{ width: gridWidth }}>
+                <View style={[styles.monthsRow, { width: gridWidth }]}>
                   {columns.map((column, index) =>
                     column.monthLabel ? (
                       <Text
@@ -336,6 +338,9 @@ const styles = StyleSheet.create({
   },
   gridScroll: {
     flexGrow: 1,
+  },
+  scrollContent: {
+    paddingRight: 30,
   },
   leftFade: {
     position: "absolute",
