@@ -237,6 +237,13 @@
   - `note-editor-modal.tsx` redesigned: `MeshBackground`, rounded glass header actions, "Note" + saved dot, floating formatting toolbar, `LinearGradient` editor card, grouped actions sheet with handle + delete divider.
   - Verified: `npx tsc --noEmit`, `npx expo lint` (only the 3 pre-existing warnings), `npx expo export --platform web` (20 static routes), Node unit checks for the highlighter/export, and an Edge headless DOM harness for the editor JS (tokens, picker, serialize, multiline `innerText`, plaintext escaping). Drag reorder still needs a device pass. No OTA published.
 
+- **Inline code editor parity + live coloring (2026-11-03, user-reported "extension writer" / "color static"):**
+  - `rich-note-editor.tsx` code-block header now matches the website toolbar: language chip + **extension input** (`js, py, sql`; resolves aliases live, red border when invalid, resets to the language default on blur) + **copy** button (legacy clipboard first, async API fallback, green check for 1.2s) + **remove** button (drops the block, keeps a trailing paragraph, notifies change).
+  - **Live syntax highlighting while typing**: every `input` in a code block schedules a 120ms re-highlight. A zero-width `\uFEFF` marker maps the browser caret onto the flattened `innerText`, then `placeCaret` restores it after the spans are rebuilt, so colors update without blur/caret jumps. IME composition is skipped until `compositionend`.
+  - `focusout` no longer calls `renderBlock` (it used to rebuild the header and swallow taps on the new controls); it flushes colors in place. Selection changes inside the extension input are ignored. Language chip changes now update in place (`applyBlockLanguage`) and preserve the code element + caret, so the keyboard stays open.
+  - `EDITOR_LANGUAGES` carries a per-language `extension` (`.js`, `.py`, `.tsx` aliases, ...); `sanitizeHtml` still strips the header so saved/shared/exported notes keep only `data-code` + `data-language`.
+  - Verified with an Edge headless harness: live tokens after multiline typing (`kw=2 num=2`), caret restored (typed `Z` landed at the end), extension `py` -> Python + recolor, chip switch keeps the same code node + caret, copy feedback, block removal, empty-block typing produces `"x"` (no phantom newline). `npx tsc --noEmit` clean, `npx expo lint` only the 3 pre-existing warnings.
+
 ## Workflow Preferences (user)
 - User communicates in **Roman Urdu** — reply concisely in Roman Urdu.
 - Do not ask for confirmation mid-task; finish the task, then report.

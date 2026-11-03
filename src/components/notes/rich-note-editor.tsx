@@ -134,6 +134,46 @@ function buildEditorHtml(): string {
     box-shadow: 0 0 6px rgba(207,158,255,0.8);
   }
   #editor .cb-chev { font-size: 9px; opacity: 0.7; }
+  #editor .cb-ext {
+    width: 68px;
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 8px;
+    background: rgba(255,255,255,0.04);
+    color: rgba(255,255,255,0.78);
+    padding: 4px 7px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 10.5px;
+    line-height: 1.2;
+    outline: none;
+  }
+  #editor .cb-ext:focus {
+    border-color: rgba(207,158,255,0.55);
+    background: rgba(207,158,255,0.08);
+    color: #fff;
+  }
+  #editor .cb-ext.invalid { border-color: rgba(244,71,71,0.55); }
+  #editor .cb-ext::placeholder {
+    color: rgba(255,255,255,0.28);
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  }
+  #editor .cb-spacer { flex: 1; }
+  #editor .cb-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: rgba(255,255,255,0.42);
+    padding: 0;
+    touch-action: manipulation;
+  }
+  #editor .cb-icon svg { display: block; pointer-events: none; }
+  #editor .cb-icon.copied { color: #6ee7a8; }
+  #editor .cb-icon-danger { color: rgba(255,255,255,0.38); }
+  #editor .cb-icon-danger:active { color: #f87171; background: rgba(248,113,113,0.10); }
   #editor .atomic-code-block-pre {
     margin: 0;
     padding: 12px 14px;
@@ -232,6 +272,13 @@ function buildEditorHtml(): string {
     var LANG_BY_ID = {};
     for (var l = 0; l < LANGS.length; l += 1) LANG_BY_ID[LANGS[l].id] = LANGS[l];
 
+    var COPY_ICON =
+      '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+    var CHECK_ICON =
+      '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+    var CLOSE_ICON =
+      '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+
     function post(kind, payload) {
       if (!window.ReactNativeWebView) return;
       var message = { kind: kind };
@@ -254,6 +301,90 @@ function buildEditorHtml(): string {
       return typeof text === "string" ? text : element.textContent || "";
     }
 
+    // A zero-width marker lets us map the browser caret onto the flattened
+    // code string, so live re-highlighting can restore it exactly.
+    function captureLiveCode(root) {
+      var selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) return null;
+      var range = selection.getRangeAt(0);
+      if (!range.collapsed || !root.contains(range.startContainer)) return null;
+      var marker = document.createTextNode("\\uFEFF");
+      var caret = range.cloneRange();
+      caret.collapse(true);
+      caret.insertNode(marker);
+      var code = readCode(root);
+      var offset = code.indexOf("\\uFEFF");
+      if (marker.parentNode) marker.parentNode.removeChild(marker);
+      if (offset < 0) return null;
+      return {
+        code: code.slice(0, offset) + code.slice(offset + 1),
+        offset: offset
+      };
+    }
+
+    function placeCaret(root, offset) {
+      var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+      var remaining = offset;
+      var node = walker.nextNode();
+      while (node) {
+        var length = node.nodeValue ? node.nodeValue.length : 0;
+        if (remaining <= length) {
+          var range = document.createRange();
+          range.setStart(node, remaining);
+          range.collapse(true);
+          var selection = window.getSelection();
+          selection.removeAllRanges();
+          selection.addRange(range);
+          return;
+        }
+        remaining -= length;
+        node = walker.nextNode();
+      }
+      var end = document.createRange();
+      end.selectNodeContents(root);
+      end.collapse(false);
+      var fallback = window.getSelection();
+      fallback.removeAllRanges();
+      fallback.addRange(end);
+    }
+
+    var liveTimer = null;
+
+    function liveHighlight(codeElement) {
+      var block = codeElement.closest(".atomic-code-block");
+      if (!block || !codeElement.isConnected) return;
+      var captured = captureLiveCode(codeElement);
+      if (!captured) return;
+      block.setAttribute("data-code", captured.code);
+      var language = normalizeLanguage(
+        block.getAttribute("data-language") || "javascript"
+      );
+      codeElement.innerHTML = captured.code
+        ? highlight(captured.code, language)
+        : "<br>";
+      placeCaret(codeElement, captured.offset);
+    }
+
+    function scheduleLiveHighlight(codeElement) {
+      if (liveTimer) clearTimeout(liveTimer);
+      liveTimer = setTimeout(function () {
+        liveTimer = null;
+        liveHighlight(codeElement);
+      }, 120);
+    }
+
+    /** Re-colour a block from its raw text (no caret bookkeeping). */
+    function refreshCode(block) {
+      var codeElement = block.querySelector("code");
+      if (!codeElement) return;
+      var code = readCode(codeElement);
+      block.setAttribute("data-code", code);
+      var language = normalizeLanguage(
+        block.getAttribute("data-language") || "javascript"
+      );
+      codeElement.innerHTML = code ? highlight(code, language) : "<br>";
+    }
+
     function normalizeLanguage(input) {
       if (!input) return "plaintext";
       var raw = String(input).trim().toLowerCase().replace(/^\\./, "");
@@ -264,6 +395,23 @@ function buildEditorHtml(): string {
 
     function languageLabel(id) {
       return LANG_BY_ID[id] ? LANG_BY_ID[id].label : "Plain Text";
+    }
+
+    var EXT_BY_ID = {};
+    for (var p = 0; p < PICKER.length; p += 1) {
+      EXT_BY_ID[PICKER[p].id] = PICKER[p].extension || ".txt";
+    }
+
+    function resolveLanguageInput(input) {
+      if (!input) return null;
+      var raw = String(input).trim().toLowerCase().replace(/^\\./, "");
+      if (!raw) return null;
+      var id = ALIASES[raw] || raw;
+      return LANG_BY_ID[id] ? id : null;
+    }
+
+    function extensionForLanguage(id) {
+      return String(EXT_BY_ID[id] || ".txt").replace(/^\\./, "");
     }
 
     function span(kind, text) {
@@ -610,10 +758,137 @@ function buildEditorHtml(): string {
             '<span class="cb-lang-label">' + escapeHtml(languageLabel(language)) + '</span>' +
             '<span class="cb-chev">\\u25BE</span>' +
           '</button>' +
+          '<input type="text" class="cb-ext" data-action="ext" value="' +
+            escapeHtml(extensionForLanguage(language)) +
+            '" placeholder="js, py, sql" aria-label="File extension" ' +
+            'spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" />' +
+          '<span class="cb-spacer"></span>' +
+          '<button type="button" class="cb-icon" data-action="copy" aria-label="Copy code">' +
+            COPY_ICON +
+          '</button>' +
+          '<button type="button" class="cb-icon cb-icon-danger" data-action="remove" aria-label="Remove code block">' +
+            CLOSE_ICON +
+          '</button>' +
         '</div>' +
         '<pre class="atomic-code-block-pre"><code class="atomic-code-block-code" contenteditable="true" spellcheck="false" autocorrect="off" autocapitalize="off">' +
         (code ? highlight(code, language) : "<br>") +
         "</code></pre>";
+    }
+
+    /** Swap a block's language in place (header + caret stay mounted). */
+    function applyBlockLanguage(block, language) {
+      block.setAttribute("data-language", language);
+      var label = block.querySelector(".cb-lang-label");
+      if (label) label.textContent = languageLabel(language);
+      var extInput = block.querySelector(".cb-ext");
+      if (extInput) extInput.value = extensionForLanguage(language);
+      var codeElement = block.querySelector("code");
+      if (!codeElement) return;
+      var captured = captureLiveCode(codeElement);
+      var code = captured ? captured.code : block.getAttribute("data-code") || "";
+      block.setAttribute("data-code", code);
+      codeElement.innerHTML = code ? highlight(code, language) : "<br>";
+      if (captured) placeCaret(codeElement, captured.offset);
+    }
+
+    function handleExtensionInput(input) {
+      var block = input.closest(".atomic-code-block");
+      if (!block) return;
+      var resolved = resolveLanguageInput(input.value);
+      var invalid = input.value.trim() !== "" && !resolved;
+      if (invalid) input.classList.add("invalid");
+      else input.classList.remove("invalid");
+      if (!resolved) return;
+      if (resolved === normalizeLanguage(block.getAttribute("data-language"))) {
+        return;
+      }
+      applyBlockLanguage(block, resolved);
+      notifyChange();
+    }
+
+    function copyCode(block, button) {
+      var text = block.getAttribute("data-code");
+      if (text == null) {
+        text = readCode(block.querySelector("code"));
+      }
+      var done = function (ok) {
+        button.innerHTML = ok ? CHECK_ICON : COPY_ICON;
+        button.classList.add("copied");
+        setTimeout(function () {
+          button.innerHTML = COPY_ICON;
+          button.classList.remove("copied");
+        }, 1200);
+      };
+      var active = document.activeElement;
+      var copied = legacyCopy(text);
+      if (!copied) {
+        var attempt = null;
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            attempt = navigator.clipboard.writeText(text);
+          }
+        } catch (error) {
+          attempt = null;
+        }
+        if (attempt && typeof attempt.then === "function") {
+          attempt.then(function () {
+            done(true);
+          }, function () {
+            done(false);
+          });
+          return;
+        }
+      }
+      done(copied);
+      if (active && active.focus && active !== document.activeElement) {
+        try {
+          active.focus();
+        } catch (error) {
+          /* focus restore is best-effort */
+        }
+      }
+    }
+
+    function legacyCopy(text) {
+      try {
+        var area = document.createElement("textarea");
+        area.value = text;
+        area.setAttribute("readonly", "");
+        area.style.position = "fixed";
+        area.style.top = "-1000px";
+        area.style.opacity = "0";
+        document.body.appendChild(area);
+        area.select();
+        var ok = document.execCommand("copy");
+        document.body.removeChild(area);
+        return Boolean(ok);
+      } catch (error) {
+        return false;
+      }
+    }
+
+    function removeCodeBlock(block) {
+      closeLanguageMenu();
+      var next = block.nextElementSibling;
+      if (block.parentNode) block.parentNode.removeChild(block);
+      var selection = window.getSelection();
+      var range = document.createRange();
+      if (next && next.parentNode === editor) {
+        range.selectNodeContents(next);
+        range.collapse(true);
+      } else {
+        var trailing = document.createElement("p");
+        trailing.innerHTML = "<br>";
+        editor.appendChild(trailing);
+        range.selectNodeContents(trailing);
+        range.collapse(true);
+      }
+      if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+      editor.focus();
+      notifyChange();
     }
 
     function normalizeBlocks() {
@@ -710,19 +985,39 @@ function buildEditorHtml(): string {
     }
 
     document.addEventListener("selectionchange", function () {
+      var active = document.activeElement;
+      if (active && active.classList && active.classList.contains("cb-ext")) {
+        return;
+      }
       saveSelection();
       pushState();
     });
 
-    // Language chip: open the picker before focus moves (focusout re-renders
-    // the block, which would otherwise swallow the click).
+    // Header controls run before focus moves (focusout would otherwise
+    // swallow the tap).
     editor.addEventListener("pointerdown", function (event) {
       var target = event.target;
-      var button = target && target.closest ? target.closest('[data-action="lang"]') : null;
-      if (!button) return;
-      event.preventDefault();
-      var block = button.closest(".atomic-code-block");
-      if (block) openLanguageMenu(button, block);
+      if (!target || !target.closest) return;
+      var button = target.closest('[data-action="lang"]');
+      if (button) {
+        event.preventDefault();
+        var block = button.closest(".atomic-code-block");
+        if (block) openLanguageMenu(button, block);
+        return;
+      }
+      var copyButton = target.closest('[data-action="copy"]');
+      if (copyButton) {
+        event.preventDefault();
+        var copyBlock = copyButton.closest(".atomic-code-block");
+        if (copyBlock) copyCode(copyBlock, copyButton);
+        return;
+      }
+      var removeButton = target.closest('[data-action="remove"]');
+      if (removeButton) {
+        event.preventDefault();
+        var removeBlock = removeButton.closest(".atomic-code-block");
+        if (removeBlock) removeCodeBlock(removeBlock);
+      }
     }, true);
 
     document.addEventListener("pointerdown", function (event) {
@@ -736,8 +1031,7 @@ function buildEditorHtml(): string {
         if (block) {
           var codeElement = block.querySelector("code");
           block.setAttribute("data-code", readCode(codeElement));
-          block.setAttribute("data-language", language);
-          renderBlock(block);
+          applyBlockLanguage(block, language);
           notifyChange();
         }
         closeLanguageMenu();
@@ -782,27 +1076,70 @@ function buildEditorHtml(): string {
       notifyChange();
     };
 
-    editor.addEventListener("input", function () {
+    var composing = false;
+
+    editor.addEventListener("compositionstart", function () {
+      composing = true;
+    }, true);
+
+    editor.addEventListener("compositionend", function (event) {
+      composing = false;
+      var target = event.target;
+      if (target && target.classList &&
+          target.classList.contains("atomic-code-block-code")) {
+        scheduleLiveHighlight(target);
+      }
+    }, true);
+
+    editor.addEventListener("input", function (event) {
+      var target = event.target;
+      if (target && target.classList && target.classList.contains("cb-ext")) {
+        handleExtensionInput(target);
+        return;
+      }
       saveSelection();
+      var codeElement = target && target.classList &&
+        target.classList.contains("atomic-code-block-code") ? target : null;
+      if (codeElement && !composing) scheduleLiveHighlight(codeElement);
       notifyChange();
     });
 
-    // Refresh token colours after editing code (never during typing, so the
-    // caret is not disturbed).
+    // Flush token colours when the caret leaves a code block, without
+    // rebuilding the header controls (which may be receiving the tap).
     editor.addEventListener("focusout", function (event) {
-      var codeElement = event.target;
-      if (!codeElement || !codeElement.classList ||
-          !codeElement.classList.contains("atomic-code-block-code")) {
+      var target = event.target;
+      if (!target || !target.classList) return;
+      if (target.classList.contains("cb-ext")) {
+        var extBlock = target.closest(".atomic-code-block");
+        if (extBlock) {
+          var extLanguage = normalizeLanguage(
+            extBlock.getAttribute("data-language")
+          );
+          target.value = extensionForLanguage(extLanguage);
+          target.classList.remove("invalid");
+        }
         return;
       }
-      var block = codeElement.closest(".atomic-code-block");
+      if (!target.classList.contains("atomic-code-block-code")) return;
+      if (liveTimer) {
+        clearTimeout(liveTimer);
+        liveTimer = null;
+      }
+      var block = target.closest(".atomic-code-block");
       if (!block) return;
-      syncBlocks();
-      renderBlock(block);
+      refreshCode(block);
       notifyChange();
     }, true);
 
     editor.addEventListener("keydown", function (event) {
+      var target = event.target;
+      if (target && target.classList && target.classList.contains("cb-ext")) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          target.blur();
+        }
+        return;
+      }
       var mod = event.metaKey || event.ctrlKey;
       var key = (event.key || "").toLowerCase();
       if (mod && !event.shiftKey && (key === "b" || key === "i" || key === "u")) {

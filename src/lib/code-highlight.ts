@@ -1341,10 +1341,37 @@ export function renderHighlightedCodeBlock(
   );
 }
 
+/** Default file extension per language (editor header + picker). */
+const LANGUAGE_EXTENSIONS: Record<string, string> = {
+  plaintext: ".txt",
+  javascript: ".js",
+  typescript: ".ts",
+  python: ".py",
+  java: ".java",
+  c: ".c",
+  cpp: ".cpp",
+  csharp: ".cs",
+  go: ".go",
+  rust: ".rs",
+  ruby: ".rb",
+  php: ".php",
+  swift: ".swift",
+  kotlin: ".kt",
+  sql: ".sql",
+  html: ".html",
+  xml: ".xml",
+  css: ".css",
+  json: ".json",
+  bash: ".sh",
+  yaml: ".yaml",
+  markdown: ".md",
+};
+
 /** Editor picker payload (embedded into the WebView document). */
 export const EDITOR_LANGUAGES = CODE_LANGUAGES.map((language) => ({
   id: language.id,
   label: language.label,
+  extension: LANGUAGE_EXTENSIONS[language.id] ?? ".txt",
 }));
 
 export function escapeCodeHtml(value: string): string {
