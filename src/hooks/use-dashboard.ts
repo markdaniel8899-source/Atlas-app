@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getCachedAuthUser, resolveSession } from "../lib/auth";
 import type { AuthUser } from "../lib/auth";
 import { readCache, writeCache } from "../lib/data-cache";
+import { readDashboardCache, writeDashboardCache } from "../lib/dashboard-cache";
 import { fetchHeatmap } from "../lib/db/activity";
 import { fetchFocusCourse } from "../lib/db/courses";
 import {
@@ -97,6 +98,9 @@ export function useDashboard(): DashboardState {
       if (request !== requestRef.current) return;
       if (getCachedAuthUser()?.id !== user.id) return;
       writeCache<DashboardSnapshot>(CACHE_KEY, { heatmap, focus });
+      if (user) {
+        void writeDashboardCache(user.id, { heatmap, focus });
+      }
       const next: DashboardData = {
         user,
         profile: profile ?? cachedProfile,
@@ -127,6 +131,29 @@ export function useDashboard(): DashboardState {
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  // Hydrate last-session dashboard state from disk so a cold offline start
+  // paints heatmap / focus immediately instead of an empty screen. Revalidates
+  // against the server via reload() on mount.
+  useEffect(() => {
+    let alive = true;
+    const user = getCachedAuthUser();
+    if (!user) return;
+    void (async () => {
+      const persisted = await readDashboardCache(user.id);
+      if (!alive) return;
+      if (persisted) {
+        setData((prev) => ({
+          ...prev,
+          heatmap: persisted.heatmap ?? prev.heatmap,
+          focus: persisted.focus ?? prev.focus,
+        }));
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // Re-read profile / focus course / heatmap when this screen is visible and
   // something changed. Hidden tabs keep one pending refresh for their focus.

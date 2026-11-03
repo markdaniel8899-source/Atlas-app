@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppState } from "react-native";
+import type { Note } from "./notes";
 import { subscribeAuth } from "./auth";
 import { deleteNote, insertNote, updateNote } from "./db/notes";
 
@@ -410,4 +411,31 @@ export async function flushNotesQueue(): Promise<void> {
     if (ownOpCount() > 0) ensureRetryTimer();
     else stopRetryTimer();
   }
+}
+
+/** Build Note-shaped objects for temp (offline-created) notes still waiting
+ * in the queue, so they remain visible in the list even when the server
+ * list cannot be fetched (offline / cold start). */
+export function getTempNoteViews(): Note[] {
+  const views: Note[] = [];
+  const now = Date.now();
+  for (const op of ops.values()) {
+    if (op.ownerId !== currentOwnerId) continue;
+    if (op.op !== "upsert" || !isTempNoteId(op.noteId)) continue;
+    views.push({
+      id: op.noteId,
+      title: op.title,
+      html: op.html,
+      createdAt: op.updatedAt ?? now,
+      updatedAt: op.updatedAt ?? now,
+      courseId: op.courseId,
+      topicId: op.topicId,
+      courseTitle: null,
+      sortOrder: op.sortOrder ?? null,
+      sharedBy: null,
+      sharedByName: null,
+      sharedAt: null,
+    });
+  }
+  return views;
 }

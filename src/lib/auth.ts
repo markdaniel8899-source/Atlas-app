@@ -11,6 +11,8 @@ import {
   cancelStreakReminder,
 } from "./notifications";
 import { clearProfileCache } from "./profile-cache";
+import { clearNotesCache } from "./notes-cache";
+import { clearDashboardCache } from "./dashboard-cache";
 import { runResetHandlers } from "./session-reset";
 import {
   syncAtlasNotesWidget,
@@ -330,6 +332,10 @@ export async function signOut(
     syncAtlasNotesWidget(null);
     clearProfileCache();
     clearDataCaches();
+    if (ownerId) {
+      void clearNotesCache(ownerId);
+      void clearDashboardCache(ownerId);
+    }
     runResetHandlers();
   }
 }

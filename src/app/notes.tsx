@@ -51,12 +51,14 @@ import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { StaleNotice } from "../components/ui/stale-notice";
 import { useCourses } from "../hooks/use-courses";
 import { readCache, writeCache } from "../lib/data-cache";
+import { readNotesCache, writeNotesCache } from "../lib/notes-cache";
 import {
   createNote,
   fetchNotesWithStatus,
   updateNoteOrder,
 } from "../lib/db/notes";
 import { ensureOnline } from "../lib/net";
+import { getCachedAuthUser } from "../lib/auth";
 import type { Note } from "../lib/notes";
 import { exportNotesFile } from "../lib/notes-export";
 import {
@@ -68,6 +70,7 @@ import {
   flushNotesQueue,
   getNotesQueueSnapshot,
   getQueuedNoteWrites,
+  getTempNoteViews,
   isNoteQueued,
   isTempNoteId,
   makeTempNoteId,
@@ -594,13 +597,24 @@ export default function NotesScreen() {
     const result = await fetchNotesWithStatus(scope);
     // A newer scope/refresh already started: never let a stale response win.
     if (seq !== loadSeqRef.current) return;
+    const rows = result.ok ? result.notes : [];
     if (!result.ok) {
       setStale(notesRef.current.length > 0);
-      return;
+    } else {
+      setStale(false);
+      writeCache(`notes:${activeCourseId ?? "all"}`, rows);
+      const user = getCachedAuthUser();
+      if (user) {
+        void writeNotesCache(
+          user.id,
+          activeCourseId != null ? String(activeCourseId) : "all",
+          rows,
+        );
+      }
     }
-    setStale(false);
-    writeCache(`notes:${activeCourseId ?? "all"}`, result.notes);
-    applyRows(result.notes);
+    // Always merge (even on failure) so queued / offline-created notes stay
+    // visible instead of disappearing when the server can't be reached.
+    applyRows(rows);
   }, [activeCourseId, applyRows]);
 
   const onRefresh = useCallback(async () => {
@@ -667,10 +681,41 @@ export default function NotesScreen() {
     if (coursesLoading) return;
     if (selectedCourseId != null && activeCourseId == null) return; // stale param
     let alive = true;
-    const cached = readCache<Note[]>(`notes:${activeCourseId ?? "all"}`);
-    if (cached) applyRows(cached);
-    setLoading(cached === null);
-
+    const scopeKey = activeCourseId != null ? String(activeCourseId) : "all";
+    // 1. Memory cache (instant on warm start / tab switch).
+    const memCached = readCache<Note[]>(`notes:${scopeKey}`);
+    if (memCached) applyRows(memCached);
+    setLoading(memCached === null);
+    // 2. Persistent cache + queued offline notes (offline / cold start).
+    //    Offline-created notes live in the notes-queue until they flush, so
+    //    they are layered on top of the last fetched list.
+    void (async () => {
+      const user = getCachedAuthUser();
+      if (!user) {
+        if (alive) setLoading(false);
+        return;
+      }
+      const persisted = await readNotesCache(user.id, scopeKey);
+      if (!alive) return;
+      if (!memCached) {
+        applyRows(persisted ?? []);
+        setLoading(false);
+      }
+      const tempViews = getTempNoteViews();
+      if (tempViews.length && alive) {
+        const existing = new Set(notesRef.current.map((n) => n.id));
+        const next = applyNoteOrder(
+          [
+            ...notesRef.current,
+            ...tempViews.filter((t) => !existing.has(t.id)),
+          ],
+          noteOrderRef.current,
+        );
+        setNotes(next);
+        notesRef.current = next;
+      }
+    })();
+    // 3. Network fetch (revalidates in the background when online).
     (async () => {
       await load();
       if (alive) setLoading(false);
