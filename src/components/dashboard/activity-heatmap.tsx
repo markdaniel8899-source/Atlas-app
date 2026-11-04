@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   scrollContent: {
-    paddingRight: 30,
+    paddingRight: 10,
   },
   leftFade: {
     position: "absolute",

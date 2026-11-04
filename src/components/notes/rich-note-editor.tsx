@@ -105,12 +105,15 @@ function buildEditorHtml(): string {
     overflow: hidden;
   }
   #editor .cb-head {
-    display: flex;
+    display: none;
     align-items: center;
     gap: 8px;
     padding: 6px 8px;
     border-bottom: 1px solid rgba(255,255,255,0.06);
     background: rgba(255,255,255,0.03);
+  }
+  #editor .atomic-code-block.cb-active .cb-head {
+    display: flex;
   }
   #editor .cb-lang {
     display: inline-flex;
@@ -705,6 +708,21 @@ function buildEditorHtml(): string {
 
     var langMenu = null;
     var activeBlockId = null;
+    var activeBlockElement = null;
+
+    function setActiveBlock(block) {
+      if (!block || activeBlockElement === block) return;
+      if (activeBlockElement) activeBlockElement.classList.remove("cb-active");
+      activeBlockElement = block;
+      block.classList.add("cb-active");
+    }
+
+    function clearActiveBlock(block) {
+      if (!activeBlockElement) return;
+      if (block && activeBlockElement !== block) return;
+      activeBlockElement.classList.remove("cb-active");
+      activeBlockElement = null;
+    }
 
     function findBlockById(id) {
       if (!id) return null;
@@ -896,6 +914,7 @@ function buildEditorHtml(): string {
 
     function removeCodeBlock(block) {
       closeLanguageMenu();
+      clearActiveBlock(block);
       var next = block.nextElementSibling;
       if (block.parentNode) block.parentNode.removeChild(block);
       var selection = window.getSelection();
@@ -993,6 +1012,7 @@ function buildEditorHtml(): string {
       if (next < 0 || next >= history.length) return false;
       historyIndex = next;
       restoringHistory = true;
+      clearActiveBlock();
       editor.innerHTML = history[historyIndex];
       normalizeBlocks();
       savedRange = null;
@@ -1077,6 +1097,16 @@ function buildEditorHtml(): string {
     editor.addEventListener("pointerdown", function (event) {
       var target = event.target;
       if (!target || !target.closest) return;
+      var touchedBlock = target.closest(".atomic-code-block");
+      if (touchedBlock) {
+        setActiveBlock(touchedBlock);
+        if (!target.closest(".cb-head")) {
+          var touchedCode = touchedBlock.querySelector("code");
+          if (touchedCode && !touchedCode.contains(target)) {
+            touchedCode.focus();
+          }
+        }
+      }
       var button = target.closest('[data-action="lang"]');
       if (button) {
         event.preventDefault();
@@ -1100,9 +1130,16 @@ function buildEditorHtml(): string {
     }, true);
 
     document.addEventListener("pointerdown", function (event) {
-      if (!langMenu) return;
       var target = event.target;
-      var item = target && target.closest ? target.closest(".cb-menu-item") : null;
+      if (!target || !target.closest) return;
+      if (
+        !target.closest(".atomic-code-block") &&
+        !target.closest(".cb-menu")
+      ) {
+        clearActiveBlock();
+      }
+      if (!langMenu) return;
+      var item = target.closest(".cb-menu-item");
       if (item) {
         event.preventDefault();
         var block = findBlockById(activeBlockId);
@@ -1122,8 +1159,14 @@ function buildEditorHtml(): string {
     }, true);
 
     window.addEventListener("scroll", closeLanguageMenu, true);
+    window.addEventListener("blur", function () {
+      setTimeout(function () {
+        if (!document.hasFocus()) clearActiveBlock();
+      }, 80);
+    });
 
     window.__setHtml = function (html) {
+      clearActiveBlock();
       editor.innerHTML = html;
       normalizeBlocks();
       savedRange = null;
@@ -1201,6 +1244,8 @@ function buildEditorHtml(): string {
     editor.addEventListener("focusin", function (event) {
       var target = event.target;
       if (!target || !target.closest) return;
+      var focusBlock = target.closest(".atomic-code-block");
+      if (focusBlock) setActiveBlock(focusBlock);
       var codeElement = target.closest(".atomic-code-block-code");
       if (!codeElement) return;
       var block = codeElement.closest(".atomic-code-block");
@@ -1216,7 +1261,17 @@ function buildEditorHtml(): string {
     // works even though the innerHTML is rebuilt.
     editor.addEventListener("focusout", function (event) {
       var target = event.target;
-      if (!target || !target.classList) return;
+      if (!target || !target.closest) return;
+      var leavingBlock = target.closest(".atomic-code-block");
+      if (leavingBlock) {
+        setTimeout(function () {
+          if (activeBlockElement !== leavingBlock) return;
+          var active = document.activeElement;
+          if (active && leavingBlock.contains(active)) return;
+          clearActiveBlock(leavingBlock);
+        }, 140);
+      }
+      if (!target.classList) return;
       if (target.classList.contains("cb-ext")) {
         var extBlock = target.closest(".atomic-code-block");
         if (extBlock) {
