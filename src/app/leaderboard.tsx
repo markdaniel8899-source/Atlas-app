@@ -4,13 +4,13 @@ import {
   Animated,
   Easing,
   FlatList,
-  Image,
   Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { Image } from "expo-image";
 import { useFocusEffect } from "expo-router";
 import { Flame, Medal, Trophy, WifiOff, Zap } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -135,6 +135,9 @@ function Avatar({ entry, size = 48 }: { entry: LeaderboardEntry; size?: number }
         <Image
           source={{ uri }}
           style={{ width: size, height: size, borderRadius: size / 2 }}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          recyclingKey={uri}
         />
       ) : (
         <View style={styles.avatarFallback}>

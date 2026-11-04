@@ -27,7 +27,7 @@ export function useFocusEntrance() {
       const animation = Animated.timing(progress, {
         toValue: 1,
         duration: MOTION.section,
-        easing: MOTION.easing,
+        easing: MOTION.sectionEase,
         useNativeDriver: true,
       });
       animation.start();

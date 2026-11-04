@@ -41,6 +41,14 @@ import { ConfirmDialog } from "./ui/confirm-dialog";
 
 const APP_ICON = require("../../assets/icon.png");
 
+/**
+ * The panel travels its own height instead of the full window height, so the
+ * sheet settles softly instead of slamming up from the bottom edge.
+ */
+const SHEET_CLOSE_MS = 240;
+const BACKDROP_IN_MS = 240;
+const BACKDROP_OUT_MS = 180;
+
 type InfoRoute = "/about" | "/help" | "/privacy" | "/terms" | "/contact";
 
 interface NavItem {
@@ -69,7 +77,10 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
   const { height: windowHeight } = useWindowDimensions();
   const router = useRouter();
   const anim = useRef(new Animated.Value(0)).current;
+  const backdrop = useRef(new Animated.Value(0)).current;
   const [rendered, setRendered] = useState(open);
+  const [panelHeight, setPanelHeight] = useState(0);
+  const [measured, setMeasured] = useState(false);
   const opening = useRef(false);
   const [profile, setProfile] = useState<Profile | null>(() =>
     getCachedProfile(),
@@ -79,33 +90,55 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
 
   useEffect(() => {
     if (open) {
-      if (!rendered) setRendered(true);
+      if (!rendered) {
+        setRendered(true);
+        return;
+      }
+      // Wait for the first layout pass so the panel animates from its real
+      // height (window height would make the travel ~2x too long).
+      if (!measured) return;
       // The rendered update re-runs this effect; start the spring only once
       // so it is never restarted from a partial offset (the open jerk).
       if (opening.current) return;
       opening.current = true;
       Keyboard.dismiss();
-      Animated.spring(anim, {
-        toValue: 1,
-        stiffness: 300,
-        damping: 20,
-        mass: 1,
-        overshootClamping: true,
-        useNativeDriver: true,
-      }).start();
+      Animated.parallel([
+        Animated.timing(anim, {
+          toValue: 1,
+          duration: MOTION.sheetRise,
+          easing: MOTION.sheetEase,
+          useNativeDriver: true,
+        }),
+        Animated.timing(backdrop, {
+          toValue: 1,
+          duration: BACKDROP_IN_MS,
+          easing: MOTION.easing,
+          useNativeDriver: true,
+        }),
+      ]).start();
     } else {
       opening.current = false;
       if (!rendered) return;
-      Animated.timing(anim, {
-        toValue: 0,
-        duration: MOTION.sheetClose,
-        easing: MOTION.easing,
-        useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (finished) setRendered(false);
+      Animated.parallel([
+        Animated.timing(anim, {
+          toValue: 0,
+          duration: SHEET_CLOSE_MS,
+          easing: MOTION.easingExit,
+          useNativeDriver: true,
+        }),
+        Animated.timing(backdrop, {
+          toValue: 0,
+          duration: BACKDROP_OUT_MS,
+          easing: MOTION.easingExit,
+          useNativeDriver: true,
+        }),
+      ]).start(({ finished }) => {
+        if (!finished) return;
+        setRendered(false);
+        setMeasured(false);
       });
     }
-  }, [open, rendered, anim]);
+  }, [open, rendered, measured, anim, backdrop]);
 
   useEffect(() => {
     if (!open) return;
@@ -130,14 +163,24 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
   }, [open]);
 
   const handleClose = (after?: () => void) => {
-    Animated.timing(anim, {
-      toValue: 0,
-      duration: MOTION.sheetClose,
-      easing: MOTION.easing,
-      useNativeDriver: true,
-    }).start(({ finished }) => {
+    opening.current = false;
+    Animated.parallel([
+      Animated.timing(anim, {
+        toValue: 0,
+        duration: SHEET_CLOSE_MS,
+        easing: MOTION.easingExit,
+        useNativeDriver: true,
+      }),
+      Animated.timing(backdrop, {
+        toValue: 0,
+        duration: BACKDROP_OUT_MS,
+        easing: MOTION.easingExit,
+        useNativeDriver: true,
+      }),
+    ]).start(({ finished }) => {
       if (!finished) return;
       setRendered(false);
+      setMeasured(false);
       onClose();
       // Navigate only after the sheet has finished closing, so the route
       // commit never freezes the slide halfway down.
@@ -274,7 +317,9 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
       onRequestClose={() => handleClose()}
     >
       <View style={styles.root}>
-        <Animated.View style={[StyleSheet.absoluteFill, { opacity: anim }]}>
+        <Animated.View
+          style={[StyleSheet.absoluteFill, { opacity: backdrop }]}
+        >
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Close account menu"
@@ -285,6 +330,12 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
 
         <Animated.View
           accessibilityViewIsModal
+          onLayout={(event) => {
+            const next = event.nativeEvent.layout.height;
+            if (next <= 0) return;
+            if (Math.abs(next - panelHeight) > 0.5) setPanelHeight(next);
+            if (!measured) setMeasured(true);
+          }}
           style={[
             styles.panel,
             {
@@ -293,7 +344,7 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
                 {
                   translateY: anim.interpolate({
                     inputRange: [0, 1],
-                    outputRange: [windowHeight, 0],
+                    outputRange: [panelHeight || windowHeight, 0],
                   }),
                 },
               ],
