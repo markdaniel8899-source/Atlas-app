@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppState } from "react-native";
 import type { Note } from "./notes";
 import { subscribeAuth } from "./auth";
+import { getAuthSnapshot, hydrateAuthSnapshot } from "./auth-snapshot";
 import { deleteNote, insertNote, updateNote } from "./db/notes";
 
 const STORAGE_KEY = "atlas.notes.queue.v1";
@@ -38,6 +39,8 @@ export interface NotesQueueSnapshot {
   /** Temp note ids ("local-…") with an insert still waiting in the queue. */
   tempIds: string[];
   syncing: boolean;
+  /** False until the persisted queue has been read from disk. */
+  ready: boolean;
 }
 
 /**
@@ -47,9 +50,15 @@ export interface NotesQueueSnapshot {
  * 15s interval while work remains, and every app foreground.
  */
 const ops = new Map<string, QueueOp>();
-let snapshot: NotesQueueSnapshot = { pending: 0, tempIds: [], syncing: false };
+let snapshot: NotesQueueSnapshot = {
+  pending: 0,
+  tempIds: [],
+  syncing: false,
+  ready: false,
+};
 let flushing = false;
 let hydrated = false;
+let ready = false;
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
 let retryTimer: ReturnType<typeof setInterval> | null = null;
@@ -90,6 +99,19 @@ subscribeAuth((user) => {
   void flushNotesQueue();
 });
 
+// On an offline cold start Supabase may never deliver a session event. Prime
+// the owner from the persisted auth snapshot so queued notes still belong to
+// this account and stay visible in the list.
+void (async () => {
+  await hydrateAuthSnapshot();
+  const user = getAuthSnapshot();
+  if (!user || user.id === currentOwnerId) return;
+  currentOwnerId = user.id;
+  adoptUnownedOps();
+  emit();
+  void flushNotesQueue();
+})();
+
 function buildSnapshot(): NotesQueueSnapshot {
   const tempIds: string[] = [];
   let pending = 0;
@@ -98,7 +120,7 @@ function buildSnapshot(): NotesQueueSnapshot {
     pending += 1;
     if (op.op === "upsert" && isTempNoteId(op.noteId)) tempIds.push(op.noteId);
   }
-  return { pending, tempIds, syncing: flushing };
+  return { pending, tempIds, syncing: flushing, ready };
 }
 
 function emit() {
@@ -180,6 +202,7 @@ async function hydrateQueue() {
   } catch {
     // Corrupt payload - start fresh.
   }
+  ready = true;
   adoptUnownedOps();
   emit();
   if (ownOpCount() > 0) {

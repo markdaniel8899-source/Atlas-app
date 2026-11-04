@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getCachedAuthUser, resolveSession } from "../lib/auth";
 import type { AuthUser } from "../lib/auth";
+import { getAuthSnapshot } from "../lib/auth-snapshot";
 import { readCache, writeCache } from "../lib/data-cache";
 import { readDashboardCache, writeDashboardCache } from "../lib/dashboard-cache";
 import { fetchHeatmap } from "../lib/db/activity";
@@ -12,7 +13,10 @@ import {
 } from "../lib/events";
 import { useFocusedEvent } from "./use-focused-event";
 import { fetchProfile } from "../lib/db/profile";
-import { getCachedProfile } from "../lib/profile-cache";
+import {
+  getCachedProfile,
+  hydrateProfileCache,
+} from "../lib/profile-cache";
 import { syncStreakReminder } from "../lib/notifications";
 import { syncAtlasStatsWidget } from "../lib/widgets/widget-sync";
 import type { FocusCourse, HeatmapDay, Profile } from "../lib/db/types";
@@ -49,9 +53,9 @@ function seed(): DashboardData {
   const snapshot = readCache<DashboardSnapshot>(CACHE_KEY);
   return {
     // The warmed session (module scope in the root layout) is the correct
-    // synchronous answer; seeding null here made the redirect gate race the
-    // async session read on remounts.
-    user: getCachedAuthUser(),
+    // synchronous answer; the persisted snapshot covers an offline start
+    // where the token refresh cannot complete.
+    user: getCachedAuthUser() ?? getAuthSnapshot(),
     profile: getCachedProfile(),
     heatmap: snapshot?.heatmap ?? [],
     focus: snapshot?.focus ?? null,
@@ -83,6 +87,10 @@ export function useDashboard(): DashboardState {
         return;
       }
 
+      // The root layout usually warmed this already; awaiting the shared read
+      // keeps a direct call safe too (the header must never flash a fallback
+      // because hydration had not finished yet).
+      await hydrateProfileCache();
       cachedProfile = getCachedProfile(user.id);
       if (cachedProfile) {
         setData((prev) => ({ ...prev, user, profile: cachedProfile }));
@@ -137,17 +145,25 @@ export function useDashboard(): DashboardState {
   // against the server via reload() on mount.
   useEffect(() => {
     let alive = true;
-    const user = getCachedAuthUser();
+    const user = getCachedAuthUser() ?? getAuthSnapshot();
     if (!user) return;
     void (async () => {
       const persisted = await readDashboardCache(user.id);
       if (!alive) return;
+      if (getCachedAuthUser()?.id !== user.id) return;
       if (persisted) {
+        // Seed the shared memory cache too, otherwise other screens and the
+        // widget still see an empty dashboard after an offline restart.
+        writeCache<DashboardSnapshot>(CACHE_KEY, persisted);
+        const profile = getCachedProfile(user.id);
         setData((prev) => ({
           ...prev,
+          profile: prev.profile ?? profile,
           heatmap: persisted.heatmap ?? prev.heatmap,
           focus: persisted.focus ?? prev.focus,
         }));
+        setLoading(false);
+        syncAtlasStatsWidget(profile, persisted.heatmap ?? []);
       }
     })();
     return () => {

@@ -199,8 +199,10 @@ async function errorText(response: Response): Promise<string> {
 }
 
 /**
- * Any authenticated API call that comes back 401/403 means the account can no
- * longer use the service. Supabase auth endpoints are excluded (an invalid OTP
+ * Flags an account only when the server explicitly reports a banned/disabled
+ * user. A bare 401/403 usually means an expired access token or a failed
+ * offline refresh, and treating it as a disabled account would cover the app
+ * with the wrong overlay. Supabase auth endpoints are excluded (an invalid OTP
  * is a 403 too), except the token endpoint when GoTrue explicitly reports a
  * banned/disabled user.
  */
@@ -234,7 +236,9 @@ const guardedFetch: typeof fetch = async (input, init) => {
     const token = authorization?.replace(/^bearer\s+/i, "").trim() ?? "";
     if (!token || token === supabaseAnonKey) return response;
 
-    markAccountDisabled();
+    if (isDisabledAccountMessage(await errorText(response))) {
+      markAccountDisabled();
+    }
   } catch {
     // Never let the guard change the response the SDK sees.
   }

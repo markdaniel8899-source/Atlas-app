@@ -25,8 +25,10 @@ import { AccountDisabledOverlay } from "../components/account-disabled-overlay";
 import { BlurTargetRefContext } from "../components/blur-target";
 import { initNotifications } from "../lib/notifications";
 import { hydrateProfileCache } from "../lib/profile-cache";
+import { hydrateDataCaches } from "../lib/data-cache";
 import { isHeavyTaskRunning } from "../lib/heavy-task";
 import { getCachedAuthUser, resolveSession, subscribeAuth } from "../lib/auth";
+import { getAuthSnapshot, hydrateAuthSnapshot } from "../lib/auth-snapshot";
 import { startRealtime, stopRealtime } from "../lib/realtime";
 import {
   isAuthDeferralActive,
@@ -43,8 +45,10 @@ SplashScreen.setOptions({ duration: 400, fade: true });
 // Foreground presentation settings for the session-end alert.
 initNotifications();
 
-// Warm the persisted profile snapshot before the first screen mounts so the
-// header avatar never falls back while booting.
+// Warm the persisted auth + profile snapshots before the first screen mounts
+// so an offline cold start paints the signed-in app instead of waiting for a
+// token refresh that cannot reach the network.
+void hydrateAuthSnapshot();
 void hydrateProfileCache();
 
 // Resolve the local Supabase session early (non-blocking) so ScreenShell can
@@ -135,9 +139,33 @@ export default function RootLayout() {
     const cap = setTimeout(() => {
       if (active) setSessionSettled(true);
     }, 2500);
+    // The persisted identity lets an offline cold start lift the splash and
+    // warm its caches immediately, instead of waiting for a refresh request
+    // that may hang until the cap. GoTrue still revalidates in the background.
+    void hydrateAuthSnapshot()
+      .then(async () => {
+        const snapshot = getAuthSnapshot();
+        if (!active || !snapshot) return;
+        await Promise.all([
+          hydrateProfileCache(),
+          hydrateDataCaches(snapshot.id).catch(() => undefined),
+        ]);
+        if (!active) return;
+        setSessionKey((prev) => (prev === snapshot.id ? prev : snapshot.id));
+        setSessionSettled(true);
+      })
+      .catch(() => undefined);
     void resolveSession()
-      .then((user) => {
+      .then(async (user) => {
         if (!active || !user) return;
+        // Warm the owner's persisted caches before screens mount so an
+        // offline cold start paints courses/leaderboard/friends/roadmaps
+        // instead of empty states.
+        await Promise.all([
+          hydrateDataCaches(user.id).catch(() => undefined),
+          hydrateProfileCache(),
+        ]);
+        if (!active) return;
         // Set the tab key before the splash lifts so the navigator mounts
         // once with the right owner instead of remounting anon -> user.
         if (isAuthDeferralActive()) {
@@ -162,6 +190,7 @@ export default function RootLayout() {
   useEffect(
     () =>
       subscribeAuth((user) => {
+        if (user) void hydrateDataCaches(user.id);
         const next = user?.id ?? "anon";
         if (next === "anon") {
           pendingSessionKeyRef.current = null;

@@ -14,7 +14,8 @@ export interface AssistantProfileContext {
   focus: FocusCourse | null;
 }
 
-export const OFFLINE_MESSAGE = "Something went wrong. Please try again.";
+export const OFFLINE_MESSAGE =
+  "You are offline. ATLAS AI needs an internet connection - reconnect and try again.";
 export const TIMEOUT_MESSAGE = "That took too long. Please try again.";
 export const EMPTY_MESSAGE = "Type a question first.";
 

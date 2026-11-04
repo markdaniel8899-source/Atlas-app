@@ -3,6 +3,12 @@ import {
   isDisabledAccountMessage,
   markAccountDisabled,
 } from "./account-guard";
+import {
+  clearAuthSnapshot,
+  getAuthSnapshot,
+  hydrateAuthSnapshot,
+  setAuthSnapshot,
+} from "./auth-snapshot";
 import { clearDataCaches } from "./data-cache";
 import { isSupabaseConfigured, supabase } from "./supabase";
 import { clearLocalTimerCache } from "./timer";
@@ -41,9 +47,24 @@ let lastAuthId: string | null | undefined;
 let sessionRead: Promise<AuthUser | null> | null = null;
 let sessionEpoch = 0;
 
+function rememberUser(user: User): AuthUser {
+  const next = toAuthUser(user);
+  cached = next;
+  setAuthSnapshot(next);
+  return next;
+}
+
 supabase.auth.onAuthStateChange((_event, session) => {
-  cached = session?.user ? toAuthUser(session.user) : null;
-  const nextId = session?.user?.id ?? null;
+  if (session?.user) {
+    rememberUser(session.user);
+  } else {
+    // A refresh failure (expired token while offline, transient network
+    // error) also emits SIGNED_OUT. Keep the last signed-in user so an
+    // offline cold start never looks like a logout; a real sign-out clears
+    // the snapshot before this event fires.
+    cached = getAuthSnapshot();
+  }
+  const nextId = cached?.id ?? null;
   // Reset once the account actually changes; the initial session event only
   // establishes the baseline. Registered first, so stores are cleared before
   // screen subscribers see the new user.
@@ -53,12 +74,17 @@ supabase.auth.onAuthStateChange((_event, session) => {
   lastAuthId = nextId;
 });
 
-/** Subscribe to sign-in / sign-out (fires with null after sign-out). */
+/**
+ * Subscribe to sign-in / sign-out. A null session falls back to the persisted
+ * snapshot, so an offline token failure is not reported as a sign-out.
+ */
 export function subscribeAuth(
   listener: (user: AuthUser | null) => void,
 ): () => void {
   const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-    listener(session?.user ? toAuthUser(session.user) : null);
+    listener(
+      session?.user ? toAuthUser(session.user) : getAuthSnapshot(),
+    );
   });
   return () => data.subscription.unsubscribe();
 }
@@ -175,7 +201,7 @@ export async function signUp(
   }
 
   if (data.session && data.user) {
-    cached = toAuthUser(data.user);
+    rememberUser(data.user);
     return {};
   }
 
@@ -203,7 +229,7 @@ export async function signIn(
     };
   }
 
-  if (data.user) cached = toAuthUser(data.user);
+  if (data.user) rememberUser(data.user);
   return {};
 }
 
@@ -250,7 +276,7 @@ export async function verifyEmailOtp(
     return { error: readableError(error.message) };
   }
 
-  if (data.user) cached = toAuthUser(data.user);
+  if (data.user) rememberUser(data.user);
   return {};
 }
 
@@ -297,7 +323,7 @@ export async function updatePassword(password: string): Promise<AuthResult> {
     return { error: readableError(error.message) };
   }
 
-  if (data.user) cached = toAuthUser(data.user);
+  if (data.user) rememberUser(data.user);
   return {};
 }
 
@@ -308,6 +334,9 @@ export async function signOut(
   sessionEpoch += 1;
   sessionRead = null;
   cached = null;
+  // Clear before GoTrue emits SIGNED_OUT, otherwise the snapshot fallback
+  // would immediately restore the account we are logging out of.
+  clearAuthSnapshot();
   try {
     if (isSupabaseConfigured) {
       if (options.local) {
@@ -331,7 +360,7 @@ export async function signOut(
     syncAtlasStatsWidget(null, []);
     syncAtlasNotesWidget(null);
     clearProfileCache();
-    clearDataCaches();
+    clearDataCaches(ownerId);
     if (ownerId) {
       void clearNotesCache(ownerId);
       void clearDashboardCache(ownerId);
@@ -343,15 +372,48 @@ export async function signOut(
 /** One shared SecureStore read, so cold-start callers never race each other. */
 async function readSession(): Promise<AuthUser | null> {
   const epoch = sessionEpoch;
-  try {
-    const { data } = await supabase.auth.getSession();
-    // A sign-out while the read was in flight must win: never resurrect the
-    // previous account from a stale storage snapshot.
+  await hydrateAuthSnapshot();
+  const snapshot = getAuthSnapshot();
+  // Start the real read before deciding, so a slow token refresh runs in the
+  // background instead of holding the splash/UI hostage while offline.
+  const sessionPromise = supabase.auth.getSession();
+
+  if (snapshot) {
+    // Persisted identity: answer now and let the token read upgrade the
+    // cache when (if) it completes. A sign-out bumps the epoch and wins.
+    void sessionPromise
+      .then(({ data }) => {
+        if (epoch !== sessionEpoch) return;
+        if (data.session?.user) cached = rememberUser(data.session.user);
+      })
+      .catch(() => undefined);
     if (epoch === sessionEpoch) {
-      cached = data.session?.user ? toAuthUser(data.session.user) : null;
+      // Never clobber a user an auth event already delivered.
+      if (!cached) cached = snapshot;
+      // If the first auth event already ran while the snapshot was still
+      // loading, it recorded a spurious "signed out" baseline. Align it now
+      // so a later token event for this same user does not run the
+      // sign-in reset handlers (which would wipe the assistant/timer state).
+      if (lastAuthId === undefined || lastAuthId === null) {
+        lastAuthId = cached?.id ?? snapshot.id;
+      }
+      sessionRead = null;
+    }
+    return cached;
+  }
+
+  try {
+    const { data } = await sessionPromise;
+    if (epoch === sessionEpoch) {
+      // No token does not necessarily mean signed out (the refresh may have
+      // failed offline), but without a snapshot there is nothing to keep.
+      cached = data.session?.user
+        ? rememberUser(data.session.user)
+        : getAuthSnapshot();
     }
   } catch {
     // A failed local read is not a sign-out: keep the last known user.
+    cached = cached ?? getAuthSnapshot();
   } finally {
     if (epoch === sessionEpoch) sessionRead = null;
   }
@@ -383,5 +445,5 @@ export async function resolveSession(): Promise<AuthUser | null> {
  * async session read.
  */
 export function getCachedAuthUser(): AuthUser | null {
-  return cached;
+  return cached ?? getAuthSnapshot();
 }

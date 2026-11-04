@@ -22,6 +22,7 @@ interface CachedProfile {
 
 let memory: CachedProfile | null = null;
 let hydrated = false;
+let hydrating: Promise<void> | null = null;
 
 /** Synchronous read for the very first render (memory only). */
 export function getCachedProfile(ownerId?: string | null): Profile | null {
@@ -36,19 +37,29 @@ export function profileCacheAgeMs(): number {
   return Date.now() - memory.at;
 }
 
-/** Loads the persisted snapshot into memory once per app run. */
-export async function hydrateProfileCache(): Promise<void> {
-  if (hydrated) return;
-  hydrated = true;
-  try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
-    if (raw && !memory) {
-      const parsed = JSON.parse(raw) as CachedProfile;
-      if (parsed?.ownerId && parsed?.profile) memory = parsed;
+/**
+ * Loads the persisted snapshot into memory once per app run. Concurrent
+ * callers (root layout + screen hooks) share the same in-flight read instead
+ * of returning before the data is available.
+ */
+export function hydrateProfileCache(): Promise<void> {
+  if (hydrated) return Promise.resolve();
+  if (hydrating) return hydrating;
+  hydrating = (async () => {
+    try {
+      const raw = await AsyncStorage.getItem(STORAGE_KEY);
+      if (raw && !memory) {
+        const parsed = JSON.parse(raw) as CachedProfile;
+        if (parsed?.ownerId && parsed?.profile) memory = parsed;
+      }
+    } catch {
+      // Best-effort cache only.
+    } finally {
+      hydrated = true;
+      hydrating = null;
     }
-  } catch {
-    // Best-effort cache only.
-  }
+  })();
+  return hydrating;
 }
 
 export function setCachedProfile(ownerId: string, profile: Profile): void {

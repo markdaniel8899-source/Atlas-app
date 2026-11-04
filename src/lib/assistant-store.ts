@@ -1,11 +1,13 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
+  OFFLINE_MESSAGE,
   ask,
   classify,
   newTurnId,
   validate,
   type Turn,
 } from "./assistant";
+import { isOnline } from "./net";
 import { registerResetHandler } from "./session-reset";
 
 const STORAGE_KEY = "atlas.assistant.thread.v1";
@@ -182,6 +184,11 @@ export async function sendAssistantMessage(
     return;
   }
   if (state.pending) return;
+  if (!(await isOnline())) {
+    state = { ...state, error: OFFLINE_MESSAGE };
+    emit();
+    return;
+  }
 
   const trimmed = text.trim();
   // The message itself travels separately, so history is everything before it.
@@ -208,6 +215,11 @@ export async function retryAssistantMessage(
 ) {
   const last = state.lastSent;
   if (!last || state.pending) return;
+  if (!(await isOnline())) {
+    state = { ...state, error: OFFLINE_MESSAGE };
+    emit();
+    return;
+  }
   state = { ...state, pending: true, error: null };
   emit();
   await runAsk(last, historyBase, systemPrompt, userName);

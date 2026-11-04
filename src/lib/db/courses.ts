@@ -170,14 +170,16 @@ export function topicCounts(course: FocusCourse): {
 
 /**
  * Cumulative focus counter: lifetime focused seconds for a course.
- * Returns 0 when there is no course, no row, or the column is missing.
+ * Returns 0 when there is no course or the column is missing, and null when
+ * the counter could not be read (offline) so callers can keep their local
+ * value instead of zeroing the visible total.
  */
 export async function getFocusSeconds(
   courseId: number | null,
-): Promise<number> {
+): Promise<number | null> {
   if (courseId == null) return 0;
   const user = await resolveSession();
-  if (!user) return 0;
+  if (!user) return null;
 
   const { data, error } = await supabase
     .from("courses")
@@ -186,7 +188,8 @@ export async function getFocusSeconds(
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (error || !data) return 0;
+  if (error) return null;
+  if (!data) return 0;
   const value = Number(
     (data as { total_focus_seconds?: unknown }).total_focus_seconds,
   );
@@ -231,6 +234,7 @@ export async function addFocusSeconds(
 
   // Fallback: read-modify-write
   const current = await getFocusSeconds(courseId);
+  if (current == null) return false;
   const { error } = await supabase
     .from("courses")
     .update({ total_focus_seconds: current + Math.floor(seconds) })

@@ -543,6 +543,10 @@ export default function NotesScreen() {
         activeCourseId == null ||
         note.courseId === activeCourseId ||
         (note.courseId == null && note.topicId != null);
+      // Queue-backed temp notes are authoritative for offline-created rows:
+      // include them even when the current list has never seen their id
+      // (cold start, where the queue hydrates after the first render).
+      const tempViews = getTempNoteViews().filter(inScope);
 
       const merged = rows
         .filter((row) => !pendingWrites.get(row.id)?.deleted)
@@ -571,8 +575,14 @@ export default function NotesScreen() {
           (note) => pendingTemp.has(note.id) && inScope(note),
         );
         const seen = new Set(keep.map((note) => note.id));
+        const missing = tempViews.filter((view) => !seen.has(view.id));
+        for (const view of missing) seen.add(view.id);
         return applyNoteOrder(
-          [...keep, ...merged.filter((row) => !seen.has(row.id))],
+          [
+            ...keep,
+            ...missing,
+            ...merged.filter((row) => !seen.has(row.id)),
+          ],
           noteOrderRef.current,
         );
       });
@@ -631,6 +641,18 @@ export default function NotesScreen() {
   useEffect(() => {
     queueRef.current = queue;
   }, [queue]);
+
+  // The offline queue is read from disk asynchronously (and its owner is primed
+  // from the persisted auth snapshot). The mount effect can run first, so once
+  // the queue becomes ready re-apply its temp notes on top of the current list
+  // or notes written offline in the previous run would never show up.
+  const queueReady = queue.ready;
+  const queuePending = queue.pending;
+  const queueTempKey = queue.tempIds.join("|");
+  useEffect(() => {
+    if (!queueReady) return;
+    applyRows(notesRef.current);
+  }, [queueReady, queuePending, queueTempKey, applyRows]);
 
   // Restore the manual order saved by the last reorder on this device.
   useEffect(() => {

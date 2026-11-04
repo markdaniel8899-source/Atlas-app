@@ -268,6 +268,9 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   const reloadCourseBase = useCallback(async (courseId: number | null) => {
     const ownerId = ownerRef.current;
     const seconds = await getFocusSeconds(courseId);
+    // null = unreachable (offline); keep the local counter so session time
+    // still shows instead of dropping to zero.
+    if (seconds == null) return;
     if (ownerId !== ownerRef.current) return;
     if (courseId !== stateRef.current.courseId) return;
     courseBaseRef.current = seconds;
