@@ -260,7 +260,7 @@
   - `supabase.ts` `guardedFetch`: only `markAccountDisabled()` when the response body matches the banned/disabled message; a bare 401/403 (expired token / failed offline refresh) no longer covers the app with the disabled-account overlay.
   - `notes-queue.ts`: `NotesQueueSnapshot.ready` (true after the disk read) and an offline-cold-start owner primer from the auth snapshot (adopt unowned ops, emit, flush). `notes.tsx`: `applyRows` merges every scoped queue temp note (not only ids already in state) and a new effect re-applies rows when the queue becomes ready or changes, so notes written offline in a previous run appear after restart.
   - Online-only AI features now say so: assistant `send`/`retry` check `isOnline()` first and `OFFLINE_MESSAGE` reads "You are offline. ATLAS AI needs an internet connection..."; roadmap generation and quiz already had offline messages.
-  - Verified: `npx tsc --noEmit` clean, `npx expo lint` only the 3 pre-existing warnings, `npx expo export --platform web --clear` 20/20 static routes. JS-only (OTA-able); no native/asset changes.
+  - Verified: `npx tsc --noEmit` clean, `npx expo lint` only the 3 pre-existing warnings, `npx expo export --platform web --clear` 20/20 static routes. JS-only; OTA published (`401c3dda-6d7e-4a5a-bedb-f3b9649cdaf7`, runtime 1.0.2, commit `50a9169`); no native/asset changes.
 
 ## Workflow Preferences (user)
 - User communicates in **Roman Urdu** — reply concisely in Roman Urdu.
