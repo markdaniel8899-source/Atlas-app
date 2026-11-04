@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Easing, Image, StyleSheet } from "react-native";
+import { diag } from "../lib/diagnostics";
 
 const LOCKUP = require("../../assets/splash-lockup.png");
 
@@ -29,12 +30,16 @@ export function SplashOverlay({ ready }: { ready: boolean }) {
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start(({ finished }) => {
-      if (finished) setDone(true);
+      if (finished) {
+        diag("splash:done");
+        setDone(true);
+      }
     });
   }, [exit]);
 
   useEffect(() => {
     if (ready) {
+      diag("splash:exit");
       startExit();
       return;
     }

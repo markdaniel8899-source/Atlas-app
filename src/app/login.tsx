@@ -42,6 +42,7 @@ import {
   verifyEmailOtp,
 } from "../lib/auth";
 import { beginAuthDeferral, endAuthDeferral } from "../lib/auth-deferral";
+import { diag } from "../lib/diagnostics";
 import {
   clearPendingVerification,
   isPendingVerification,
@@ -88,6 +89,7 @@ export default function LoginScreen() {
       const subscription = BackHandler.addEventListener(
         "hardwareBackPress",
         () => {
+          diag("app:exit");
           BackHandler.exitApp();
           return true;
         },

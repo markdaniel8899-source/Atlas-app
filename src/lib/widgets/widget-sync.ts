@@ -10,6 +10,11 @@ import {
   saveNotesWidgetData,
 } from "./notes-widget-data";
 import { buildNotesWidgetData, buildStatsData } from "./widget-model";
+import { diag } from "../diagnostics";
+
+function describe(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
 /**
  * Mirrors the latest dashboard snapshot into the stats widget cache.
@@ -20,15 +25,23 @@ export function syncAtlasStatsWidget(
   profile: Profile | null,
   heatmap: HeatmapDay[],
 ): void {
-  const data = profile ? buildStatsData(profile, heatmap) : FALLBACK_WIDGET_DATA;
+  let data = FALLBACK_WIDGET_DATA;
+  if (profile) {
+    try {
+      data = buildStatsData(profile, heatmap);
+    } catch (error) {
+      diag("widget:stats:build-fail", { message: describe(error) });
+    }
+  }
   void saveAtlasWidgetData(data);
   if (Platform.OS !== "android") return;
   try {
+    diag("widget:stats:push");
     // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy: older APKs ship without the widget native module
     const updater = require("./widget-update") as typeof import("./widget-update");
     updater.pushAtlasStatsWidgetUpdate(data);
-  } catch {
-    // Widget native module missing (older APK) - skip silently.
+  } catch (error) {
+    diag("widget:stats:require-fail", { message: describe(error) });
   }
 }
 
@@ -37,15 +50,22 @@ export function syncAtlasStatsWidget(
  * Pass null on sign-out so the widget falls back to its empty state.
  */
 export function syncAtlasNotesWidget(notes: Note[] | null): void {
-  const data =
-    notes === null ? EMPTY_NOTES_WIDGET_DATA : buildNotesWidgetData(notes);
+  let data = EMPTY_NOTES_WIDGET_DATA;
+  if (notes !== null) {
+    try {
+      data = buildNotesWidgetData(notes);
+    } catch (error) {
+      diag("widget:notes:build-fail", { message: describe(error) });
+    }
+  }
   void saveNotesWidgetData(data);
   if (Platform.OS !== "android") return;
   try {
+    diag("widget:notes:push");
     // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy: older APKs ship without the widget native module
     const updater = require("./widget-update") as typeof import("./widget-update");
     updater.pushNotesWidgetUpdate(data);
-  } catch {
-    // Widget native module missing (older APK) - skip silently.
+  } catch (error) {
+    diag("widget:notes:require-fail", { message: describe(error) });
   }
 }

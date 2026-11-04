@@ -39,6 +39,7 @@ import {
 } from "../lib/timer-sync";
 import type { RemoteTimer } from "../lib/timer-sync";
 import { registerResetHandler } from "../lib/session-reset";
+import { diag } from "../lib/diagnostics";
 import {
   cancelSessionEndNotification,
   scheduleSessionEndNotification,
@@ -221,6 +222,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     try {
       const local = stateRef.current;
       const decision = await decideTimerSync(ownerId, local);
+      diag("timer:sync", { type: decision.type });
       if (ownerId !== ownerRef.current) return;
       // A local action landed while the row was loading: never adopt over it.
       if (stateRef.current !== local) {
@@ -229,8 +231,10 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       }
       if (decision.type === "adopt") adoptRemote(decision.remote);
       else if (decision.type === "push") pushSync(decision.state);
-    } catch {
-      // Offline: the local timer keeps running.
+    } catch (error) {
+      diag("timer:sync:fail", {
+        message: error instanceof Error ? error.message : String(error),
+      });
     } finally {
       syncBusyRef.current = false;
     }
@@ -241,6 +245,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   // different account), so a late response can never overwrite the new user.
   const hydrateForOwner = useCallback(async (ownerId: string | null) => {
     const run = ++hydrateRunRef.current;
+    diag("timer:hydrate:start", { owner: Boolean(ownerId) });
     ownerRef.current = ownerId;
     hydratedRef.current = false;
 
@@ -278,6 +283,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     setState(stored);
     setGlobalBase(base);
     hydratedRef.current = true;
+    diag("timer:hydrate:done", { mode: stored.mode });
 
     // Keep the end-of-session alert in sync with a persisted run.
     const endsAt = sessionEndsAt(stored);

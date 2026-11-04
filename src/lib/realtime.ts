@@ -13,6 +13,7 @@ import {
 } from "./notifications";
 import { supabase } from "./supabase";
 import { cachedDeviceId } from "./timer-sync";
+import { diag } from "./diagnostics";
 
 interface ChangePayload {
   eventType?: string;
@@ -75,6 +76,7 @@ export function startRealtime(userId: string): void {
   const gen = (generation += 1);
   const uid = userId;
   names.clear();
+  diag("rt:start", { userId });
   void ensureNotificationPermission();
 
   const mine = `user_id=eq.${uid}`;
@@ -193,12 +195,13 @@ export function startRealtime(userId: string): void {
       },
     );
 
-  next.subscribe();
+  next.subscribe((status) => diag("rt:status", { status }));
   channel = next;
 }
 
 /** Tears the socket down on sign-out / account switch. */
 export function stopRealtime(): void {
+  if (channel) diag("rt:stop");
   generation += 1;
   activeUserId = null;
   names.clear();

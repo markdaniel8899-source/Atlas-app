@@ -271,6 +271,14 @@
   - Known edge: if both devices are open at the exact target, both auto-stop and commit (rare, no server-side session claim). Bogus legacy sessions can be cleaned with `delete from public.learning_sessions where total_seconds > 86400;` (commented in the SQL).
   - Verified: app `npx tsc --noEmit` clean, `npx expo lint` only the 3 pre-existing warnings, web export 20/20; website `npm run typecheck` + `npm run build` clean; Node harness on the website timer (31h run -> 25m cap, commit window 25m, pause accrual 25m). App JS-only (`d1a2053`), OTA published (`4111d29f-ba00-407e-9f07-429c9a5c15fe`, runtime 1.0.2); website pushed (`272a3e8`). No native/asset changes.
 
+- **Crash diagnostics batch (2026-11-04, user-reported "data show hote hi app close"):**
+  - No stack available: production build has no Sentry DSN (`src/lib/sentry.ts` no-ops), machine has no adb/Android SDK/emulator, and `eas update:insights` (Launches 1, Crash 0.00% on `4111d29f` + `401c3dda`) only tracks update load failures, not runtime crashes. Static audit of startup/widget/timer/realtime/notes paths found no definite throw, so diagnostics were added instead of guessing.
+  - New `src/lib/diagnostics.ts`: persisted breadcrumb ring (`atlas.diag.log.v1`, 50 entries, writes gated until hydration so the previous run is read before the first write), last error (`atlas.diag.error.v1`), `installDiagnostics()` wraps `ErrorUtils` (records fatal/non-fatal; swallows fatals so the app stays up) + Hermes unhandled-rejection tracker, and `previousRunCrashed()` (clean-exit markers `app:background` / `app:exit`; ignores entries older than 30 min).
+  - New `src/components/diagnostic-overlay.tsx`: `DiagnosticBoundary` (React error screen with Try again) + `DiagnosticOverlay` (auto-shows a JS error or the previous session's trail, "Share details" via RN `Share`). Mounted in `_layout.tsx` around the whole app, overlay outside the boundary.
+  - Breadcrumbs: `_layout.tsx` (app:start, fonts, session snapshot/resolved/settled/cap, navigator, preload stage, AppState), `use-dashboard.ts` (reload, cached profile, data, widget start/done, error, cache hydrate), `widget-sync.ts` / `widget-update.tsx` (build/push/render/request/not-placed), `timer-context.tsx` (hydrate start/done, sync decision/fail), `realtime.ts` (start/status/stop), `splash-overlay.tsx`, and the 3 `BackHandler.exitApp()` sites (`app:exit`).
+  - Hardening: `syncAtlasStatsWidget` / `syncAtlasNotesWidget` now build widget data inside try/catch and fall back to the empty card on failure (was outside try).
+  - Verified `npx tsc --noEmit` clean, `npx expo lint` only the 3 pre-existing warnings. JS-only, OTA-able; no native/asset changes.
+
 ## Workflow Preferences (user)
 - User communicates in **Roman Urdu** — reply concisely in Roman Urdu.
 - Do not ask for confirmation mid-task; finish the task, then report.

@@ -18,6 +18,7 @@ import {
   hydrateProfileCache,
 } from "../lib/profile-cache";
 import { syncStreakReminder } from "../lib/notifications";
+import { diag } from "../lib/diagnostics";
 import { syncAtlasStatsWidget } from "../lib/widgets/widget-sync";
 import type { FocusCourse, HeatmapDay, Profile } from "../lib/db/types";
 
@@ -75,10 +76,12 @@ export function useDashboard(): DashboardState {
     const request = ++requestRef.current;
     let user: AuthUser | null = null;
     let cachedProfile: Profile | null = null;
+    diag("dash:reload", { request });
     try {
       user = await resolveSession().catch(() => getCachedAuthUser());
       if (request !== requestRef.current) return;
       if (!user) {
+        diag("dash:signed-out");
         setData(EMPTY);
         syncAtlasStatsWidget(null, []);
         void syncStreakReminder(null);
@@ -93,6 +96,7 @@ export function useDashboard(): DashboardState {
       await hydrateProfileCache();
       cachedProfile = getCachedProfile(user.id);
       if (cachedProfile) {
+        diag("dash:cached-profile");
         setData((prev) => ({ ...prev, user, profile: cachedProfile }));
       }
 
@@ -116,7 +120,13 @@ export function useDashboard(): DashboardState {
         focus,
       };
       setData(next);
+      diag("dash:data", {
+        profile: Boolean(next.profile),
+        heatmap: heatmap.length,
+      });
+      diag("dash:widget:start");
       syncAtlasStatsWidget(next.profile, heatmap);
+      diag("dash:widget:done");
       void syncStreakReminder(
         next.profile
           ? {
@@ -126,7 +136,10 @@ export function useDashboard(): DashboardState {
           : null,
       );
       setStale(false);
-    } catch {
+    } catch (error) {
+      diag("dash:error", {
+        message: error instanceof Error ? error.message : String(error),
+      });
       if (request !== requestRef.current) return;
       if (getCachedAuthUser()?.id !== user?.id) return;
       if (!cachedProfile && user) setData((prev) => ({ ...prev, user }));
@@ -152,6 +165,7 @@ export function useDashboard(): DashboardState {
       if (!alive) return;
       if (getCachedAuthUser()?.id !== user.id) return;
       if (persisted) {
+        diag("dash:cache-hydrate");
         // Seed the shared memory cache too, otherwise other screens and the
         // widget still see an empty dashboard after an offline restart.
         writeCache<DashboardSnapshot>(CACHE_KEY, persisted);

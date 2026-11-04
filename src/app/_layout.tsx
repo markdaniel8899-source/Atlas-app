@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { InteractionManager, StyleSheet, View } from "react-native";
+import { AppState, InteractionManager, StyleSheet, View } from "react-native";
 import { DarkTheme, Tabs, ThemeProvider } from "expo-router";
 import Head from "expo-router/head";
 import { StatusBar } from "expo-status-bar";
@@ -22,6 +22,10 @@ import { MeshBackground } from "../components/mesh-background";
 import { SplashOverlay } from "../components/splash-overlay";
 import { GlobalDrawer } from "../components/global-drawer";
 import { AccountDisabledOverlay } from "../components/account-disabled-overlay";
+import {
+  DiagnosticBoundary,
+  DiagnosticOverlay,
+} from "../components/diagnostic-overlay";
 import { BlurTargetRefContext } from "../components/blur-target";
 import { initNotifications } from "../lib/notifications";
 import { hydrateProfileCache } from "../lib/profile-cache";
@@ -35,12 +39,20 @@ import {
   subscribeAuthDeferral,
 } from "../lib/auth-deferral";
 import { refreshAiBaseUrl } from "../lib/api-config";
+import {
+  diag,
+  hydrateDiagnostics,
+  installDiagnostics,
+} from "../lib/diagnostics";
 import "../lib/sentry";
 import { colors } from "../theme/theme";
 import { tabTransitionOptions } from "../lib/tab-transition";
 
 void SplashScreen.preventAutoHideAsync().catch(() => {});
 SplashScreen.setOptions({ duration: 400, fade: true });
+
+installDiagnostics();
+void hydrateDiagnostics().then(() => diag("app:start"));
 
 // Foreground presentation settings for the session-end alert.
 initNotifications();
@@ -126,9 +138,20 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (loaded || error) {
+      diag("layout:fonts", { loaded, error: Boolean(error) });
       void SplashScreen.hideAsync().catch(() => {});
     }
   }, [loaded, error]);
+
+  useEffect(() => {
+    diag("layout:mounted", { sessionKey });
+    const sub = AppState.addEventListener("change", (state) => {
+      diag(state === "background" ? "app:background" : "app:active", { state });
+    });
+    return () => sub.remove();
+    // The listener is intentionally installed once for the app lifetime.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Cold starts hold the branded splash (not a spinner) until the local
   // session read settles, so no screen mounts or fetches with an empty auth
@@ -137,7 +160,10 @@ export default function RootLayout() {
   useEffect(() => {
     let active = true;
     const cap = setTimeout(() => {
-      if (active) setSessionSettled(true);
+      if (active) {
+        diag("layout:session:cap");
+        setSessionSettled(true);
+      }
     }, 2500);
     // The persisted identity lets an offline cold start lift the splash and
     // warm its caches immediately, instead of waiting for a refresh request
@@ -146,6 +172,7 @@ export default function RootLayout() {
       .then(async () => {
         const snapshot = getAuthSnapshot();
         if (!active || !snapshot) return;
+        diag("layout:session:snapshot");
         await Promise.all([
           hydrateProfileCache(),
           hydrateDataCaches(snapshot.id).catch(() => undefined),
@@ -157,7 +184,9 @@ export default function RootLayout() {
       .catch(() => undefined);
     void resolveSession()
       .then(async (user) => {
-        if (!active || !user) return;
+        if (!active) return;
+        diag("layout:session:resolved", { signedIn: Boolean(user) });
+        if (!user) return;
         // Warm the owner's persisted caches before screens mount so an
         // offline cold start paints courses/leaderboard/friends/roadmaps
         // instead of empty states.
@@ -178,6 +207,7 @@ export default function RootLayout() {
       .finally(() => {
         clearTimeout(cap);
         if (active) {
+          diag("layout:session:settled");
           setSessionSettled(true);
         }
       });
@@ -249,6 +279,10 @@ export default function RootLayout() {
         InteractionManager.runAfterInteractions(() => {
           if (cancelled) return;
           stage += 1;
+          diag("layout:preload", {
+            stage,
+            routes: PRELOAD_WAVES[stage - 1]?.join(","),
+          });
           setPreloadStage(stage);
           if (stage < PRELOAD_WAVES.length) schedule(750);
         });
@@ -262,6 +296,10 @@ export default function RootLayout() {
     };
   }, [sessionKey, sessionSettled]);
 
+  useEffect(() => {
+    if (sessionSettled) diag("layout:navigator", { sessionKey });
+  }, [sessionSettled, sessionKey]);
+
   if (!loaded && !error) return null;
 
   const preloadedRoutes =
@@ -272,51 +310,54 @@ export default function RootLayout() {
   return (
     <BlurTargetRefContext.Provider value={blurTargetRef}>
       <View style={styles.root}>
-        {/*
-         * One shared mesh behind every tab. Screens are transparent, so a tab
-         * change only swaps their content over a static backdrop - no
-         * per-screen SVG or full-screen alpha layer is drawn.
-         */}
-        <BlurTargetView
-          ref={blurTargetRef}
-          style={StyleSheet.absoluteFill}
-          pointerEvents="none"
-        >
-          <MeshBackground />
-        </BlurTargetView>
+        <DiagnosticBoundary>
+          {/*
+           * One shared mesh behind every tab. Screens are transparent, so a tab
+           * change only swaps their content over a static backdrop - no
+           * per-screen SVG or full-screen alpha layer is drawn.
+           */}
+          <BlurTargetView
+            ref={blurTargetRef}
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
+          >
+            <MeshBackground />
+          </BlurTargetView>
 
-        <TimerProvider>
-          <Head>
-            <title>ATLAS - Turn studying into a game you want to win</title>
-            <meta
-              name="description"
-              content="ATLAS is a gamified study companion: focus sessions, courses, roadmaps, quizzes, a weekly leaderboard and an AI tutor that keeps your streak alive."
-            />
-          </Head>
-          {/* Mount the navigator only once the local session is known: the
-              mesh and branded splash paint immediately, while screens wait for
-              a real auth token instead of firing empty-header requests. */}
-          {sessionSettled ? (
-            <ThemeProvider value={NAVIGATION_THEME}>
-              <Tabs
-                key={sessionKey}
-                backBehavior="history"
-                tabBar={() => null}
-                detachInactiveScreens={false}
-                screenOptions={({ route }) => ({
-                  headerShown: false,
-                  sceneStyle: { backgroundColor: "transparent" },
-                  lazy: !preloadedRoutes?.has(route.name),
-                  ...tabTransitionOptions(),
-                })}
+          <TimerProvider>
+            <Head>
+              <title>ATLAS - Turn studying into a game you want to win</title>
+              <meta
+                name="description"
+                content="ATLAS is a gamified study companion: focus sessions, courses, roadmaps, quizzes, a weekly leaderboard and an AI tutor that keeps your streak alive."
               />
-            </ThemeProvider>
-          ) : null}
-          <GlobalDrawer />
-          <SplashOverlay ready={sessionSettled || Boolean(error)} />
-          <AccountDisabledOverlay />
-          <StatusBar style="light" />
-        </TimerProvider>
+            </Head>
+            {/* Mount the navigator only once the local session is known: the
+                mesh and branded splash paint immediately, while screens wait for
+                a real auth token instead of firing empty-header requests. */}
+            {sessionSettled ? (
+              <ThemeProvider value={NAVIGATION_THEME}>
+                <Tabs
+                  key={sessionKey}
+                  backBehavior="history"
+                  tabBar={() => null}
+                  detachInactiveScreens={false}
+                  screenOptions={({ route }) => ({
+                    headerShown: false,
+                    sceneStyle: { backgroundColor: "transparent" },
+                    lazy: !preloadedRoutes?.has(route.name),
+                    ...tabTransitionOptions(),
+                  })}
+                />
+              </ThemeProvider>
+            ) : null}
+            <GlobalDrawer />
+            <SplashOverlay ready={sessionSettled || Boolean(error)} />
+            <AccountDisabledOverlay />
+            <StatusBar style="light" />
+          </TimerProvider>
+        </DiagnosticBoundary>
+        <DiagnosticOverlay />
       </View>
     </BlurTargetRefContext.Provider>
   );

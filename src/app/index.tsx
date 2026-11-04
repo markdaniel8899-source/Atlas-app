@@ -24,6 +24,7 @@ import { StaleNotice } from "../components/ui/stale-notice";
 import { getCachedAuthUser, resolveSession } from "../lib/auth";
 import { closeDrawer, isDrawerOpen, openDrawer } from "../lib/drawer-store";
 import { hasSeenOnboarding } from "../lib/onboarding";
+import { diag } from "../lib/diagnostics";
 import { colors, fonts } from "../theme/theme";
 
 function greeting(): string {
@@ -50,6 +51,7 @@ export default function DashboardScreen() {
             closeDrawer();
             return true;
           }
+          diag("app:exit");
           BackHandler.exitApp();
           return true;
         },

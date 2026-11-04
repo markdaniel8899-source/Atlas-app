@@ -28,6 +28,7 @@ import {
 } from "lucide-react-native";
 import { AuthGlow } from "../components/auth/auth-glow";
 import { markOnboardingSeen } from "../lib/onboarding";
+import { diag } from "../lib/diagnostics";
 import { useReducedMotion } from "../hooks/use-reduced-motion";
 import { colors, fonts } from "../theme/theme";
 
@@ -344,6 +345,7 @@ export default function OnboardingScreen() {
       const subscription = BackHandler.addEventListener(
         "hardwareBackPress",
         () => {
+          diag("app:exit");
           BackHandler.exitApp();
           return true;
         },
