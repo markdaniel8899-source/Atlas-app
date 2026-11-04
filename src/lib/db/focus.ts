@@ -1,4 +1,4 @@
-import { commitSession, elapsedMs } from "../timer";
+import { commitSession, sessionElapsedMs } from "../timer";
 import type { StudySession, TimerState } from "../timer";
 import { addFocusSeconds } from "./courses";
 import { addGlobalFocusSeconds } from "./profile";
@@ -22,7 +22,7 @@ function enqueue(task: () => Promise<unknown>): Promise<unknown> {
 
 /** Delta seconds accumulated since the last flush. */
 function pendingSeconds(state: TimerState): number {
-  return Math.floor((elapsedMs(state) - state.flushedMs) / 1000);
+  return Math.floor((sessionElapsedMs(state) - state.flushedMs) / 1000);
 }
 
 /**

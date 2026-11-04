@@ -12,6 +12,7 @@ import {
 import { clearDataCaches } from "./data-cache";
 import { isSupabaseConfigured, supabase } from "./supabase";
 import { clearLocalTimerCache } from "./timer";
+import { stopRemoteTimer } from "./timer-sync";
 import {
   cancelSessionEndNotification,
   cancelStreakReminder,
@@ -337,6 +338,8 @@ export async function signOut(
   // Clear before GoTrue emits SIGNED_OUT, otherwise the snapshot fallback
   // would immediately restore the account we are logging out of.
   clearAuthSnapshot();
+  // Best effort: don't leave a ghost running session on the other device.
+  if (ownerId && isSupabaseConfigured) await stopRemoteTimer(ownerId);
   try {
     if (isSupabaseConfigured) {
       if (options.local) {

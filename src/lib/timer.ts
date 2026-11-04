@@ -23,8 +23,9 @@ export interface StudySession {
 const STATE_KEY = "atlas.timer";
 const SESSIONS_KEY = "atlas.sessions";
 const BASE_KEY = "atlas.focus.base";
+const SYNC_KEY = "atlas.timer.sync.v1";
 
-const LEGACY_KEYS = [STATE_KEY, SESSIONS_KEY, BASE_KEY];
+const LEGACY_KEYS = [STATE_KEY, SESSIONS_KEY, BASE_KEY, SYNC_KEY];
 
 /** Per-account keys keep one user's timer out of the next user's session. */
 function ownerKey(base: string, ownerId?: string | null): string {
@@ -79,6 +80,46 @@ export function elapsedMs(state: TimerState, now = Date.now()): number {
   return state.accumulatedMs + running;
 }
 
+/** Target length of the current session in milliseconds (0 = no cap). */
+export function targetMs(state: TimerState): number {
+  return Math.max(0, state.targetMin) * 60_000;
+}
+
+/**
+ * Elapsed time that can count toward the session. A target is a hard stop:
+ * wall-clock time after it (app closed / tab asleep) must never inflate the
+ * session. Without this a session left overnight could log 31 hours.
+ */
+export function sessionElapsedMs(
+  state: TimerState,
+  now = Date.now(),
+): number {
+  const elapsed = elapsedMs(state, now);
+  const target = targetMs(state);
+  return target > 0 ? Math.min(elapsed, target) : elapsed;
+}
+
+/**
+ * Wall-clock moment the session ended. If the target passed while the app was
+ * closed, the session ended at the target - not when the app was reopened.
+ * Falls back to `now` for sessions stopped before the target.
+ */
+export function sessionEndedAt(
+  state: TimerState,
+  now = Date.now(),
+): number {
+  const target = targetMs(state);
+  if (
+    target > 0 &&
+    state.mode === "running" &&
+    state.startedAt !== null &&
+    elapsedMs(state, now) >= target
+  ) {
+    return state.startedAt + Math.max(0, target - state.accumulatedMs);
+  }
+  return now;
+}
+
 export function startTimer(state: TimerState): TimerState {
   if (state.mode === "running") return state;
   return { ...state, mode: "running", startedAt: Date.now() };
@@ -86,7 +127,10 @@ export function startTimer(state: TimerState): TimerState {
 
 export function pauseTimer(state: TimerState): TimerState {
   if (state.mode !== "running" || state.startedAt === null) return state;
-  const accrued = Date.now() - state.startedAt;
+  const target = targetMs(state);
+  const raw = Math.max(0, Date.now() - state.startedAt);
+  const room = target > 0 ? Math.max(0, target - state.accumulatedMs) : raw;
+  const accrued = Math.min(raw, room);
   return {
     ...state,
     mode: "paused",
@@ -216,9 +260,9 @@ export async function commitSession(
   ownerId?: string | null,
 ): Promise<StudySession | null> {
   if (!ownerId) return null;
-  const ms = elapsedMs(state);
+  const ms = sessionElapsedMs(state);
   if (ms < 60_000) return null;
-  const endedAt = Date.now();
+  const endedAt = sessionEndedAt(state);
   const session: StudySession = {
     id: makeId(),
     startedAt: endedAt - ms,

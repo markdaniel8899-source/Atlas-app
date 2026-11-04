@@ -9,6 +9,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import type { ReactNode } from "react";
+import { AppState } from "react-native";
 import { useActiveCourses } from "../hooks/use-courses";
 import { resolveSession, subscribeAuth } from "../lib/auth";
 import { commitFocus, flushFocus } from "../lib/db/focus";
@@ -16,18 +17,27 @@ import { getFocusSeconds } from "../lib/db/courses";
 import { getGlobalFocusSeconds } from "../lib/db/profile";
 import {
   defaultTimerState,
-  elapsedMs,
   loadFocusBase,
   loadTimerState,
   pauseTimer,
   resetTimer,
   saveFocusBase,
   saveTimerState,
+  sessionElapsedMs,
   setTargetMinutes,
   startTimer,
 } from "../lib/timer";
 import type { TimerState } from "../lib/timer";
-import { notifyFocusChanged } from "../lib/events";
+import { listen, notifyFocusChanged, TIMER_CHANGED_EVENT } from "../lib/events";
+import { subscribeNetwork } from "../lib/net";
+import {
+  decideTimerSync,
+  ensureDeviceId,
+  markTimerDirty,
+  markTimerSynced,
+  pushTimerState,
+} from "../lib/timer-sync";
+import type { RemoteTimer } from "../lib/timer-sync";
 import { registerResetHandler } from "../lib/session-reset";
 import {
   cancelSessionEndNotification,
@@ -38,7 +48,7 @@ import type { Course } from "../lib/db/types";
 /** Wall-clock moment the running session reaches its target (null if idle). */
 function sessionEndsAt(state: TimerState): number | null {
   if (state.mode !== "running" || state.startedAt === null) return null;
-  const remaining = state.targetMin * 60_000 - elapsedMs(state);
+  const remaining = state.targetMin * 60_000 - sessionElapsedMs(state);
   if (remaining <= 0) return null;
   return Date.now() + remaining;
 }
@@ -161,6 +171,71 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     setState(next);
   }, []);
 
+  const syncBusyRef = useRef(false);
+  const syncVersionRef = useRef(0);
+
+  /** Mirror a remote timer (website / other device) into this session. */
+  const adoptRemote = useCallback((remote: RemoteTimer) => {
+    const ownerId = ownerRef.current;
+    if (!ownerId) return;
+    syncVersionRef.current += 1;
+    stateRef.current = remote.state;
+    setState(remote.state);
+    saveTimerState(remote.state, ownerId);
+
+    const endsAt = sessionEndsAt(remote.state);
+    if (endsAt) void scheduleSessionEndNotification(endsAt);
+    else void cancelSessionEndNotification();
+
+    void (async () => {
+      const deviceId = await ensureDeviceId();
+      if (ownerId !== ownerRef.current) return;
+      await markTimerSynced(ownerId, remote.updatedAt, deviceId);
+    })();
+  }, []);
+
+  /** Push a transition to the server. Offline failures stay marked dirty. */
+  const pushSync = useCallback((current: TimerState) => {
+    const ownerId = ownerRef.current;
+    if (!ownerId) return;
+    const version = ++syncVersionRef.current;
+    void (async () => {
+      try {
+        const deviceId = await ensureDeviceId();
+        await markTimerDirty(ownerId, deviceId);
+        const updatedAt = await pushTimerState(ownerId, current, deviceId);
+        if (!updatedAt || ownerId !== ownerRef.current) return;
+        if (version !== syncVersionRef.current) return;
+        await markTimerSynced(ownerId, updatedAt, deviceId);
+      } catch {
+        // The dirty flag survives for the next online/foreground pass.
+      }
+    })();
+  }, []);
+
+  /** Decide local vs remote (dirty local wins, otherwise newest row wins). */
+  const syncNow = useCallback(async () => {
+    const ownerId = ownerRef.current;
+    if (!ownerId || !hydratedRef.current || syncBusyRef.current) return;
+    syncBusyRef.current = true;
+    try {
+      const local = stateRef.current;
+      const decision = await decideTimerSync(ownerId, local);
+      if (ownerId !== ownerRef.current) return;
+      // A local action landed while the row was loading: never adopt over it.
+      if (stateRef.current !== local) {
+        pushSync(stateRef.current);
+        return;
+      }
+      if (decision.type === "adopt") adoptRemote(decision.remote);
+      else if (decision.type === "push") pushSync(decision.state);
+    } catch {
+      // Offline: the local timer keeps running.
+    } finally {
+      syncBusyRef.current = false;
+    }
+  }, [adoptRemote, pushSync]);
+
   // Hydrate the persisted timer + local lifetime base for one account. Any
   // in-flight run is invalidated when the owner changes again (sign-out or a
   // different account), so a late response can never overwrite the new user.
@@ -209,6 +284,9 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     if (endsAt) void scheduleSessionEndNotification(endsAt);
     else void cancelSessionEndNotification();
 
+    // The website (or another device) may hold a newer running timer.
+    void syncNow();
+
     const serverSeconds = await getGlobalFocusSeconds();
     if (run !== hydrateRunRef.current || ownerRef.current !== ownerId) return;
     if (serverSeconds > baseRef.current) {
@@ -216,7 +294,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       setGlobalBase(serverSeconds);
       saveFocusBase(serverSeconds, ownerId);
     }
-  }, []);
+  }, [syncNow]);
 
   useEffect(() => {
     let cancelled = false;
@@ -307,8 +385,36 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(id);
   }, [state.mode]);
 
+  // Cross-device: a row change from the website / another phone, a reconnect,
+  // or returning to the app all re-check which timer is authoritative.
+  useEffect(
+    () =>
+      listen(TIMER_CHANGED_EVENT, () => {
+        void syncNow();
+      }),
+    [syncNow],
+  );
+
+  useEffect(
+    () =>
+      subscribeNetwork((online) => {
+        if (online) void syncNow();
+      }),
+    [syncNow],
+  );
+
   useEffect(() => {
-    const elapsed = elapsedMs(state);
+    const subscription = AppState.addEventListener("change", (next) => {
+      if (next !== "active") return;
+      // Re-run the completion check immediately after a background freeze.
+      setTick((t) => t + 1);
+      void syncNow();
+    });
+    return () => subscription.remove();
+  }, [syncNow]);
+
+  useEffect(() => {
+    const elapsed = sessionElapsedMs(state);
     const pending = Math.max(0, elapsed - state.flushedMs) / 1000;
     publishClock({
       elapsedSeconds: Math.floor(pending),
@@ -350,10 +456,12 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   const toggle = useCallback(() => {
     const current = stateRef.current;
     if (current.mode === "running") {
-      const elapsed = elapsedMs(current);
+      const elapsed = sessionElapsedMs(current);
       const delta = Math.floor((elapsed - current.flushedMs) / 1000);
       bumpBase(delta);
-      applyState({ ...pauseTimer(current), flushedMs: elapsed });
+      const paused = { ...pauseTimer(current), flushedMs: elapsed };
+      applyState(paused);
+      pushSync(paused);
       void cancelSessionEndNotification();
       void flushFocus(current)
         .then(() => {
@@ -371,19 +479,22 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     if (current.mode === "idle") void reloadCourseBase(current.courseId);
     const next = startTimer(current);
     applyState(next);
+    pushSync(next);
     const endsAt = sessionEndsAt(next);
     if (endsAt) void scheduleSessionEndNotification(endsAt);
-  }, [applyState, bumpBase, reloadCourseBase]);
+  }, [applyState, bumpBase, pushSync, reloadCourseBase]);
 
   const stop = useCallback(
     (message?: string) => {
       const current = stateRef.current;
       if (current.mode === "idle") return;
 
-      const elapsed = elapsedMs(current);
+      const elapsed = sessionElapsedMs(current);
       const delta = Math.floor((elapsed - current.flushedMs) / 1000);
       bumpBase(delta);
-      applyState(resetTimer(current));
+      const next = resetTimer(current);
+      applyState(next);
+      pushSync(next);
       void cancelSessionEndNotification();
 
       void commitFocus(current)
@@ -410,24 +521,28 @@ export function TimerProvider({ children }: { children: ReactNode }) {
           showFlash("No internet - session kept locally, cloud sync failed.");
         });
     },
-    [applyState, bumpBase, showFlash, reloadCourseBase],
+    [applyState, bumpBase, pushSync, showFlash, reloadCourseBase],
   );
 
   const setTarget = useCallback(
     (minutes: number) => {
       if (stateRef.current.mode !== "idle") return;
-      applyState(setTargetMinutes(stateRef.current, minutes));
+      const next = setTargetMinutes(stateRef.current, minutes);
+      applyState(next);
+      pushSync(next);
     },
-    [applyState],
+    [applyState, pushSync],
   );
 
   const selectCourse = useCallback(
     (nextCourseId: number | null) => {
       const current = stateRef.current;
       if (current.mode !== "idle" || current.courseId === nextCourseId) return;
-      applyState({ ...current, courseId: nextCourseId });
+      const next = { ...current, courseId: nextCourseId };
+      applyState(next);
+      pushSync(next);
     },
-    [applyState],
+    [applyState, pushSync],
   );
 
   const startQuick = useCallback(
@@ -436,11 +551,12 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       if (current.mode !== "idle") return;
       const next = startTimer(setTargetMinutes(current, minutes));
       applyState(next);
+      pushSync(next);
       void reloadCourseBase(current.courseId);
       const endsAt = sessionEndsAt(next);
       if (endsAt) void scheduleSessionEndNotification(endsAt);
     },
-    [applyState, reloadCourseBase],
+    [applyState, pushSync, reloadCourseBase],
   );
 
   const dismissCompletionCard = useCallback(() => {
@@ -452,7 +568,8 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Auto-complete when the target is reached (single owner for every view).
-  // `tick` is a dep so the check re-runs every second while running.
+  // `tick` is a dep so the check re-runs every second while running. A paused
+  // session (hand-edited storage / race) is also closed once it is at target.
   const stopRef = useRef(stop);
   stopRef.current = stop;
   // One-shot: the completion card shows exactly once per session.
@@ -460,8 +577,11 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     if (state.mode !== "running") completionNotifiedRef.current = false;
   }, [state.mode]);
   useEffect(() => {
-    if (state.mode !== "running") return;
-    if (elapsedMs(state) >= state.targetMin * 60_000) {
+    if (state.mode === "idle") return;
+    if (
+      state.targetMin > 0 &&
+      sessionElapsedMs(state) >= state.targetMin * 60_000
+    ) {
       if (!completionNotifiedRef.current) {
         completionNotifiedRef.current = true;
         setShowCompletionCard(true);

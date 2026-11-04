@@ -5,12 +5,14 @@ import {
   notifyNotesChanged,
   notifyProfileChanged,
   notifyRoadmapsChanged,
+  notifyTimerChanged,
 } from "./events";
 import {
   ensureNotificationPermission,
   sendInstantNotification,
 } from "./notifications";
 import { supabase } from "./supabase";
+import { cachedDeviceId } from "./timer-sync";
 
 interface ChangePayload {
   eventType?: string;
@@ -175,6 +177,20 @@ export function startRealtime(userId: string): void {
       "postgres_changes",
       { event: "*", schema: "public", table: "roadmaps", filter: mine },
       () => notifyRoadmapsChanged(),
+    )
+    // Running timer mirrored from the website or another device. Ignore this
+    // device's own echo so local actions never trigger a redundant pull.
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "focus_timers", filter: mine },
+      (payload) => {
+        const row = changeOf(payload).new ?? {};
+        const local = cachedDeviceId();
+        if (typeof row.device_id === "string" && local === row.device_id) {
+          return;
+        }
+        notifyTimerChanged();
+      },
     );
 
   next.subscribe();

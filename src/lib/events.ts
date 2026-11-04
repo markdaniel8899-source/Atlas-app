@@ -12,6 +12,7 @@ export const ROADMAPS_CHANGED_EVENT = "atlas:roadmaps-changed";
 export const FRIENDS_CHANGED_EVENT = "atlas:friends-changed";
 export const NOTES_CHANGED_EVENT = "atlas:notes-changed";
 export const LEADERBOARD_CHANGED_EVENT = "atlas:leaderboard-changed";
+export const TIMER_CHANGED_EVENT = "atlas:timer-changed";
 
 /** Bursts inside this window reach listeners once. */
 export const EVENT_COALESCE_MS = 250;
@@ -65,4 +66,8 @@ export function notifyNotesChanged(): void {
 
 export function notifyLeaderboardChanged(): void {
   emit(LEADERBOARD_CHANGED_EVENT);
+}
+
+export function notifyTimerChanged(): void {
+  emit(TIMER_CHANGED_EVENT);
 }
