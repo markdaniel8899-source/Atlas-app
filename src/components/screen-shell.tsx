@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
+  Animated,
   BackHandler,
   Keyboard,
   Pressable,
@@ -16,6 +17,7 @@ import type { Href } from "expo-router";
 import { AppHeader, HEADER_HEIGHT } from "./app-header";
 import { OfflineBanner } from "./offline-banner";
 import { SessionCompleteCard } from "./session-complete-card";
+import { useFocusEntrance } from "../hooks/use-focus-entrance";
 import { useKeyboardHeight } from "../hooks/use-keyboard-height";
 import { useProfile } from "../hooks/use-profile";
 import { getCachedAuthUser, resolveSession } from "../lib/auth";
@@ -66,6 +68,7 @@ export function ScreenShell({
     publicPage || getCachedAuthUser() !== null,
   );
   const keyboardHeight = useKeyboardHeight();
+  const entrance = useFocusEntrance();
   const scrollRef = useRef<ScrollView | null>(null);
 
   // Android hardware back, scoped to the focused tab: close the drawer if
@@ -118,7 +121,7 @@ export function ScreenShell({
   const footer = !hideFooter ? <ScreenFooter /> : null;
 
   return (
-    <View style={styles.root}>
+    <Animated.View style={[styles.root, { opacity: entrance }]}>
       {scrollable ? (
         <ScrollView
           ref={scrollRef}
@@ -177,7 +180,7 @@ export function ScreenShell({
           <SessionCompleteCard />
         </>
       )}
-    </View>
+    </Animated.View>
   );
 }
 

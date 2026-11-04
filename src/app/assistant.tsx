@@ -6,6 +6,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import {
+  Animated,
   BackHandler,
   Keyboard,
   KeyboardAvoidingView,
@@ -23,6 +24,7 @@ import { ChatThread } from "../components/assistant/chat-thread";
 import { OfflineBanner } from "../components/offline-banner";
 import { SessionCompleteCard } from "../components/session-complete-card";
 import { useDashboard } from "../hooks/use-dashboard";
+import { useFocusEntrance } from "../hooks/use-focus-entrance";
 import {
   buildLearnerContext,
   SUGGESTIONS,
@@ -43,6 +45,7 @@ import { colors, fonts } from "../theme/theme";
 export default function AssistantScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const entrance = useFocusEntrance();
   const { profile, focus } = useDashboard();
 
   const chat = useSyncExternalStore(
@@ -152,7 +155,7 @@ export default function AssistantScreen() {
   ) : null;
 
   return (
-    <View style={styles.root}>
+    <Animated.View style={[styles.root, { opacity: entrance }]}>
       <KeyboardAvoidingView
         style={styles.body}
         behavior="padding"
@@ -270,7 +273,7 @@ export default function AssistantScreen() {
           <SessionCompleteCard />
         </>
       )}
-    </View>
+    </Animated.View>
   );
 }
 

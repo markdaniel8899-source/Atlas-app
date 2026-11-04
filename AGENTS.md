@@ -282,6 +282,12 @@
 
 - **UI polish: heatmap gap + code toolbar reveal (2026-11-04):** `activity-heatmap.tsx` `scrollContent.paddingRight` 30 -> 10 (the right gap beside the last week column). `rich-note-editor.tsx`: the code-block header (`.cb-head`) now starts hidden and renders only while its block is focused (`#editor .atomic-code-block.cb-active .cb-head { display:flex }`); `setActiveBlock`/`clearActiveBlock` toggle `cb-active` from `focusin`, editor `pointerdown` (also focuses the code when the pre padding is tapped), document `pointerdown` (clears outside blocks/menus), `focusout` (140ms check) and window `blur`; cleared on `__setHtml`, history restore and block removal. Language-menu and ext/copy/remove taps keep the bar open. Verified `npx tsc --noEmit` + `npx expo lint` (3 pre-existing warnings). JS-only, OTA-able.
 
+- **Navigation smoothness batch (2026-11-04):** audit-backed pass (Material/iOS patterns) with the flat-tabs architecture unchanged.
+  - New `src/hooks/use-focus-entrance.ts`: incoming section fades in (opacity-only, 200ms, native driver) on focus; applied in `ScreenShell`, `index.tsx` (dashboard) and `assistant.tsx`. Drawer-initiated switches skip the fade via `src/lib/nav-source.ts` (`markDrawerNavigation` / `consumeDrawerNavigation`, 600ms window) because the closing panel + scrim already reveal the destination - no double transition.
+  - `MOTION` gained `section: 200` and `easingExit` (Material exit curve `cubic-bezier(0.3,0,0.8,0.15)`); the global drawer close now uses it, opens stay on the shared ease-out.
+  - Preload waves extended to the heavy tabs: `["timer","assistant"]` then `["roadmap","quiz"]` after the cheap screens (scheduler still defers on `isHeavyTaskRunning`), so first visits no longer mount/fetch mid-transition.
+  - Verified `npx tsc --noEmit`, `npx expo lint` (3 pre-existing warnings), `npx expo export --platform web --clear` (20/20 static routes). JS-only, OTA-able.
+
 ## Workflow Preferences (user)
 - User communicates in **Roman Urdu** — reply concisely in Roman Urdu.
 - Do not ask for confirmation mid-task; finish the task, then report.

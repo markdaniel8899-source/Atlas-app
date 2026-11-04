@@ -27,6 +27,7 @@ import {
   Trophy,
   Users,
 } from "lucide-react-native";
+import { markDrawerNavigation } from "../lib/nav-source";
 import { MOTION } from "../theme/motion";
 import { colors, fonts } from "../theme/theme";
 
@@ -105,7 +106,7 @@ export function NavigationDrawer({
       Animated.timing(anim, {
         toValue: 0,
         duration: MOTION.drawerClose,
-        easing: MOTION.easing,
+        easing: MOTION.easingExit,
         useNativeDriver: true,
       }).start(({ finished }) => {
         if (!finished) return;
@@ -176,7 +177,10 @@ export function NavigationDrawer({
                   }
                   Keyboard.dismiss();
                   // Navigate immediately, then slide the panel away over the
-                  // incoming screen so there is no two-stage delay.
+                  // incoming screen so there is no two-stage delay. The mark
+                  // lets the destination skip its own fade (the scrim already
+                  // reveals it) without affecting direct navigation.
+                  markDrawerNavigation();
                   router.navigate(item.route);
                   onClose();
                 }}

@@ -84,15 +84,18 @@ const NAVIGATION_THEME = {
 };
 
 /**
- * Cheap sections are mounted in small background waves so the first visit to
- * a tab does not pay a mount cost mid-transition. AI-heavy and stateful tabs
- * (quiz, roadmap, assistant, timer) are intentionally excluded: they mount on
- * demand instead of competing with a generation. `index` mounts on boot.
+ * Sections are mounted in small background waves so the first visit to a tab
+ * never pays a mount + fetch cost mid-transition. Cheap screens warm first;
+ * the heavier AI/stateful tabs follow once the app has settled and no
+ * generation is running (the scheduler defers on `isHeavyTaskRunning`).
+ * `index` mounts on boot.
  */
 const PRELOAD_WAVES: string[][] = [
   ["leaderboard"],
   ["notes", "courses"],
   ["friends", "settings"],
+  ["timer", "assistant"],
+  ["roadmap", "quiz"],
 ];
 
 /** Cumulative snapshot of the waves: a route stays mounted once preloaded. */

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  Animated,
   BackHandler,
   Pressable,
   RefreshControl,
@@ -20,6 +21,7 @@ import { OfflineBanner } from "../components/offline-banner";
 import { SessionCompleteCard } from "../components/session-complete-card";
 import { RevealText } from "../components/ui/reveal-text";
 import { useDashboard } from "../hooks/use-dashboard";
+import { useFocusEntrance } from "../hooks/use-focus-entrance";
 import { StaleNotice } from "../components/ui/stale-notice";
 import { getCachedAuthUser, resolveSession } from "../lib/auth";
 import { closeDrawer, isDrawerOpen, openDrawer } from "../lib/drawer-store";
@@ -39,6 +41,7 @@ export default function DashboardScreen() {
   const { user, profile, heatmap, focus, loading, stale, reload } = useDashboard();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const entrance = useFocusEntrance();
 
   // Home is the root tab: hardware back closes the drawer first, otherwise
   // it leaves the app (standard Android behaviour) instead of cycling tabs.
@@ -91,7 +94,7 @@ export default function DashboardScreen() {
   }, [reload]);
 
   return (
-    <View style={styles.root}>
+    <Animated.View style={[styles.root, { opacity: entrance }]}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[
@@ -169,7 +172,7 @@ export default function DashboardScreen() {
       <OfflineBanner />
 
       <SessionCompleteCard />
-    </View>
+    </Animated.View>
   );
 }
 
