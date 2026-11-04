@@ -341,6 +341,22 @@ function CourseCard({
 
 const ROADMAPS_CACHE_KEY = "courseRoadmaps";
 
+type CachedRoadmaps =
+  | Map<number, RoadmapCourseProgress>
+  | [number, RoadmapCourseProgress][]
+  | Record<string, RoadmapCourseProgress>;
+
+function roadmapMapFromCache(
+  cached: CachedRoadmaps | null,
+): Map<number, RoadmapCourseProgress> {
+  if (!cached) return new Map();
+  if (cached instanceof Map) return new Map(cached);
+  if (Array.isArray(cached)) return new Map(cached);
+  return new Map(
+    Object.entries(cached).map(([key, value]) => [Number(key), value]),
+  );
+}
+
 export default function CoursesScreen() {
   const { courses, setCourses, loading, reload } = useCourses();
 
@@ -357,13 +373,15 @@ export default function CoursesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [roadmaps, setRoadmaps] = useState<
     Map<number, RoadmapCourseProgress>
-  >(() => readCache<Map<number, RoadmapCourseProgress>>(ROADMAPS_CACHE_KEY) ?? new Map());
+  >(() =>
+    roadmapMapFromCache(readCache<CachedRoadmaps>(ROADMAPS_CACHE_KEY)),
+  );
 
   const loadRoadmaps = useCallback(async () => {
     try {
       const map = await fetchRoadmapProgressByCourse();
       setRoadmaps(map);
-      writeCache(ROADMAPS_CACHE_KEY, map);
+      writeCache(ROADMAPS_CACHE_KEY, Array.from(map.entries()));
     } catch {
       // Keep the last known roadmap progress on a transient failure.
     }
