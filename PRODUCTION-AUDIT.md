@@ -119,7 +119,7 @@
 
 ### 3.12 Navigation & Shell
 - NavigationDrawer (logout removed per user request), AppHeader (76px standard), ScreenShell (BlurTarget + offline banner + footer links)
-- Global stack transitions: `slide_from_right` 240ms; login/onboarding fade 300ms
+- Flat Tabs navigator (no stack push/pop): direct section changes fade in 280ms (native driver); drawer switches skip the fade (panel + scrim already reveal the destination); drawer close uses the Material exit curve. Login/onboarding fade 300ms. Profile bottom sheet: measured-height travel, iOS sheet curve 320ms, separate scrim, 240ms accelerate close.
 
 ### 3.13 Info Pages (`/about` `/help` `/privacy` `/terms` `/contact`)
 - Public (signed-out accessible), glass cards + BlurView backdrops

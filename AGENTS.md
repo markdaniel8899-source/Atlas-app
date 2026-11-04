@@ -292,7 +292,7 @@
   - Section entrance: 200 -> 280ms with a gentler `MOTION.sectionEase` (`Easing.out(Easing.quad)`) so the fade reads as a settle instead of a quick blink. Still opacity-only on the native driver; drawer switches still skip it.
   - `AccountSheet` (profile card from the bottom): animates from the **measured panel height** (`onLayout`) instead of `windowHeight` (the travel was ~2x too long), opens with the iOS sheet timing curve (`MOTION.sheetRise` 320ms, `MOTION.sheetEase` cubic-bezier(0.32,0.72,0,1)), separate scrim value (240ms in / 180ms out), close 240ms with `easingExit`. Measurement resets on close so a changed panel height is re-measured before the next open.
   - Scroll: leaderboard avatars switched from RN `Image` to `expo-image` with `cachePolicy="memory-disk"` + `recyclingKey` (no reload flashes while the list scrolls). All new motion is native-driver; no JS scroll handlers or per-frame state were added (roadmap halo and leaderboard shine were already focus-gated).
-  - Verified `npx tsc --noEmit`, `npx expo lint` (3 pre-existing warnings), `npx expo export --platform web --clear` (20/20 static routes). JS-only, OTA-able.
+  - Verified `npx tsc --noEmit`, `npx expo lint` (3 pre-existing warnings), `npx expo export --platform web --clear` (20/20 static routes). JS-only; OTA published (`e5a44bd3-7bfe-4e8a-8fae-12c28a8fb51b`, runtime 1.0.2, commit `07ac40c`); no native/asset changes.
 
 ## Workflow Preferences (user)
 - User communicates in **Roman Urdu** — reply concisely in Roman Urdu.
