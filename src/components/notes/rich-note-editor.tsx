@@ -301,17 +301,15 @@ function buildEditorHtml(): string {
       return typeof text === "string" ? text : element.textContent || "";
     }
 
-    // A zero-width marker lets us map the browser caret onto the flattened
-    // code string, so live re-highlighting can restore it exactly.
-    function captureLiveCode(root) {
-      var selection = window.getSelection();
-      if (!selection || selection.rangeCount === 0) return null;
-      var range = selection.getRangeAt(0);
-      if (!range.collapsed || !root.contains(range.startContainer)) return null;
+    // A zero-width marker maps a range onto the flattened code string, so
+    // live re-highlighting can restore the caret exactly (even across the
+    // <div>/<br> line breaks soft keyboards insert).
+    function captureRangeText(root, range) {
+      if (!range || !root.contains(range.startContainer)) return null;
       var marker = document.createTextNode("\\uFEFF");
-      var caret = range.cloneRange();
-      caret.collapse(true);
-      caret.insertNode(marker);
+      var probe = range.cloneRange();
+      probe.collapse(true);
+      probe.insertNode(marker);
       var code = readCode(root);
       var offset = code.indexOf("\\uFEFF");
       if (marker.parentNode) marker.parentNode.removeChild(marker);
@@ -322,7 +320,15 @@ function buildEditorHtml(): string {
       };
     }
 
-    function placeCaret(root, offset) {
+    function captureLiveCode(root) {
+      var selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) return null;
+      var range = selection.getRangeAt(0);
+      if (!range.collapsed) return null;
+      return captureRangeText(root, range);
+    }
+
+    function rangeAtOffset(root, offset) {
       var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
       var remaining = offset;
       var node = walker.nextNode();
@@ -332,10 +338,7 @@ function buildEditorHtml(): string {
           var range = document.createRange();
           range.setStart(node, remaining);
           range.collapse(true);
-          var selection = window.getSelection();
-          selection.removeAllRanges();
-          selection.addRange(range);
-          return;
+          return range;
         }
         remaining -= length;
         node = walker.nextNode();
@@ -343,16 +346,40 @@ function buildEditorHtml(): string {
       var end = document.createRange();
       end.selectNodeContents(root);
       end.collapse(false);
-      var fallback = window.getSelection();
-      fallback.removeAllRanges();
-      fallback.addRange(end);
+      return end;
+    }
+
+    function placeCaret(root, offset) {
+      var range = rangeAtOffset(root, offset);
+      var selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+
+    /** Resolve the code element from the event target or the live selection. */
+    function codeElementFromEvent(event) {
+      var target = event && event.target;
+      if (target && target.classList) {
+        if (target.classList.contains("atomic-code-block-code")) return target;
+        if (target.closest) {
+          var block = target.closest(".atomic-code-block");
+          if (block) return block.querySelector("code");
+        }
+      }
+      var selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) return null;
+      var node = selection.getRangeAt(0).startContainer;
+      var element = node && node.nodeType === 3 ? node.parentElement : node;
+      return element && element.closest
+        ? element.closest(".atomic-code-block-code")
+        : null;
     }
 
     var liveTimer = null;
 
     function liveHighlight(codeElement) {
       var block = codeElement.closest(".atomic-code-block");
-      if (!block || !codeElement.isConnected) return;
+      if (!block || !editor.contains(codeElement)) return;
       var captured = captureLiveCode(codeElement);
       if (!captured) return;
       block.setAttribute("data-code", captured.code);
@@ -926,6 +953,60 @@ function buildEditorHtml(): string {
     function notifyChange() {
       post("change", { html: serializeHtml() });
       pushState();
+      scheduleHistory();
+    }
+
+    // Live re-highlighting rewrites code innerHTML, which clears the browser's
+    // native undo stack. Keep our own document history so Undo/Redo (toolbar
+    // and Ctrl/Cmd+Z) always works.
+    var history = [];
+    var historyIndex = -1;
+    var historyTimer = null;
+    var restoringHistory = false;
+
+    function pushHistory() {
+      if (restoringHistory) return;
+      var html = serializeHtml();
+      if (historyIndex >= 0 && history[historyIndex] === html) return;
+      history = history.slice(0, historyIndex + 1);
+      history.push(html);
+      if (history.length > 60) history = history.slice(history.length - 60);
+      historyIndex = history.length - 1;
+    }
+
+    function scheduleHistory() {
+      if (restoringHistory) return;
+      if (historyTimer) clearTimeout(historyTimer);
+      historyTimer = setTimeout(function () {
+        historyTimer = null;
+        pushHistory();
+      }, 650);
+    }
+
+    function applyHistory(direction) {
+      if (historyTimer) {
+        clearTimeout(historyTimer);
+        historyTimer = null;
+      }
+      pushHistory();
+      var next = historyIndex + direction;
+      if (next < 0 || next >= history.length) return false;
+      historyIndex = next;
+      restoringHistory = true;
+      editor.innerHTML = history[historyIndex];
+      normalizeBlocks();
+      savedRange = null;
+      notifyChange();
+      restoringHistory = false;
+      return true;
+    }
+
+    function undo() {
+      return applyHistory(-1);
+    }
+
+    function redo() {
+      return applyHistory(1);
     }
 
     function toggleBlock(tag) {
@@ -959,15 +1040,13 @@ function buildEditorHtml(): string {
         while (top && top.parentNode !== editor) top = top.parentNode;
         if (top && top !== editor && top.parentNode === editor) {
           top.after(block);
-          block.after(trailing);
         } else {
           editor.appendChild(block);
-          editor.appendChild(trailing);
         }
       } else {
         editor.appendChild(block);
-        editor.appendChild(trailing);
       }
+      if (!block.nextElementSibling) block.after(trailing);
 
       var codeElement = block.querySelector("code");
       if (codeElement) {
@@ -1048,16 +1127,37 @@ function buildEditorHtml(): string {
       editor.innerHTML = html;
       normalizeBlocks();
       savedRange = null;
+      history = [];
+      historyIndex = -1;
+      if (historyTimer) {
+        clearTimeout(historyTimer);
+        historyTimer = null;
+      }
+      pushHistory();
       post("ready", { html: editor.innerHTML });
       pushState();
     };
 
     window.__cmd = function (name, value) {
+      if (name === "undo" || name === "redo") {
+        if (name === "undo") undo();
+        else redo();
+        return;
+      }
+      if (historyTimer) {
+        clearTimeout(historyTimer);
+        historyTimer = null;
+      }
+      pushHistory();
       editor.focus();
       var selection = window.getSelection();
-      if (savedRange) {
-        selection.removeAllRanges();
-        selection.addRange(savedRange);
+      if (savedRange && editor.contains(savedRange.startContainer)) {
+        try {
+          selection.removeAllRanges();
+          selection.addRange(savedRange);
+        } catch (error) {
+          /* stale range - use the current selection */
+        }
       }
       try {
         if (name === "codeBlock") {
@@ -1076,14 +1176,7 @@ function buildEditorHtml(): string {
       notifyChange();
     };
 
-    var composing = false;
-
-    editor.addEventListener("compositionstart", function () {
-      composing = true;
-    }, true);
-
     editor.addEventListener("compositionend", function (event) {
-      composing = false;
       var target = event.target;
       if (target && target.classList &&
           target.classList.contains("atomic-code-block-code")) {
@@ -1098,14 +1191,29 @@ function buildEditorHtml(): string {
         return;
       }
       saveSelection();
-      var codeElement = target && target.classList &&
-        target.classList.contains("atomic-code-block-code") ? target : null;
-      if (codeElement && !composing) scheduleLiveHighlight(codeElement);
+      var codeElement = codeElementFromEvent(event);
+      if (codeElement) scheduleLiveHighlight(codeElement);
       notifyChange();
     });
 
-    // Flush token colours when the caret leaves a code block, without
-    // rebuilding the header controls (which may be receiving the tap).
+    // Colour a block that was saved before live highlighting existed as soon
+    // as the user taps into it.
+    editor.addEventListener("focusin", function (event) {
+      var target = event.target;
+      if (!target || !target.closest) return;
+      var codeElement = target.closest(".atomic-code-block-code");
+      if (!codeElement) return;
+      var block = codeElement.closest(".atomic-code-block");
+      if (!block) return;
+      var language = normalizeLanguage(block.getAttribute("data-language"));
+      if (language === "plaintext") return;
+      if (codeElement.querySelector("span[class^='cb-tok-']")) return;
+      refreshCode(block);
+    }, true);
+
+    // Flush token colours when the caret leaves a code block. The raw text is
+    // captured through the saved range so the next toolbar command still
+    // works even though the innerHTML is rebuilt.
     editor.addEventListener("focusout", function (event) {
       var target = event.target;
       if (!target || !target.classList) return;
@@ -1127,7 +1235,19 @@ function buildEditorHtml(): string {
       }
       var block = target.closest(".atomic-code-block");
       if (!block) return;
-      refreshCode(block);
+      var codeElement = block.querySelector("code");
+      if (!codeElement) return;
+      var captured = captureRangeText(codeElement, savedRange);
+      var code = captured ? captured.code : readCode(codeElement);
+      block.setAttribute("data-code", code);
+      var language = normalizeLanguage(
+        block.getAttribute("data-language") || "javascript"
+      );
+      codeElement.innerHTML = code ? highlight(code, language) : "<br>";
+      savedRange = rangeAtOffset(
+        codeElement,
+        captured ? captured.offset : code.length
+      );
       notifyChange();
     }, true);
 
@@ -1142,6 +1262,16 @@ function buildEditorHtml(): string {
       }
       var mod = event.metaKey || event.ctrlKey;
       var key = (event.key || "").toLowerCase();
+      if (mod && !event.shiftKey && key === "z") {
+        event.preventDefault();
+        undo();
+        return;
+      }
+      if (mod && (key === "y" || (key === "z" && event.shiftKey))) {
+        event.preventDefault();
+        redo();
+        return;
+      }
       if (mod && !event.shiftKey && (key === "b" || key === "i" || key === "u")) {
         event.preventDefault();
         document.execCommand(

@@ -27,9 +27,11 @@ import {
   ListOrdered,
   MoreHorizontal,
   Quote,
+  Redo2,
   Share2,
   Trash2,
   Underline,
+  Undo2,
   X,
 } from "lucide-react-native";
 import type { Note } from "../../lib/notes";
@@ -46,12 +48,20 @@ interface Tool {
   icon: typeof Bold;
   command: string;
   value?: string;
-  stateKey: keyof EditorCommandState;
+  stateKey?: keyof EditorCommandState;
   dividerBefore?: boolean;
 }
 
 const TOOLS: Tool[] = [
-  { label: "Bold", icon: Bold, command: "bold", stateKey: "bold" },
+  { label: "Undo", icon: Undo2, command: "undo" },
+  { label: "Redo", icon: Redo2, command: "redo" },
+  {
+    label: "Bold",
+    icon: Bold,
+    command: "bold",
+    stateKey: "bold",
+    dividerBefore: true,
+  },
   { label: "Italic", icon: Italic, command: "italic", stateKey: "italic" },
   {
     label: "Underline",
@@ -244,7 +254,7 @@ export function NoteEditorModal({
           >
             {TOOLS.map((tool) => {
               const Icon = tool.icon;
-              const active = toolState[tool.stateKey];
+              const active = tool.stateKey ? toolState[tool.stateKey] : false;
               return (
                 <Fragment key={tool.label}>
                   {tool.dividerBefore ? (
