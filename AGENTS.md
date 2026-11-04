@@ -286,7 +286,7 @@
   - New `src/hooks/use-focus-entrance.ts`: incoming section fades in (opacity-only, 200ms, native driver) on focus; applied in `ScreenShell`, `index.tsx` (dashboard) and `assistant.tsx`. Drawer-initiated switches skip the fade via `src/lib/nav-source.ts` (`markDrawerNavigation` / `consumeDrawerNavigation`, 600ms window) because the closing panel + scrim already reveal the destination - no double transition.
   - `MOTION` gained `section: 200` and `easingExit` (Material exit curve `cubic-bezier(0.3,0,0.8,0.15)`); the global drawer close now uses it, opens stay on the shared ease-out.
   - Preload waves extended to the heavy tabs: `["timer","assistant"]` then `["roadmap","quiz"]` after the cheap screens (scheduler still defers on `isHeavyTaskRunning`), so first visits no longer mount/fetch mid-transition.
-  - Verified `npx tsc --noEmit`, `npx expo lint` (3 pre-existing warnings), `npx expo export --platform web --clear` (20/20 static routes). JS-only, OTA-able.
+  - Verified `npx tsc --noEmit`, `npx expo lint` (3 pre-existing warnings), `npx expo export --platform web --clear` (20/20 static routes). JS-only; OTA published (`66d909b5-164a-4d1f-aca8-4548d50ac525`, runtime 1.0.2, commit `7925e39`); no native/asset changes.
 
 ## Workflow Preferences (user)
 - User communicates in **Roman Urdu** — reply concisely in Roman Urdu.
