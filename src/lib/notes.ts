@@ -130,6 +130,94 @@ function safeHref(attrs: string): string | null {
   return null;
 }
 
+/** Rebuilds an atomic table block from its `data-table` JSON payload. */
+function renderTableBlock(attrs: string): string {
+  const tableId = attrValue(attrs, "data-table-id");
+  const rawRows = attrValue(attrs, "data-table");
+  const safeTableId =
+    tableId && SAFE_BLOCK_ID_RE.test(tableId.trim()) ? tableId.trim() : "";
+  let rows: string[][] = [];
+  const decodedRows = rawRows == null ? "" : decodeEntities(rawRows);
+  if (decodedRows) {
+    try {
+      const parsed: unknown = JSON.parse(decodedRows);
+      if (Array.isArray(parsed)) {
+        for (const row of parsed) {
+          if (!Array.isArray(row)) continue;
+          const cells: string[] = [];
+          for (const cell of row) {
+            cells.push(typeof cell === "string" ? cell : cell == null ? "" : String(cell));
+          }
+          rows.push(cells);
+        }
+      }
+    } catch {
+      rows = [];
+    }
+  }
+  const safeRows: string[][] = (rows.length > 0 ? rows : [["", ""]])
+    .slice(0, 60)
+    .map((row) => row.slice(0, 12).map((cell) => sanitizeHtml(cell)));
+  const headHtml = (safeRows[0] ?? [])
+    .map((cell) => `<th>${cell}</th>`)
+    .join("");
+  const bodyHtml = safeRows
+    .slice(1)
+    .map((row) => `<tr>${row.map((cell) => `<td>${cell}</td>`).join("")}</tr>`)
+    .join("");
+  const bodySection = safeRows.length > 1 ? `<tbody>${bodyHtml}</tbody>` : "";
+  return (
+    `<div class="atomic-table-block"` +
+    (safeTableId ? ` data-table-id="${escapeAttr(safeTableId)}"` : "") +
+    ` data-table="${escapeAttr(JSON.stringify(safeRows))}" contenteditable="false">` +
+    `<div class="atomic-table-view"><table class="atomic-table"><thead><tr>${headHtml}</tr></thead>${bodySection}</table></div>` +
+    `</div>`
+  );
+}
+
+/** Replaces each whole table block (including its rendered view) with a
+ *  freshly rebuilt, sanitized one so the original cells are not re-emitted
+ *  as loose text by the tag pass below. The rebuilt markup is parked behind
+ *  a placeholder so the generic tag filter cannot strip its table tags. */
+function replaceTableBlocks(html: string, blocks: string[]): string {
+  let out = "";
+  let index = 0;
+  const opener = /<div\b((?:"[^"]*"|'[^']*'|[^"'>])*)>/gi;
+  while (index < html.length) {
+    opener.lastIndex = index;
+    const match = opener.exec(html);
+    if (!match) {
+      out += html.slice(index);
+      break;
+    }
+    const attrs = match[1];
+    if (!classTokens(attrs).includes("atomic-table-block")) {
+      out += html.slice(index, match.index + match[0].length);
+      index = match.index + match[0].length;
+      continue;
+    }
+    let depth = 1;
+    let end = html.length;
+    const tag = /<div\b[^>]*>|<\/div\s*>/gi;
+    tag.lastIndex = match.index + match[0].length;
+    let next: RegExpExecArray | null;
+    while ((next = tag.exec(html))) {
+      if (next[0][1] === "/") depth -= 1;
+      else depth += 1;
+      if (depth === 0) {
+        end = tag.lastIndex;
+        break;
+      }
+    }
+    blocks.push(renderTableBlock(attrs));
+    out +=
+      html.slice(index, match.index) +
+      `\u0000TB${blocks.length - 1}\u0000`;
+    index = end;
+  }
+  return out;
+}
+
 /**
  * Allowlist-based HTML sanitizer for note bodies (React Native has no DOM).
  * Only tags the editor can produce survive, with every attribute dropped
@@ -140,6 +228,7 @@ function safeHref(attrs: string): string | null {
 export function sanitizeHtml(html: string): string {
   if (!html) return "";
   let out = html
+    .replace(/\u0000/g, "")
     .replace(/<!--[\s\S]*?-->/g, "")
     .replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, "")
     .replace(
@@ -147,6 +236,8 @@ export function sanitizeHtml(html: string): string {
       "",
     )
     .replace(new RegExp(`<\\/?(${DROPPED_BLOCKS})\\b[^>]*>`, "gi"), "");
+  const tableBlocks: string[] = [];
+  out = replaceTableBlocks(out, tableBlocks);
   out = out.replace(
     /<\/?([a-zA-Z][a-zA-Z0-9]*)((?:"[^"]*"|'[^']*'|[^"'>])*)>/g,
     (match, rawName: string, rawAttrs: string) => {
@@ -161,47 +252,6 @@ export function sanitizeHtml(html: string): string {
       }
       if (name === "div") {
         const divTokens = classTokens(rawAttrs);
-        if (divTokens.includes("atomic-table-block")) {
-          const tableId = attrValue(rawAttrs, "data-table-id");
-          const rawRows = attrValue(rawAttrs, "data-table");
-          const safeTableId =
-            tableId && SAFE_BLOCK_ID_RE.test(tableId.trim()) ? tableId.trim() : "";
-          let rows: string[][] = [];
-          const decodedRows = rawRows == null ? "" : decodeEntities(rawRows);
-          if (decodedRows) {
-            try {
-              const parsed: unknown = JSON.parse(decodedRows);
-              if (Array.isArray(parsed)) {
-                for (const row of parsed) {
-                  if (!Array.isArray(row)) continue;
-                  const cells: string[] = [];
-                  for (const cell of row) {
-                    cells.push(typeof cell === "string" ? cell : cell == null ? "" : String(cell));
-                  }
-                  rows.push(cells);
-                }
-              }
-            } catch {
-              rows = [];
-            }
-          }
-          const safeRows: string[][] = rows.length > 0 ? rows : [["", ""]];
-          const headHtml = (safeRows[0] ?? [])
-            .map((cell) => `<th>${cell}</th>`)
-            .join("");
-          const bodyHtml = safeRows
-            .slice(1)
-            .map((row) => `<tr>${row.map((cell) => `<td>${cell}</td>`).join("")}</tr>`)
-            .join("");
-          const bodySection = safeRows.length > 1 ? `<tbody>${bodyHtml}</tbody>` : "";
-          return (
-            `<div class="atomic-table-block"` +
-            (safeTableId ? ` data-table-id="${escapeAttr(safeTableId)}"` : "") +
-            ` data-table="${escapeAttr(JSON.stringify(safeRows))}" contenteditable="false">` +
-            `<div class="atomic-table-view"><table class="atomic-table"><thead><tr>${headHtml}</tr></thead>${bodySection}</table></div>` +
-            `</div>`
-          );
-        }
         if (!divTokens.includes("atomic-code-block")) {
           return "<div>";
         }
@@ -259,5 +309,8 @@ export function sanitizeHtml(html: string): string {
   // Tail safety: a `<` followed by letters with no closing `>` would be
   // re-parsed as a tag opener by a browser (e.g. unclosed `<script src=…`).
   out = out.replace(/<([^>]*)$/, (_, tail: string) => `&lt;${tail}`);
+  out = out.replace(/\u0000TB(\d+)\u0000/g, (_, index: string) => {
+    return tableBlocks[Number(index)] ?? "";
+  });
   return out;
 }

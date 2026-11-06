@@ -294,6 +294,13 @@
   - Scroll: leaderboard avatars switched from RN `Image` to `expo-image` with `cachePolicy="memory-disk"` + `recyclingKey` (no reload flashes while the list scrolls). All new motion is native-driver; no JS scroll handlers or per-frame state were added (roadmap halo and leaderboard shine were already focus-gated).
   - Verified `npx tsc --noEmit`, `npx expo lint` (3 pre-existing warnings), `npx expo export --platform web --clear` (20/20 static routes). JS-only; OTA published (`e5a44bd3-7bfe-4e8a-8fae-12c28a8fb51b`, runtime 1.0.2, commit `07ac40c`); no native/asset changes.
 
+- **Notes table editor crash + table UX (2026-11-06, fixes user-reported infinite note loading):**
+  - Root cause: the injected WebView JS in `rich-note-editor.tsx` used `\"` inside a TS template literal, so it reached the WebView as `"<table class="atomic-table-editor-grid">"` (syntax error). The whole editor script died before posting `ready`, so the note editor spinner never went away and note text never rendered. Download/export (native `notes-export.ts`) was unaffected.
+  - Table editor: tap any saved table to edit it again; Done / outside tap commits; add/remove row/col updates dims and disabled states; header defaults are `Header N` and new body cells are empty; Enter inserts a line break; pasted text inserts as plain lines; typing survives add row/col; block height adapts to row count.
+  - `serializeHtml` now clones the editor and strips `.cb-head` + editing-table chrome instead of committing the active edit (keystrokes no longer end editing). Insert, Done, and Delete now emit a change so the note is persisted.
+  - `src/lib/notes.ts`: table blocks are rebuilt from `data-table` in a pre-pass with placeholder markers (cells recursively sanitized, max 60 rows x 12 cols), so the generic tag filter cannot strip generated table markup or leave duplicate cell text; idempotent round-trip verified.
+  - Verified with an Edge headless harness (insert, type, Done, re-edit, delete, paste, add row/col, no runtime errors), Node `sanitizeHtml` round-trip, `npx tsc --noEmit`, `npx expo lint` (3 pre-existing warnings), web export 20/20. JS-only, OTA-able; no native/asset changes.
+
 ## Workflow Preferences (user)
 - User communicates in **Roman Urdu** — reply concisely in Roman Urdu.
 - Do not ask for confirmation mid-task; finish the task, then report.

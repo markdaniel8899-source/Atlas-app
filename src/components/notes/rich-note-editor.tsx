@@ -1162,17 +1162,27 @@ function buildEditorHtml(): string {
     /** Strip editor-only chrome (language header / editing table state). */
     function serializeHtml() {
       syncBlocks();
-      if (
-        tableEditingBlock &&
-        tableEditingBlock.getAttribute("data-editing") === "true"
-      ) {
-        commitTableRows();
-      }
-      if (!editor.querySelector(".cb-head")) return editor.innerHTML;
+      var hasHeads = Boolean(editor.querySelector(".cb-head"));
+      var editingTables = editor.querySelectorAll(
+        '.atomic-table-block[data-editing="true"]'
+      );
+      if (!hasHeads && editingTables.length === 0) return editor.innerHTML;
       var clone = editor.cloneNode(true);
       var heads = clone.querySelectorAll(".cb-head");
       for (var index = 0; index < heads.length; index += 1) {
         if (heads[index].parentNode) heads[index].parentNode.removeChild(heads[index]);
+      }
+      var tableClones = clone.querySelectorAll(
+        '.atomic-table-block[data-editing="true"]'
+      );
+      for (var t = 0; t < tableClones.length; t += 1) {
+        var tableBlock = tableClones[t];
+        tableBlock.innerHTML = renderTableBlockViewHtml(
+          parseTableRows(tableBlock.getAttribute("data-table"))
+        );
+        tableBlock.removeAttribute("data-editing");
+        tableBlock.style.removeProperty("position");
+        tableBlock.style.removeProperty("min-height");
       }
       return clone.innerHTML;
     }
@@ -1385,32 +1395,14 @@ function buildEditorHtml(): string {
           var kids = tr.children;
           for (var c = 0; c < kids.length; c++) {
             var cell = kids[c];
-            var text = cell.innerText || cell.textContent || "";
-            row.push(sanitizeTableCellHtml(text));
+            var input = cell.querySelector(".atomic-table-input") || cell;
+            row.push(sanitizeTableCellHtml(input.innerHTML));
           }
           result.push(row);
         }
       }
       if (result.length === 0) result.push([]);
       return normalizeTableRows(result);
-    }
-
-    function readRowsFromTableElement(table) {
-      var rows = [];
-      var trs = table.querySelectorAll("tr");
-      for (var i = 0; i < trs.length; i++) {
-        var tr = trs[i];
-        var row = [];
-        var kids = tr.children;
-        for (var c = 0; c < kids.length; c++) {
-          var cell = kids[c];
-          var text = cell.innerText || cell.textContent || "";
-          row.push(sanitizeTableCellHtml(text));
-        }
-        rows.push(row);
-      }
-      if (rows.length === 0) rows.push([]);
-      return normalizeTableRows(rows);
     }
 
     function cloneTableRows(rows) {
@@ -1431,7 +1423,10 @@ function buildEditorHtml(): string {
       block.setAttribute("data-table", JSON.stringify(rows));
       block.innerHTML = renderTableBlockViewHtml(rows);
       block.removeAttribute("data-editing");
-      if (block.style) block.style.removeProperty("position");
+      if (block.style) {
+        block.style.removeProperty("position");
+        block.style.removeProperty("min-height");
+      }
       tableEditingBlock = null;
       tableOverlayRoot = null;
       tableDraftRows = null;
@@ -1440,16 +1435,28 @@ function buildEditorHtml(): string {
     function finishTableEdit() {
       if (!tableEditingBlock) return;
       commitTableRows();
+      notifyChange();
       editor.focus();
     }
 
     function applyTableRows(next) {
       var rows = normalizeTableRows(next);
+      var width = rows.length && rows[0] ? rows[0].length : 1;
       tableDraftRows = rows;
       if (tableEditingBlock) {
         tableEditingBlock.setAttribute("data-table", JSON.stringify(rows));
       }
       if (tableOverlayRoot) {
+        var dims = tableOverlayRoot.querySelector(".atomic-table-toolbar-dims");
+        if (dims) dims.textContent = rows.length + " x " + width;
+        var rowRemove = tableOverlayRoot.querySelector(
+          '[data-action="table-row-remove"]'
+        );
+        if (rowRemove) rowRemove.disabled = rows.length <= 1;
+        var colRemove = tableOverlayRoot.querySelector(
+          '[data-action="table-col-remove"]'
+        );
+        if (colRemove) colRemove.disabled = width <= 1;
         var editorEl = tableOverlayRoot.querySelector(".atomic-table-editor");
         if (editorEl) editorEl.innerHTML = buildTableEditorHtml(rows);
       }
@@ -1459,12 +1466,12 @@ function buildEditorHtml(): string {
     function buildTableEditorHtml(rows) {
       var normalized = normalizeTableRows(rows);
       var width = normalized.length ? normalized[0].length : 1;
-      var html = "<table class=\"atomic-table-editor-grid\"><thead><tr>";
+      var html = "<table class=\\"atomic-table-editor-grid\\"><thead><tr>";
       for (var c = 0; c < width; c++) {
         html +=
-          "<th><div class=\"atomic-table-input\" contenteditable=\"true\" spellcheck=\"false\" data-placeholder=\"Header\" aria-label=\"Header column " +
+          "<th><div class=\\"atomic-table-input\\" contenteditable=\\"true\\" spellcheck=\\"false\\" data-placeholder=\\"Header\\" aria-label=\\"Header column " +
           (c + 1) +
-          "\">" +
+          "\\">" +
           sanitizeTableCellHtml(normalized[0][c] || "") +
           "</div></th>";
       }
@@ -1475,7 +1482,7 @@ function buildEditorHtml(): string {
           html += "<tr>";
           for (var cc = 0; cc < width; cc++) {
             html +=
-              "<td><div class=\"atomic-table-input\" contenteditable=\"true\" spellcheck=\"false\" data-placeholder=\"Cell\">" +
+              "<td><div class=\\"atomic-table-input\\" contenteditable=\\"true\\" spellcheck=\\"false\\" data-placeholder=\\"Cell\\">" +
               sanitizeTableCellHtml(normalized[r][cc] || "") +
               "</div></td>";
           }
@@ -1493,8 +1500,6 @@ function buildEditorHtml(): string {
       var dim = rowCount + " x " + colCount;
       var plusIcon =
         '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg>';
-      var minusIcon =
-        '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg>';
       var copyIcon =
         '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z"/></svg>';
       var checkIcon =
@@ -1505,15 +1510,15 @@ function buildEditorHtml(): string {
         '<button type="button" class="atomic-table-toolbar-btn atomic-table-toolbar-btn--accent" data-action="table-row-add" title="Add row">' +
         plusIcon +
         '<span class="atomic-table-toolbar-btn-text">Row</span></button>' +
-        '<button type="button" class="atomic-table-toolbar-btn" data-action="table-row-remove" title="Remove row" disabled="' +
-        (rowCount <= 1 ? "true" : "false") +
-        '"><span class="atomic-table-toolbar-btn-text">Row</span></button>' +
+        '<button type="button" class="atomic-table-toolbar-btn" data-action="table-row-remove" title="Remove row"' +
+        (rowCount <= 1 ? ' disabled="true"' : "") +
+        '><span class="atomic-table-toolbar-btn-text">Row</span></button>' +
         '<button type="button" class="atomic-table-toolbar-btn atomic-table-toolbar-btn--accent" data-action="table-col-add" title="Add column">' +
         plusIcon +
         '<span class="atomic-table-toolbar-btn-text">Col</span></button>' +
-        '<button type="button" class="atomic-table-toolbar-btn" data-action="table-col-remove" title="Remove column" disabled="' +
-        (colCount <= 1 ? "true" : "false") +
-        '"><span class="atomic-table-toolbar-btn-text">Col</span></button>' +
+        '<button type="button" class="atomic-table-toolbar-btn" data-action="table-col-remove" title="Remove column"' +
+        (colCount <= 1 ? ' disabled="true"' : "") +
+        '><span class="atomic-table-toolbar-btn-text">Col</span></button>' +
         '<span class="atomic-table-toolbar-spacer"></span>' +
         '<button type="button" class="atomic-table-toolbar-btn" data-action="table-copy" title="Copy table">' +
         copyIcon +
@@ -1527,25 +1532,38 @@ function buildEditorHtml(): string {
       var toolbar =
         '<div class="atomic-table-toolbar"><span class="atomic-table-toolbar-label"><span class="atomic-table-toolbar-title">Table</span><span class="atomic-table-toolbar-dims">' +
         dim +
-        "</span></span><span class=\"atomic-table-toolbar-divider\"></span>" +
+        "</span></span><span class=\\"atomic-table-toolbar-divider\\"></span>" +
         buttons +
         "</div>";
       var editor =
-        '<div class="atomic-table-editor" style="height:300px">' + buildTableEditorHtml(rows) + "</div>";
+        '<div class="atomic-table-editor">' + buildTableEditorHtml(rows) + "</div>";
       var overlay =
-        '<div class="atomic-table-overlay"><div class="atomic-table-toolbar">' +
-        toolbar +
-        '"></div>' +
-        editor +
-        "</div>";
+        '<div class="atomic-table-overlay">' + toolbar + editor + "</div>";
       return overlay;
+    }
+
+    function tableEditorHeight(rowCount) {
+      var viewportHeight = window.visualViewport
+        ? window.visualViewport.height
+        : window.innerHeight;
+      var compact = window.innerWidth < 768 || viewportHeight < 520;
+      var maxEditorHeight = compact
+        ? Math.max(140, Math.min(380, viewportHeight - 148))
+        : 380;
+      return Math.min(
+        maxEditorHeight,
+        Math.max(140, rowCount * 44 + 28)
+      );
     }
 
     function startTableEdit(block, rows) {
       var normalized = normalizeTableRows(rows);
+      var editorHeight = tableEditorHeight(normalized.length);
+      var overlayHeight = editorHeight + 44;
       block.setAttribute("data-editing", "true");
       block.setAttribute("contenteditable", "false");
       block.style.position = "relative";
+      block.style.minHeight = overlayHeight + "px";
       block.innerHTML = tableToolbarHtml(normalized);
       var overlayEl = block.querySelector(".atomic-table-overlay");
       if (overlayEl) {
@@ -1553,11 +1571,13 @@ function buildEditorHtml(): string {
         overlayEl.style.top = "0";
         overlayEl.style.left = "0";
         overlayEl.style.right = "0";
-        overlayEl.style.height = "344px";
+        overlayEl.style.height = overlayHeight + "px";
         overlayEl.style.zIndex = "30";
         overlayEl.style.borderRadius = "9px";
         overlayEl.style.background = "#1e1e1e";
         overlayEl.style.overflow = "auto";
+        var editorEl = overlayEl.querySelector(".atomic-table-editor");
+        if (editorEl) editorEl.style.height = editorHeight + "px";
       }
       tableEditingBlock = block;
       tableOverlayRoot = overlayEl;
@@ -1568,6 +1588,7 @@ function buildEditorHtml(): string {
     function refreshTableRows() {
       if (!tableEditingBlock) return null;
       var rows = readRowsFromContainer(tableOverlayRoot);
+      tableDraftRows = rows;
       tableEditingBlock.setAttribute("data-table", JSON.stringify(rows));
       return rows;
     }
@@ -1603,6 +1624,13 @@ function buildEditorHtml(): string {
       overlay.addEventListener("keydown", function (event) {
         var target = event.target;
         if (target && target.classList && target.classList.contains("atomic-table-input")) {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            document.execCommand("insertLineBreak");
+            refreshTableRows();
+            notifyChange();
+            return;
+          }
           if (event.key === "Tab") {
             event.preventDefault();
             var cells = overlay.querySelectorAll(".atomic-table-input");
@@ -1622,6 +1650,32 @@ function buildEditorHtml(): string {
           return;
         }
       });
+      overlay.addEventListener("paste", function (event) {
+        var target = event.target;
+        if (!target || !target.classList) return;
+        if (!target.classList.contains("atomic-table-input")) return;
+        var clipboard = event.clipboardData;
+        if (!clipboard) return;
+        var html = clipboard.getData("text/html");
+        var text = clipboard.getData("text/plain");
+        if (!html && !text) return;
+        event.preventDefault();
+        if (html) {
+          document.execCommand(
+            "insertHTML",
+            false,
+            sanitizeTableCellHtml(html)
+          );
+        } else {
+          document.execCommand(
+            "insertText",
+            false,
+            text.replace(/\\r?\\n/g, " ")
+          );
+        }
+        refreshTableRows();
+        notifyChange();
+      });
       overlay.addEventListener("click", function (event) {
         var target = event.target;
         if (!target || !target.closest) return;
@@ -1632,16 +1686,17 @@ function buildEditorHtml(): string {
           runTableAction(action.getAttribute("data-action"));
         }
       });
-      document.addEventListener("pointerdown", function (event) {
-        var target = event.target;
-        if (!target || !target.closest) return;
-        if (!tableEditingBlock) return;
-        var overlayEl = tableOverlayRoot;
-        if (overlayEl && overlayEl.contains(target)) return;
-        if (tableEditingBlock.contains(target)) return;
-        finishTableEdit();
-      }, true);
     }
+
+    document.addEventListener("pointerdown", function (event) {
+      var target = event.target;
+      if (!target || !target.closest) return;
+      if (!tableEditingBlock) return;
+      var overlayEl = tableOverlayRoot;
+      if (overlayEl && overlayEl.contains(target)) return;
+      if (tableEditingBlock.contains(target)) return;
+      finishTableEdit();
+    }, true);
 
     function runTableAction(action) {
       if (!tableEditingBlock) return;
@@ -1665,7 +1720,9 @@ function buildEditorHtml(): string {
       if (action === "table-col-add") {
         var colsRows = cloneTableRows(tableDraftRows || createDefaultTableRows());
         var colWidth = colsRows.length ? colsRows[0].length : 1;
-        for (var ci = 0; ci < colsRows.length; ci++) colsRows[ci].push("Header " + (colWidth + 1));
+        for (var ci = 0; ci < colsRows.length; ci++) {
+          colsRows[ci].push(ci === 0 ? "Header " + (colWidth + 1) : "");
+        }
         applyTableRows(colsRows);
         return;
       }
@@ -1688,6 +1745,7 @@ function buildEditorHtml(): string {
           var delBlock = tableEditingBlock;
           finishTableEdit();
           if (delBlock.parentNode) delBlock.parentNode.removeChild(delBlock);
+          notifyChange();
         }
         return;
       }
@@ -1718,6 +1776,7 @@ function buildEditorHtml(): string {
     }
 
     function insertTableBlock() {
+      if (tableEditingBlock) commitTableRows();
       var id = createTableId();
       var rows = createDefaultTableRows();
       var block = document.createElement("div");
@@ -1744,6 +1803,7 @@ function buildEditorHtml(): string {
       var nextSelection = window.getSelection();
       if (nextSelection) { nextSelection.removeAllRanges(); nextSelection.addRange(caret); }
       startTableEdit(block, rows);
+      notifyChange();
     }
 
     function normalizeTables() {
@@ -1769,6 +1829,15 @@ function buildEditorHtml(): string {
     editor.addEventListener("pointerdown", function (event) {
       var target = event.target;
       if (!target || !target.closest) return;
+      var touchedTable = target.closest(".atomic-table-block");
+      if (touchedTable && touchedTable.getAttribute("data-editing") !== "true") {
+        event.preventDefault();
+        startTableEdit(
+          touchedTable,
+          parseTableRows(touchedTable.getAttribute("data-table"))
+        );
+        return;
+      }
       var touchedBlock = target.closest(".atomic-code-block");
       if (touchedBlock) {
         setActiveBlock(touchedBlock);
@@ -1839,6 +1908,9 @@ function buildEditorHtml(): string {
 
     window.__setHtml = function (html) {
       clearActiveBlock();
+      tableEditingBlock = null;
+      tableOverlayRoot = null;
+      tableDraftRows = null;
       editor.innerHTML = html;
       normalizeBlocks();
       normalizeTables();

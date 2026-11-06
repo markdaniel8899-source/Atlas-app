@@ -211,32 +211,6 @@ const NOTE_ACCENTS = [
   "#cf9eff",
 ];
 
-function hexToRgba(hex: string, alpha: number): string {
-  const value = hex.replace("#", "");
-  const full =
-    value.length === 3
-      ? value
-          .split("")
-          .map((char) => char + char)
-          .join("")
-      : value;
-  if (!/^[0-9a-fA-F]{6}$/.test(full)) return `rgba(207, 158, 255, ${alpha})`;
-  const int = Number.parseInt(full, 16);
-  return `rgba(${(int >> 16) & 255}, ${(int >> 8) & 255}, ${int & 255}, ${alpha})`;
-}
-
-/** Stable accent for a note: its course accent, or a palette colour derived
- *  from the course id when the course is not in the local list (shared note). */
-function noteAccent(
-  note: Note,
-  accentByCourseId: Map<number, string>,
-): string {
-  if (note.courseId == null) return GENERAL_ACCENT;
-  return (
-    accentByCourseId.get(note.courseId) ??
-    NOTE_ACCENTS[Math.abs(note.courseId) % NOTE_ACCENTS.length]
-  );
-}
 interface NoteSection {
   /** Stable group id: "general" or "course-<id>" (website parity). */
   key: string;
@@ -935,7 +909,7 @@ export default function NotesScreen() {
     return notes.length > 0
       ? [{ key: "flat", subject: "", data: notes, count: notes.length, accent: selectedCourseAccent }]
       : [];
-  }, [groupedNotes, notes, collapsedGroups]);
+  }, [groupedNotes, notes, collapsedGroups, selectedCourseAccent]);
 
   useEffect(() => {
     sectionsRef.current = sections;
