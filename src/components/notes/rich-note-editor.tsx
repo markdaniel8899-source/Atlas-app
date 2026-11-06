@@ -29,6 +29,7 @@ export interface EditorCommandState {
   unordered: boolean;
   ordered: boolean;
   code: boolean;
+  table: boolean;
 }
 
 export interface RichNoteEditorHandle {
@@ -261,7 +262,149 @@ function buildEditorHtml(): string {
     background: rgba(207,158,255,0.14);
     color: #cf9eff;
   }
-</style>
+  #editor .atomic-table-block {
+    position: relative;
+    margin: 14px 0;
+    min-width: 0;
+    max-width: 100%;
+    text-align: left;
+  }
+  #editor .atomic-table-block[data-editing="true"] > .atomic-table-view {
+    visibility: hidden;
+  }
+  #editor .atomic-table-view {
+    max-width: 100%;
+    overflow-x: auto;
+    border: 1px solid rgba(207, 158, 255, 0.22);
+    border-radius: 10px;
+    background: rgba(17, 24, 39, 0.5);
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+  #editor .atomic-table {
+    width: 100%;
+    border-collapse: collapse;
+    border-spacing: 0;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  #editor .atomic-table th,
+  #editor .atomic-table td {
+    padding: 9px 12px;
+    text-align: left;
+    vertical-align: top;
+    border-right: 1px solid rgba(207, 158, 255, 0.12);
+    border-bottom: 1px solid rgba(207, 158, 255, 0.12);
+    white-space: normal;
+    word-break: break-word;
+  }
+  #editor .atomic-table th:last-child,
+  #editor .atomic-table td:last-child {
+    border-right: 0;
+  }
+  #editor .atomic-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  #editor .atomic-table thead:last-child tr:last-child th {
+    border-bottom: 0;
+  }
+  #editor .atomic-table thead th {
+    background: rgba(207, 158, 255, 0.08);
+    color: #cf9eff;
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.01em;
+  }
+  #editor .atomic-table tbody td {
+    color: rgba(255, 255, 255, 0.78);
+  }
+  #editor .atomic-table tbody tr:hover td {
+    background: rgba(255, 255, 255, 0.03);
+  }
+  #editor .atomic-table th p,
+  #editor .atomic-table td p,
+  #editor .atomic-table th ul,
+  #editor .atomic-table td ul,
+  #editor .atomic-table th ol,
+  #editor .atomic-table td ol,
+  #editor .atomic-table th blockquote,
+  #editor .atomic-table td blockquote,
+  #editor .atomic-table th h2,
+  #editor .atomic-table td h2,
+  #editor .atomic-table th h3,
+  #editor .atomic-table td h3 {
+    margin: 0;
+  }
+  #editor .atomic-table td h2,
+  #editor .atomic-table th h2 {
+    font-size: 15px;
+    font-weight: 600;
+  }
+  #editor .atomic-table td h3,
+  #editor .atomic-table th h3 {
+    font-size: 14px;
+    font-weight: 600;
+  }
+  #editor .atomic-table td ul,
+  #editor .atomic-table td ol,
+  #editor .atomic-table th ul,
+  #editor .atomic-table th ol {
+    padding-left: 18px;
+  }
+  #editor .atomic-table td blockquote,
+  #editor .atomic-table th blockquote {
+    padding-left: 8px;
+    border-left: 2px solid rgba(207, 158, 255, 0.35);
+  }
+  #editor .atomic-table-overlay {
+    background: #1e1e1e;
+    box-shadow: 0 18px 50px -20px rgba(0, 0, 0, 0.9);
+    border: 1px solid rgba(207, 158, 255, 0.22);
+    border-radius: 9px;
+  }
+  #editor .atomic-table-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 44px;
+    padding: 0 10px;
+    background: rgba(13, 13, 22, 0.97);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 9px 9px 0 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    white-space: nowrap;
+  }
+  #editor .atomic-table-toolbar::-webkit-scrollbar { display: none; }
+  #editor .atomic-table-toolbar-label { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; color: rgba(255, 255, 255, 0.75); font-size: 11px; font-weight: 500; }
+  #editor .atomic-table-toolbar-dims { padding: 2px 6px; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 5px; background: rgba(255, 255, 255, 0.04); color: rgba(255, 255, 255, 0.4); font-family: "Fira Code", "Cascadia Code", Consolas, monospace; font-size: 10px; }
+  #editor .atomic-table-toolbar-divider { flex: 0 0 auto; width: 1px; height: 18px; background: rgba(255, 255, 255, 0.08); }
+  #editor .atomic-table-toolbar-btn { display: inline-flex; align-items: center; justify-content: center; gap: 4px; flex: 0 0 auto; height: 28px; padding: 0 8px; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; background: rgba(255, 255, 255, 0.04); color: rgba(255, 255, 255, 0.7); font-family: inherit; font-size: 11px; font-weight: 500; cursor: pointer; touch-action: manipulation; }
+  #editor .atomic-table-toolbar-btn:hover { border-color: rgba(207, 158, 255, 0.45); background: rgba(255, 255, 255, 0.07); color: #fff; }
+  #editor .atomic-table-toolbar-btn:disabled { cursor: not-allowed; opacity: 0.35; }
+  #editor .atomic-table-toolbar-btn--accent { border-color: rgba(207, 158, 255, 0.3); background: rgba(207, 158, 255, 0.12); color: #cf9eff; }
+  #editor .atomic-table-toolbar-btn--accent:hover { border-color: rgba(207, 158, 255, 0.55); background: rgba(207, 158, 255, 0.2); color: #e6ccff; }
+  #editor .atomic-table-toolbar-btn--danger { border-color: rgba(248, 113, 113, 0.28); background: rgba(248, 113, 113, 0.08); color: #fca5a5; }
+  #editor .atomic-table-toolbar-btn--danger:hover { border-color: rgba(248, 113, 113, 0.5); background: rgba(248, 113, 113, 0.14); color: #fecaca; }
+  #editor .atomic-table-toolbar-btn--done { border-color: rgba(207, 158, 255, 0.45); background: rgba(207, 158, 255, 0.16); color: #cf9eff; }
+  #editor .atomic-table-toolbar-btn--done:hover { border-color: rgba(207, 158, 255, 0.65); background: rgba(207, 158, 255, 0.24); color: #fff; }
+  #editor .atomic-table-toolbar-spacer { flex: 1 1 auto; min-width: 4px; }
+  #editor .atomic-table-editor { padding: 10px; background: #1e1e1e; overflow: auto; border-radius: 0 0 9px 9px; overscroll-behavior: contain; touch-action: pan-x pan-y; }
+  #editor .atomic-table-editor-grid { width: 100%; min-width: max-content; border-collapse: separate; border-spacing: 0; }
+  #editor .atomic-table-editor-grid th,
+  #editor .atomic-table-editor-grid td { padding: 2px; border: 0; text-align: left; vertical-align: middle; }
+  #editor .atomic-table-input { display: block; width: 100%; min-width: 96px; min-height: 34px; box-sizing: border-box; padding: 8px 10px; border: 1px solid rgba(255, 255, 255, 0.09); border-radius: 7px; background: rgba(255, 255, 255, 0.04); color: rgba(255, 255, 255, 0.85); font-family: inherit; font-size: 13px; line-height: 1.35; outline: none; white-space: pre-wrap; overflow-wrap: break-word; cursor: text; touch-action: manipulation; }
+  #editor .atomic-table-input:empty::before { content: attr(data-placeholder); color: rgba(255, 255, 255, 0.25); pointer-events: none; }
+  #editor .atomic-table-input:focus { border-color: rgba(207, 158, 255, 0.55); background: rgba(207, 158, 255, 0.06); }
+  #editor .atomic-table-input h2, #editor .atomic-table-input h3, #editor .atomic-table-input p, #editor .atomic-table-input ul, #editor .atomic-table-input ol, #editor .atomic-table-input blockquote { margin: 0; }
+  #editor .atomic-table-input h2 { font-size: 15px; font-weight: 600; }
+  #editor .atomic-table-input h3 { font-size: 14px; font-weight: 600; }
+  #editor .atomic-table-input ul, #editor .atomic-table-input ol { padding-left: 18px; }
+  #editor .atomic-table-input blockquote { padding-left: 8px; border-left: 2px solid rgba(207, 158, 255, 0.35); }
+  #editor .atomic-table-editor-grid thead .atomic-table-input { color: #cf9eff; font-weight: 600; }</style>
 </head>
 <body>
 <div id="editor" contenteditable="true" spellcheck="true" aria-label="Note content"></div>
@@ -425,6 +568,49 @@ function buildEditorHtml(): string {
 
     function languageLabel(id) {
       return LANG_BY_ID[id] ? LANG_BY_ID[id].label : "Plain Text";
+    }
+
+    function sanitizeTableCellHtml(value) {
+      var container = document.createElement("div");
+      container.innerHTML = String(value == null ? "" : value);
+      var ALLOWED = {
+        "B": true, "STRONG": true, "I": true, "EM": true, "U": true, "S": true,
+        "STRIKE": true, "BR": true, "P": true, "H2": true, "H3": true,
+        "BLOCKQUOTE": true, "UL": true, "OL": true, "LI": true
+      };
+      function cleanNode(node) {
+        var kids = Array.prototype.slice.call(node.childNodes);
+        for (var i = 0; i < kids.length; i++) cleanNode(kids[i]);
+        var tag = node.nodeType === 1 ? node.tagName : null;
+        if (tag && !ALLOWED[tag]) {
+          var parent = node.parentNode;
+          if (parent) {
+            while (node.firstChild) parent.insertBefore(node.firstChild, node);
+            parent.removeChild(node);
+          }
+        }
+      }
+      cleanNode(container);
+      var nodes = container.querySelectorAll("*");
+      for (var j = 0; j < nodes.length; j++) {
+        nodes[j].removeAttribute("href");
+        nodes[j].removeAttribute("style");
+      }
+      return container.innerHTML;
+    }
+
+    function tableCellToText(value) {
+      var html = sanitizeTableCellHtml(value);
+      var el = document.createElement("div");
+      el.innerHTML = html;
+      var text = el.innerText || el.textContent || "";
+      var out = "";
+      for (var i = 0; i < text.length; i++) {
+        var ch = text.charAt(i);
+        if (ch === " " || ch === String.fromCharCode(9)) out += " ";
+        else out += ch;
+      }
+      return out.replace(/ +/g, " ").trim();
     }
 
     var EXT_BY_ID = {};
@@ -684,7 +870,7 @@ function buildEditorHtml(): string {
       var state = {
         bold: false, italic: false, underline: false,
         heading: false, quote: false,
-        unordered: false, ordered: false, code: false
+        unordered: false, ordered: false, code: false, table: false
       };
       try {
         state.bold = document.queryCommandState("bold");
@@ -698,6 +884,7 @@ function buildEditorHtml(): string {
         state.heading = Boolean(block.closest("h2, h3"));
         state.quote = Boolean(block.closest("blockquote"));
         state.code = Boolean(block.closest(".atomic-code-block"));
+        state.table = Boolean(block.closest(".atomic-table-block"));
       }
       return state;
     }
@@ -709,6 +896,21 @@ function buildEditorHtml(): string {
     var langMenu = null;
     var activeBlockId = null;
     var activeBlockElement = null;
+
+    // Inline tables: one editing session at a time, mirroring the website's
+    // atomic-table-block model (data-table JSON rows + contenteditable=false
+    // view; the editing overlay swaps in while data-editing is set).
+    var tableEditingBlock = null;
+    var tableOverlayRoot = null;
+    var tableDraftRows = null;
+    var TABLE_MAX_ROWS = 60;
+    var TABLE_MAX_COLS = 12;
+    var TABLE_DEFAULT_HEADERS = ["Header 1", "Header 2"];
+    var TABLE_ALLOWED_TAGS = {
+      "B": true, "STRONG": true, "I": true, "EM": true, "U": true, "S": true,
+      "STRIKE": true, "BR": true, "P": true, "H2": true, "H3": true,
+      "BLOCKQUOTE": true, "UL": true, "OL": true, "LI": true
+    };
 
     function setActiveBlock(block) {
       if (!block || activeBlockElement === block) return;
@@ -957,9 +1159,15 @@ function buildEditorHtml(): string {
       }
     }
 
-    /** Strip editor-only chrome (language header) from the saved HTML. */
+    /** Strip editor-only chrome (language header / editing table state). */
     function serializeHtml() {
       syncBlocks();
+      if (
+        tableEditingBlock &&
+        tableEditingBlock.getAttribute("data-editing") === "true"
+      ) {
+        commitTableRows();
+      }
       if (!editor.querySelector(".cb-head")) return editor.innerHTML;
       var clone = editor.cloneNode(true);
       var heads = clone.querySelectorAll(".cb-head");
@@ -1015,6 +1223,7 @@ function buildEditorHtml(): string {
       clearActiveBlock();
       editor.innerHTML = history[historyIndex];
       normalizeBlocks();
+      normalizeTables();
       savedRange = null;
       notifyChange();
       restoringHistory = false;
@@ -1083,6 +1292,469 @@ function buildEditorHtml(): string {
       notifyChange();
     }
 
+    function createTableId() {
+      return (
+        "table-" +
+        Date.now().toString(36) +
+        "-" +
+        Math.random().toString(36).slice(2, 8)
+      );
+    }
+
+    function createDefaultTableRows() {
+      return [TABLE_DEFAULT_HEADERS.slice()];
+    }
+
+    function normalizeTableRows(input) {
+      var source = Array.isArray(input) ? input : [];
+      var rows = [];
+      for (var i = 0; i < source.length && i < TABLE_MAX_ROWS; i++) {
+        var rawRow = source[i];
+        if (!Array.isArray(rawRow)) continue;
+        var row = [];
+        for (var c = 0; c < rawRow.length && c < TABLE_MAX_COLS; c++) {
+          row.push(
+            typeof rawRow[c] === "string"
+              ? rawRow[c]
+              : String(rawRow[c] == null ? "" : "")
+          );
+        }
+        rows.push(row);
+      }
+      if (rows.length === 0) rows.push([]);
+      var width = 1;
+      for (var r = 0; r < rows.length; r++) {
+        if (rows[r].length > width) width = rows[r].length;
+      }
+      width = Math.min(TABLE_MAX_COLS, Math.max(1, width));
+      for (var rr = 0; rr < rows.length; rr++) {
+        var rowArr = rows[rr];
+        while (rowArr.length < width) rowArr.push("");
+        if (rowArr.length > width) rowArr.length = width;
+      }
+      return rows;
+    }
+
+    function parseTableRows(raw) {
+      if (!raw) return createDefaultTableRows();
+      try {
+        var parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return createDefaultTableRows();
+        return normalizeTableRows(parsed);
+      } catch (error) {
+        return createDefaultTableRows();
+      }
+    }
+
+    function renderTableBlockViewHtml(rows) {
+      var normalized = normalizeTableRows(rows);
+      var header = normalized[0] || [];
+      var body = [];
+      for (var i = 1; i < normalized.length; i++) body.push(normalized[i]);
+      var head = "<thead><tr>";
+      for (var h = 0; h < header.length; h++) {
+        head += "<th>" + sanitizeTableCellHtml(header[h]) + "</th>";
+      }
+      head += "</tr></thead>";
+      var bodyHtml = "";
+      for (var b = 0; b < body.length; b++) {
+        bodyHtml += "<tr>";
+        var rowCells = body[b];
+        for (var cc = 0; cc < rowCells.length; cc++) {
+          bodyHtml += "<td>" + sanitizeTableCellHtml(rowCells[cc]) + "</td>";
+        }
+        bodyHtml += "</tr>";
+      }
+      var bodySection = body.length ? "<tbody>" + bodyHtml + "</tbody>" : "";
+      return (
+        '<div class="atomic-table-view"><table class="atomic-table">' +
+        head +
+        bodySection +
+        "</table></div>"
+      );
+    }
+
+    function readRowsFromContainer(container) {
+      var grid = container.querySelector("table");
+      var result = [];
+      if (grid) {
+        var trs = grid.querySelectorAll("tr");
+        for (var i = 0; i < trs.length; i++) {
+          var tr = trs[i];
+          var row = [];
+          var kids = tr.children;
+          for (var c = 0; c < kids.length; c++) {
+            var cell = kids[c];
+            var text = cell.innerText || cell.textContent || "";
+            row.push(sanitizeTableCellHtml(text));
+          }
+          result.push(row);
+        }
+      }
+      if (result.length === 0) result.push([]);
+      return normalizeTableRows(result);
+    }
+
+    function readRowsFromTableElement(table) {
+      var rows = [];
+      var trs = table.querySelectorAll("tr");
+      for (var i = 0; i < trs.length; i++) {
+        var tr = trs[i];
+        var row = [];
+        var kids = tr.children;
+        for (var c = 0; c < kids.length; c++) {
+          var cell = kids[c];
+          var text = cell.innerText || cell.textContent || "";
+          row.push(sanitizeTableCellHtml(text));
+        }
+        rows.push(row);
+      }
+      if (rows.length === 0) rows.push([]);
+      return normalizeTableRows(rows);
+    }
+
+    function cloneTableRows(rows) {
+      var out = [];
+      for (var i = 0; i < rows.length; i++) {
+        var row = [];
+        var cells = rows[i] || [];
+        for (var c = 0; c < cells.length; c++) row.push(cells[c]);
+        out.push(row);
+      }
+      return out;
+    }
+
+    function commitTableRows() {
+      var block = tableEditingBlock;
+      if (!block) return;
+      var rows = readRowsFromContainer(tableOverlayRoot || block);
+      block.setAttribute("data-table", JSON.stringify(rows));
+      block.innerHTML = renderTableBlockViewHtml(rows);
+      block.removeAttribute("data-editing");
+      if (block.style) block.style.removeProperty("position");
+      tableEditingBlock = null;
+      tableOverlayRoot = null;
+      tableDraftRows = null;
+    }
+
+    function finishTableEdit() {
+      if (!tableEditingBlock) return;
+      commitTableRows();
+      editor.focus();
+    }
+
+    function applyTableRows(next) {
+      var rows = normalizeTableRows(next);
+      tableDraftRows = rows;
+      if (tableEditingBlock) {
+        tableEditingBlock.setAttribute("data-table", JSON.stringify(rows));
+      }
+      if (tableOverlayRoot) {
+        var editorEl = tableOverlayRoot.querySelector(".atomic-table-editor");
+        if (editorEl) editorEl.innerHTML = buildTableEditorHtml(rows);
+      }
+      notifyChange();
+    }
+
+    function buildTableEditorHtml(rows) {
+      var normalized = normalizeTableRows(rows);
+      var width = normalized.length ? normalized[0].length : 1;
+      var html = "<table class=\"atomic-table-editor-grid\"><thead><tr>";
+      for (var c = 0; c < width; c++) {
+        html +=
+          "<th><div class=\"atomic-table-input\" contenteditable=\"true\" spellcheck=\"false\" data-placeholder=\"Header\" aria-label=\"Header column " +
+          (c + 1) +
+          "\">" +
+          sanitizeTableCellHtml(normalized[0][c] || "") +
+          "</div></th>";
+      }
+      html += "</tr></thead>";
+      if (normalized.length > 1) {
+        html += "<tbody>";
+        for (var r = 1; r < normalized.length; r++) {
+          html += "<tr>";
+          for (var cc = 0; cc < width; cc++) {
+            html +=
+              "<td><div class=\"atomic-table-input\" contenteditable=\"true\" spellcheck=\"false\" data-placeholder=\"Cell\">" +
+              sanitizeTableCellHtml(normalized[r][cc] || "") +
+              "</div></td>";
+          }
+          html += "</tr>";
+        }
+        html += "</tbody>";
+      }
+      html += "</table>";
+      return html;
+    }
+
+    function tableToolbarHtml(rows) {
+      var rowCount = rows ? rows.length : 1;
+      var colCount = rows && rows[0] ? rows[0].length : 2;
+      var dim = rowCount + " x " + colCount;
+      var plusIcon =
+        '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg>';
+      var minusIcon =
+        '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg>';
+      var copyIcon =
+        '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z"/></svg>';
+      var checkIcon =
+        '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+      var trashIcon =
+        '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>';
+      var buttons =
+        '<button type="button" class="atomic-table-toolbar-btn atomic-table-toolbar-btn--accent" data-action="table-row-add" title="Add row">' +
+        plusIcon +
+        '<span class="atomic-table-toolbar-btn-text">Row</span></button>' +
+        '<button type="button" class="atomic-table-toolbar-btn" data-action="table-row-remove" title="Remove row" disabled="' +
+        (rowCount <= 1 ? "true" : "false") +
+        '"><span class="atomic-table-toolbar-btn-text">Row</span></button>' +
+        '<button type="button" class="atomic-table-toolbar-btn atomic-table-toolbar-btn--accent" data-action="table-col-add" title="Add column">' +
+        plusIcon +
+        '<span class="atomic-table-toolbar-btn-text">Col</span></button>' +
+        '<button type="button" class="atomic-table-toolbar-btn" data-action="table-col-remove" title="Remove column" disabled="' +
+        (colCount <= 1 ? "true" : "false") +
+        '"><span class="atomic-table-toolbar-btn-text">Col</span></button>' +
+        '<span class="atomic-table-toolbar-spacer"></span>' +
+        '<button type="button" class="atomic-table-toolbar-btn" data-action="table-copy" title="Copy table">' +
+        copyIcon +
+        '<span class="atomic-table-toolbar-btn-text">Copy</span></button>' +
+        '<button type="button" class="atomic-table-toolbar-btn atomic-table-toolbar-btn--danger" data-action="table-delete" title="Delete table">' +
+        trashIcon +
+        '<span class="atomic-table-toolbar-btn-text">Delete</span></button>' +
+        '<button type="button" class="atomic-table-toolbar-btn atomic-table-toolbar-btn--done" data-action="table-done" title="Done editing table">' +
+        checkIcon +
+        '<span class="atomic-table-toolbar-btn-text">Done</span></button>';
+      var toolbar =
+        '<div class="atomic-table-toolbar"><span class="atomic-table-toolbar-label"><span class="atomic-table-toolbar-title">Table</span><span class="atomic-table-toolbar-dims">' +
+        dim +
+        "</span></span><span class=\"atomic-table-toolbar-divider\"></span>" +
+        buttons +
+        "</div>";
+      var editor =
+        '<div class="atomic-table-editor" style="height:300px">' + buildTableEditorHtml(rows) + "</div>";
+      var overlay =
+        '<div class="atomic-table-overlay"><div class="atomic-table-toolbar">' +
+        toolbar +
+        '"></div>' +
+        editor +
+        "</div>";
+      return overlay;
+    }
+
+    function startTableEdit(block, rows) {
+      var normalized = normalizeTableRows(rows);
+      block.setAttribute("data-editing", "true");
+      block.setAttribute("contenteditable", "false");
+      block.style.position = "relative";
+      block.innerHTML = tableToolbarHtml(normalized);
+      var overlayEl = block.querySelector(".atomic-table-overlay");
+      if (overlayEl) {
+        overlayEl.style.position = "absolute";
+        overlayEl.style.top = "0";
+        overlayEl.style.left = "0";
+        overlayEl.style.right = "0";
+        overlayEl.style.height = "344px";
+        overlayEl.style.zIndex = "30";
+        overlayEl.style.borderRadius = "9px";
+        overlayEl.style.background = "#1e1e1e";
+        overlayEl.style.overflow = "auto";
+      }
+      tableEditingBlock = block;
+      tableOverlayRoot = overlayEl;
+      tableDraftRows = normalized;
+      bindTableEditorListeners();
+      focusFirstTableCell();
+    }
+    function refreshTableRows() {
+      if (!tableEditingBlock) return null;
+      var rows = readRowsFromContainer(tableOverlayRoot);
+      tableEditingBlock.setAttribute("data-table", JSON.stringify(rows));
+      return rows;
+    }
+
+    function focusFirstTableCell() {
+      var overlay = tableOverlayRoot;
+      if (!overlay) return;
+      var cell = overlay.querySelector(".atomic-table-input");
+      if (!cell) return;
+      setTimeout(function () {
+        if (!overlay.isConnected) return;
+        cell.focus();
+        var range = document.createRange();
+        range.selectNodeContents(cell);
+        var selection = window.getSelection();
+        if (selection) {
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+      }, 40);
+    }
+
+    function bindTableEditorListeners() {
+      var overlay = tableOverlayRoot;
+      if (!overlay) return;
+      overlay.addEventListener("input", function (event) {
+        var target = event.target;
+        if (!target || !target.classList) return;
+        if (!target.classList.contains("atomic-table-input")) return;
+        refreshTableRows();
+        notifyChange();
+      });
+      overlay.addEventListener("keydown", function (event) {
+        var target = event.target;
+        if (target && target.classList && target.classList.contains("atomic-table-input")) {
+          if (event.key === "Tab") {
+            event.preventDefault();
+            var cells = overlay.querySelectorAll(".atomic-table-input");
+            var index = 0;
+            for (var i = 0; i < cells.length; i++) {
+              if (cells[i] === target) { index = i; break; }
+            }
+            var next = cells[index + (event.shiftKey ? -1 : 1)];
+            if (next) next.focus();
+            return;
+          }
+        }
+        if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          finishTableEdit();
+          return;
+        }
+      });
+      overlay.addEventListener("click", function (event) {
+        var target = event.target;
+        if (!target || !target.closest) return;
+        var action = target.closest("[data-action]");
+        if (action) {
+          event.preventDefault();
+          event.stopPropagation();
+          runTableAction(action.getAttribute("data-action"));
+        }
+      });
+      document.addEventListener("pointerdown", function (event) {
+        var target = event.target;
+        if (!target || !target.closest) return;
+        if (!tableEditingBlock) return;
+        var overlayEl = tableOverlayRoot;
+        if (overlayEl && overlayEl.contains(target)) return;
+        if (tableEditingBlock.contains(target)) return;
+        finishTableEdit();
+      }, true);
+    }
+
+    function runTableAction(action) {
+      if (!tableEditingBlock) return;
+      if (action === "table-row-add") {
+        var baseRows = tableDraftRows || createDefaultTableRows();
+        var width0 = baseRows.length ? baseRows[0].length : 1;
+        var nextRows = cloneTableRows(baseRows);
+        var fresh = [];
+        for (var f = 0; f < width0; f++) fresh.push("");
+        nextRows.push(fresh);
+        applyTableRows(nextRows);
+        return;
+      }
+      if (action === "table-row-remove") {
+        if (!tableDraftRows || tableDraftRows.length <= 1) return;
+        var kept = [];
+        for (var k = 0; k < tableDraftRows.length - 1; k++) kept.push(tableDraftRows[k]);
+        applyTableRows(kept);
+        return;
+      }
+      if (action === "table-col-add") {
+        var colsRows = cloneTableRows(tableDraftRows || createDefaultTableRows());
+        var colWidth = colsRows.length ? colsRows[0].length : 1;
+        for (var ci = 0; ci < colsRows.length; ci++) colsRows[ci].push("Header " + (colWidth + 1));
+        applyTableRows(colsRows);
+        return;
+      }
+      if (action === "table-col-remove") {
+        if (!tableDraftRows || !tableDraftRows.length) return;
+        if ((tableDraftRows[0] ? tableDraftRows[0].length : 1) <= 1) return;
+        var remRows = [];
+        for (var ri = 0; ri < tableDraftRows.length; ri++) {
+          var remCells = [];
+          var remSrc = tableDraftRows[ri] || [];
+          for (var rj = 0; rj < remSrc.length - 1; rj++) remCells.push(remSrc[rj]);
+          remRows.push(remCells);
+        }
+        applyTableRows(remRows);
+        return;
+      }
+      if (action === "table-done") { finishTableEdit(); return; }
+      if (action === "table-delete") {
+        if (tableEditingBlock) {
+          var delBlock = tableEditingBlock;
+          finishTableEdit();
+          if (delBlock.parentNode) delBlock.parentNode.removeChild(delBlock);
+        }
+        return;
+      }
+      if (action === "table-copy") {
+        var copyRows = tableDraftRows || createDefaultTableRows();
+        var tsv = "";
+        for (var ti = 0; ti < copyRows.length; ti++) {
+          var tParts = [];
+          for (var tci = 0; tci < (copyRows[ti] ? copyRows[ti].length : 0); tci++) tParts.push(tableCellToText(copyRows[ti][tci]));
+          tsv += tParts.join(String.fromCharCode(9));
+          if (ti < copyRows.length - 1) tsv += String.fromCharCode(10);
+        }
+        try {
+          var copyArea = document.createElement("textarea");
+          copyArea.value = tsv;
+          copyArea.setAttribute("readonly", "");
+          copyArea.style.position = "fixed";
+          copyArea.style.top = "-1000px";
+          copyArea.style.opacity = "0";
+          document.body.appendChild(copyArea);
+          copyArea.select();
+          var copiedOk = document.execCommand("copy");
+          document.body.removeChild(copyArea);
+          if (!copiedOk) { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(tsv); }
+        } catch (error) { /* clipboard unavailable */ }
+        return;
+      }
+    }
+
+    function insertTableBlock() {
+      var id = createTableId();
+      var rows = createDefaultTableRows();
+      var block = document.createElement("div");
+      block.className = "atomic-table-block";
+      block.setAttribute("contenteditable", "false");
+      block.setAttribute("data-table-id", id);
+      block.setAttribute("data-table", JSON.stringify(rows));
+      block.innerHTML = renderTableBlockViewHtml(rows);
+      var trailing = document.createElement("p");
+      trailing.innerHTML = "<br>";
+      var selection = window.getSelection();
+      var range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+      if (range && editor.contains(range.commonAncestorContainer)) {
+        range.collapse(true);
+        var node = range.startContainer;
+        var top = node && node.nodeType === 3 ? node.parentElement : node;
+        while (top && top.parentNode !== editor) top = top.parentNode;
+        if (top && top !== editor && top.parentNode === editor) { top.after(block); } else { editor.appendChild(block); }
+      } else { editor.appendChild(block); }
+      if (!block.nextElementSibling) block.after(trailing);
+      var caret = document.createRange();
+      caret.setStart(trailing, 0);
+      caret.collapse(true);
+      var nextSelection = window.getSelection();
+      if (nextSelection) { nextSelection.removeAllRanges(); nextSelection.addRange(caret); }
+      startTableEdit(block, rows);
+    }
+
+    function normalizeTables() {
+      var blocks = editor.querySelectorAll(".atomic-table-block");
+      for (var i = 0; i < blocks.length; i++) {
+        var block = blocks[i];
+        var rows = parseTableRows(block.getAttribute("data-table"));
+        block.innerHTML = renderTableBlockViewHtml(rows);
+      }
+      return blocks.length;
+    }
     document.addEventListener("selectionchange", function () {
       var active = document.activeElement;
       if (active && active.classList && active.classList.contains("cb-ext")) {
@@ -1169,6 +1841,7 @@ function buildEditorHtml(): string {
       clearActiveBlock();
       editor.innerHTML = html;
       normalizeBlocks();
+      normalizeTables();
       savedRange = null;
       history = [];
       historyIndex = -1;
@@ -1205,6 +1878,10 @@ function buildEditorHtml(): string {
       try {
         if (name === "codeBlock") {
           insertCodeBlock();
+          return;
+        }
+        if (name === "tableBlock") {
+          insertTableBlock();
           return;
         }
         if (name === "formatBlock" && (value === "h2" || value === "blockquote")) {
@@ -1352,6 +2029,11 @@ function buildEditorHtml(): string {
         insertCodeBlock();
         return;
       }
+      if (event.altKey && event.shiftKey && key === "t") {
+        event.preventDefault();
+        insertTableBlock();
+        return;
+      }
       if (event.altKey && event.shiftKey && key === "l") {
         event.preventDefault();
         document.execCommand("insertUnorderedList");
@@ -1424,6 +2106,7 @@ export const RichNoteEditor = forwardRef<
       unordered?: boolean;
       ordered?: boolean;
       code?: boolean;
+      table?: boolean;
     };
     try {
       parsed = JSON.parse(data) as typeof parsed;
@@ -1444,6 +2127,7 @@ export const RichNoteEditor = forwardRef<
         unordered: Boolean(parsed.unordered),
         ordered: Boolean(parsed.ordered),
         code: Boolean(parsed.code),
+        table: Boolean(parsed.table),
       });
     }
   }, []);

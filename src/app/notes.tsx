@@ -197,6 +197,46 @@ function CourseSwitcher({
   );
 }
 
+/** Neutral accent for notes that are not linked to a course. */
+const GENERAL_ACCENT = "#8b90a3";
+
+/** Course accents assigned when a course is created (mirrors db/courses.ts). */
+const NOTE_ACCENTS = [
+  "#9db4ff",
+  "#5fbdb2",
+  "#a982e0",
+  "#5aa7cd",
+  "#e0975f",
+  "#cd6f95",
+  "#cf9eff",
+];
+
+function hexToRgba(hex: string, alpha: number): string {
+  const value = hex.replace("#", "");
+  const full =
+    value.length === 3
+      ? value
+          .split("")
+          .map((char) => char + char)
+          .join("")
+      : value;
+  if (!/^[0-9a-fA-F]{6}$/.test(full)) return `rgba(207, 158, 255, ${alpha})`;
+  const int = Number.parseInt(full, 16);
+  return `rgba(${(int >> 16) & 255}, ${(int >> 8) & 255}, ${int & 255}, ${alpha})`;
+}
+
+/** Stable accent for a note: its course accent, or a palette colour derived
+ *  from the course id when the course is not in the local list (shared note). */
+function noteAccent(
+  note: Note,
+  accentByCourseId: Map<number, string>,
+): string {
+  if (note.courseId == null) return GENERAL_ACCENT;
+  return (
+    accentByCourseId.get(note.courseId) ??
+    NOTE_ACCENTS[Math.abs(note.courseId) % NOTE_ACCENTS.length]
+  );
+}
 interface NoteSection {
   /** Stable group id: "general" or "course-<id>" (website parity). */
   key: string;
@@ -204,6 +244,8 @@ interface NoteSection {
   subject: string;
   data: Note[];
   count?: number;
+  /** Group accent: course accent or GENERAL_ACCENT. */
+  accent: string;
 }
 
 const NoteRow = memo(function NoteRow({
@@ -840,9 +882,17 @@ export default function NotesScreen() {
 
   // Course groups for the "All notes" view (website parity: notes.course_id
   // decides the group, not an inferred subject); null in a course view.
+  const accentByCourseId = useMemo(
+    () => new Map(courses.map((course) => [course.id, course.accent])),
+    [courses],
+  );
+
   const groupedNotes = useMemo(() => {
     if (selectedCourseId != null) return null;
-    const groups = new Map<string, { title: string; notes: Note[] }>();
+    const groups = new Map<
+      string,
+      { title: string; accent: string; notes: Note[] }
+    >();
     for (const note of notes) {
       const key = note.courseId == null ? "general" : `course-${note.courseId}`;
       const course =
@@ -853,16 +903,24 @@ export default function NotesScreen() {
         note.courseId == null
           ? "General"
           : (course?.title ?? note.courseTitle ?? "Course");
+      const accent =
+        note.courseId == null
+          ? GENERAL_ACCENT
+          : (course?.accent ??
+            accentByCourseId.get(note.courseId) ??
+            NOTE_ACCENTS[Math.abs(note.courseId) % NOTE_ACCENTS.length]);
       const group = groups.get(key);
       if (group) group.notes.push(note);
-      else groups.set(key, { title, notes: [note] });
+      else groups.set(key, { title, accent, notes: [note] });
     }
     return Array.from(groups.entries()).sort(([keyA, a], [keyB, b]) => {
       if (keyA === "general") return -1;
       if (keyB === "general") return 1;
       return a.title.localeCompare(b.title);
     });
-  }, [notes, selectedCourseId, courses]);
+  }, [notes, selectedCourseId, courses, accentByCourseId]);
+
+  const selectedCourseAccent = selectedCourse?.accent ?? GENERAL_ACCENT;
 
   const sections = useMemo<NoteSection[]>(() => {
     if (groupedNotes) {
@@ -871,10 +929,11 @@ export default function NotesScreen() {
         subject: group.title,
         data: collapsedGroups.has(key) ? [] : group.notes,
         count: group.notes.length,
+        accent: group.accent,
       }));
     }
     return notes.length > 0
-      ? [{ key: "flat", subject: "", data: notes, count: notes.length }]
+      ? [{ key: "flat", subject: "", data: notes, count: notes.length, accent: selectedCourseAccent }]
       : [];
   }, [groupedNotes, notes, collapsedGroups]);
 

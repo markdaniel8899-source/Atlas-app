@@ -29,6 +29,7 @@ import {
   Quote,
   Redo2,
   Share2,
+  Table2,
   Trash2,
   Underline,
   Undo2,
@@ -104,6 +105,13 @@ const TOOLS: Tool[] = [
     stateKey: "code",
     dividerBefore: true,
   },
+  {
+    label: "Table",
+    icon: Table2,
+    command: "tableBlock",
+    stateKey: "table",
+    dividerBefore: true,
+  },
 ];
 
 const EMPTY_STATE: EditorCommandState = {
@@ -115,6 +123,7 @@ const EMPTY_STATE: EditorCommandState = {
   unordered: false,
   ordered: false,
   code: false,
+  table: false,
 };
 
 interface NoteEditorModalProps {

@@ -116,6 +116,69 @@ function renderCodeBlocks(html: string): string {
   return out;
 }
 
+const TABLE_OPEN = /<div class="atomic-table-block"([^>]*)>/g;
+
+/**
+ * Replace every persisted atomic table block with a real exported <table>
+ * built from its `data-table` rows JSON.
+ */
+function renderTableBlocks(html: string): string {
+  let out = "";
+  let cursor = 0;
+  TABLE_OPEN.lastIndex = 0;
+
+  let match: RegExpExecArray | null;
+  while ((match = TABLE_OPEN.exec(html))) {
+    const start = match.index;
+    if (start < cursor) continue;
+    const innerStart = TABLE_OPEN.lastIndex;
+    const blockEnd = findBlockEnd(html, innerStart);
+    if (blockEnd < 0) continue;
+
+    const attrs = match[1] ?? "";
+    const rows = parseRowsJson(attrValue(attrs, "data-table"));
+    out += html.slice(cursor, start);
+    out += renderTableHtml(rows);
+    cursor = blockEnd;
+    TABLE_OPEN.lastIndex = blockEnd;
+  }
+
+  out += html.slice(cursor);
+  return out;
+}
+
+function parseRowsJson(raw: string | null): string[][] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    const rows: string[][] = [];
+    for (const row of parsed) {
+      if (!Array.isArray(row)) continue;
+      const cells: string[] = [];
+      for (const cell of row) {
+        cells.push(typeof cell === "string" ? cell : cell == null ? "" : String(cell));
+      }
+      rows.push(cells);
+    }
+    return rows;
+  } catch {
+    return [];
+  }
+}
+
+function renderTableHtml(rows: string[][]): string {
+  const safeRows = rows.length > 0 ? rows : [["", ""]];
+  const headHtml = (safeRows[0] ?? [])
+    .map((cell) => `<th>${cell}</th>`)
+    .join("");
+  const bodyHtml = safeRows
+    .slice(1)
+    .map((row) => `<tr>${row.map((cell) => `<td>${cell}</td>`).join("")}</tr>`)
+    .join("");
+  const bodySection = safeRows.length > 1 ? `<tbody>${bodyHtml}</tbody>` : "";
+  return `<table><thead><tr>${headHtml}</tr></thead>${bodySection}</table>`;
+}
 /** Website-parity dark document (theme.css from the web notes exporter). */
 const EXPORT_STYLE = `
   :root { color-scheme: dark; }
@@ -189,7 +252,30 @@ const EXPORT_STYLE = `
     color: inherit;
     font-size: inherit;
   }
-  @media print {
+  .export-note table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+  }
+  .export-note th,
+  .export-note td {
+    padding: 8px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+    text-align: left;
+    vertical-align: top;
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .export-note th {
+    background: rgba(207, 158, 255, 0.08);
+    color: #cf9eff;
+    font-weight: 600;
+  }
+  .export-note tbody tr:hover td {
+    background: rgba(255, 255, 255, 0.03);
+  }  @media print {
     body { background: #0a0a12; }
     main.notes-export { max-width: none; padding: 0; }
   }
@@ -280,7 +366,7 @@ export function buildNotesExportHtml(notes: ExportNote[]): string {
   const body = notes
     .map((note) => {
       const title = escapeHtml(note.title.trim() || "Untitled note");
-      const content = renderCodeBlocks(sanitizeHtml(note.html));
+      const content = renderTableBlocks(renderCodeBlocks(sanitizeHtml(note.html)));
       return `<article class="export-note"><h1>${title}</h1>${content}</article>`;
     })
     .join("\n");

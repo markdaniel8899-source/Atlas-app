@@ -160,7 +160,49 @@ export function sanitizeHtml(html: string): string {
         return href ? `<a href="${href}">` : "<a>";
       }
       if (name === "div") {
-        if (!classTokens(rawAttrs).includes("atomic-code-block")) {
+        const divTokens = classTokens(rawAttrs);
+        if (divTokens.includes("atomic-table-block")) {
+          const tableId = attrValue(rawAttrs, "data-table-id");
+          const rawRows = attrValue(rawAttrs, "data-table");
+          const safeTableId =
+            tableId && SAFE_BLOCK_ID_RE.test(tableId.trim()) ? tableId.trim() : "";
+          let rows: string[][] = [];
+          const decodedRows = rawRows == null ? "" : decodeEntities(rawRows);
+          if (decodedRows) {
+            try {
+              const parsed: unknown = JSON.parse(decodedRows);
+              if (Array.isArray(parsed)) {
+                for (const row of parsed) {
+                  if (!Array.isArray(row)) continue;
+                  const cells: string[] = [];
+                  for (const cell of row) {
+                    cells.push(typeof cell === "string" ? cell : cell == null ? "" : String(cell));
+                  }
+                  rows.push(cells);
+                }
+              }
+            } catch {
+              rows = [];
+            }
+          }
+          const safeRows: string[][] = rows.length > 0 ? rows : [["", ""]];
+          const headHtml = (safeRows[0] ?? [])
+            .map((cell) => `<th>${cell}</th>`)
+            .join("");
+          const bodyHtml = safeRows
+            .slice(1)
+            .map((row) => `<tr>${row.map((cell) => `<td>${cell}</td>`).join("")}</tr>`)
+            .join("");
+          const bodySection = safeRows.length > 1 ? `<tbody>${bodyHtml}</tbody>` : "";
+          return (
+            `<div class="atomic-table-block"` +
+            (safeTableId ? ` data-table-id="${escapeAttr(safeTableId)}"` : "") +
+            ` data-table="${escapeAttr(JSON.stringify(safeRows))}" contenteditable="false">` +
+            `<div class="atomic-table-view"><table class="atomic-table"><thead><tr>${headHtml}</tr></thead>${bodySection}</table></div>` +
+            `</div>`
+          );
+        }
+        if (!divTokens.includes("atomic-code-block")) {
           return "<div>";
         }
         const id = attrValue(rawAttrs, "data-code-block-id");
