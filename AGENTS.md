@@ -299,7 +299,7 @@
   - Table editor: tap any saved table to edit it again; Done / outside tap commits; add/remove row/col updates dims and disabled states; header defaults are `Header N` and new body cells are empty; Enter inserts a line break; pasted text inserts as plain lines; typing survives add row/col; block height adapts to row count.
   - `serializeHtml` now clones the editor and strips `.cb-head` + editing-table chrome instead of committing the active edit (keystrokes no longer end editing). Insert, Done, and Delete now emit a change so the note is persisted.
   - `src/lib/notes.ts`: table blocks are rebuilt from `data-table` in a pre-pass with placeholder markers (cells recursively sanitized, max 60 rows x 12 cols), so the generic tag filter cannot strip generated table markup or leave duplicate cell text; idempotent round-trip verified.
-  - Verified with an Edge headless harness (insert, type, Done, re-edit, delete, paste, add row/col, no runtime errors), Node `sanitizeHtml` round-trip, `npx tsc --noEmit`, `npx expo lint` (3 pre-existing warnings), web export 20/20. JS-only, OTA-able; no native/asset changes.
+  - Verified with an Edge headless harness (insert, type, Done, re-edit, delete, paste, add row/col, no runtime errors), Node `sanitizeHtml` round-trip, `npx tsc --noEmit`, `npx expo lint` (3 pre-existing warnings), web export 20/20. JS-only; OTA published (`0d90f731-0554-4481-a511-2f6e0d28ad71`, runtime 1.0.2, commit `c22d203`); no native/asset changes.
 
 ## Workflow Preferences (user)
 - User communicates in **Roman Urdu** — reply concisely in Roman Urdu.
