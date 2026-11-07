@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChevronDown, ArrowLeft, Menu } from "lucide-react-native";
 import { AccountSheet } from "./account-sheet";
+import { PressScale } from "./ui/press-scale";
 import { pngAvatarUrl } from "../lib/dicebear";
 import { colors, fonts } from "../theme/theme";
 
@@ -37,19 +38,20 @@ export function AppHeader({
   const inner = (
     <View style={styles.inner}>
       <View style={styles.left}>
-        <Pressable
+        <PressScale
           accessibilityRole="button"
           accessibilityLabel={onBackPress ? "Go back" : "Open navigation"}
           onPress={onBackPress ?? onMenuPress}
           hitSlop={6}
-          style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+          scaleTo={0.92}
+          style={styles.iconButton}
         >
           {onBackPress ? (
             <ArrowLeft size={22} color={colors.w60} />
           ) : (
             <Menu size={22} color={colors.w60} />
           )}
-        </Pressable>
+        </PressScale>
         <Text
           style={styles.title}
           numberOfLines={1}
@@ -59,12 +61,13 @@ export function AppHeader({
         </Text>
       </View>
 
-      <Pressable
+      <PressScale
         accessibilityRole="button"
         accessibilityLabel="Account menu"
         onPress={handleAccountPress}
         hitSlop={6}
-        style={({ pressed }) => [styles.account, pressed && styles.pressed]}
+        scaleTo={0.94}
+        style={styles.account}
       >
         {resolvedAvatar ? (
           <Image
@@ -85,7 +88,7 @@ export function AppHeader({
           />
         )}
         <ChevronDown size={16} color={colors.w40} />
-      </Pressable>
+      </PressScale>
     </View>
   );
 

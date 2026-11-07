@@ -40,9 +40,19 @@ export function SelectMenu<T extends string>({
   const [open, setOpen] = useState(false);
   const [rendered, setRendered] = useState(false);
   const anim = useRef(new Animated.Value(0)).current;
+  const chevron = useRef(new Animated.Value(0)).current;
   const opening = useRef(false);
   const closing = useRef(false);
   const pendingPick = useRef<T | null>(null);
+
+  useEffect(() => {
+    Animated.timing(chevron, {
+      toValue: open ? 1 : 0,
+      duration: MOTION.menu,
+      easing: MOTION.easing,
+      useNativeDriver: true,
+    }).start();
+  }, [open, chevron]);
 
   const selected =
     options.find((option) => option.value === value) ?? options[0];
@@ -74,7 +84,7 @@ export function SelectMenu<T extends string>({
     Animated.timing(anim, {
       toValue: 0,
       duration: MOTION.sheetClose,
-      easing: MOTION.easing,
+      easing: MOTION.easingExit,
       useNativeDriver: true,
     }).start(({ finished }) => {
       closing.current = false;
@@ -133,11 +143,20 @@ export function SelectMenu<T extends string>({
             </Text>
           ) : null}
         </View>
-        <ChevronDown
-          size={16}
-          color={open ? colors.lilac : colors.w35}
-          style={open ? styles.chevronOpen : undefined}
-        />
+        <Animated.View
+          style={{
+            transform: [
+              {
+                rotate: chevron.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ["0deg", "180deg"],
+                }),
+              },
+            ],
+          }}
+        >
+          <ChevronDown size={16} color={open ? colors.lilac : colors.w35} />
+        </Animated.View>
       </Pressable>
 
       <Modal
@@ -285,9 +304,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: fonts.regular,
     color: colors.w40,
-  },
-  chevronOpen: {
-    transform: [{ rotate: "180deg" }],
   },
   modalRoot: {
     flex: 1,

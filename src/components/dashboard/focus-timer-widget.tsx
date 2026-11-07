@@ -100,7 +100,7 @@ function QuickStartDialog({
       Animated.timing(anim, {
         toValue: 0,
         duration: MOTION.sheetClose,
-        easing: MOTION.easing,
+        easing: MOTION.easingExit,
         useNativeDriver: true,
       }).start(({ finished }) => {
         if (!finished) return;
@@ -383,13 +383,15 @@ export function FocusTimerWidget() {
             : setQuickOpen(false)
         }
       >
-        <QuickStartDialog
-          preset={preset}
-          onSelect={setPreset}
-          onStart={startQuick}
-          onClose={() => setQuickOpen(false)}
-          requestCloseRef={quickCloseRef}
-        />
+        {quickOpen ? (
+          <QuickStartDialog
+            preset={preset}
+            onSelect={setPreset}
+            onStart={startQuick}
+            onClose={() => setQuickOpen(false)}
+            requestCloseRef={quickCloseRef}
+          />
+        ) : null}
       </Modal>
     </>
   );

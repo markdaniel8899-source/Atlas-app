@@ -30,6 +30,7 @@ import {
 import { markDrawerNavigation } from "../lib/nav-source";
 import { MOTION } from "../theme/motion";
 import { colors, fonts } from "../theme/theme";
+import { PressScale } from "./ui/press-scale";
 
 const DRAWER_WIDTH = 240;
 
@@ -166,7 +167,7 @@ export function NavigationDrawer({
                     />
                   ))
                 : null}
-              <Pressable
+              <PressScale
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
                 accessibilityLabel={item.label}
@@ -184,10 +185,10 @@ export function NavigationDrawer({
                   router.navigate(item.route);
                   onClose();
                 }}
-                style={({ pressed }) => [
+                scaleTo={0.985}
+                style={[
                   styles.item,
                   active ? styles.itemActive : styles.itemIdle,
-                  pressed && !active ? styles.itemPressed : null,
                 ]}
               >
                 <Icon size={22} color={active ? colors.white : colors.w50} />
@@ -200,7 +201,7 @@ export function NavigationDrawer({
                 >
                   {item.label}
                 </Text>
-              </Pressable>
+              </PressScale>
             </View>
           );
         })}

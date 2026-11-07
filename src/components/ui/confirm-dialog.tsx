@@ -57,7 +57,7 @@ export function ConfirmDialog({
       Animated.timing(anim, {
         toValue: 0,
         duration: MOTION.sheetClose,
-        easing: MOTION.easing,
+        easing: MOTION.easingExit,
         useNativeDriver: true,
       }).start(({ finished }) => {
         if (finished) setRendered(false);
@@ -73,7 +73,7 @@ export function ConfirmDialog({
     Animated.timing(anim, {
       toValue: 0,
       duration: MOTION.sheetClose,
-      easing: MOTION.easing,
+      easing: MOTION.easingExit,
       useNativeDriver: true,
     }).start(({ finished }) => {
       closing.current = false;

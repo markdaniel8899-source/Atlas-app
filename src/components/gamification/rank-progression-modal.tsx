@@ -56,7 +56,7 @@ export function RankProgressionModal({
       Animated.parallel([
         Animated.timing(backdrop, {
           toValue: 1,
-          duration: MOTION.sheetClose,
+          duration: MOTION.sheet,
           easing: MOTION.easing,
           useNativeDriver: true,
         }),
@@ -73,13 +73,13 @@ export function RankProgressionModal({
         Animated.timing(backdrop, {
           toValue: 0,
           duration: MOTION.sheetClose,
-          easing: MOTION.easing,
+          easing: MOTION.easingExit,
           useNativeDriver: true,
         }),
         Animated.timing(panel, {
           toValue: 0,
           duration: MOTION.sheetClose,
-          easing: MOTION.easing,
+          easing: MOTION.easingExit,
           useNativeDriver: true,
         }),
       ]).start(({ finished }) => {

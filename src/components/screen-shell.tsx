@@ -4,7 +4,6 @@ import {
   Animated,
   BackHandler,
   Keyboard,
-  Pressable,
   RefreshControlProps,
   ScrollView,
   StyleSheet,
@@ -23,6 +22,7 @@ import { useProfile } from "../hooks/use-profile";
 import { getCachedAuthUser, resolveSession } from "../lib/auth";
 import { closeDrawer, isDrawerOpen, openDrawer } from "../lib/drawer-store";
 import { colors, fonts } from "../theme/theme";
+import { PressScale } from "./ui/press-scale";
 
 interface ScreenShellProps {
   title: string;
@@ -191,27 +191,30 @@ export function ScreenFooter() {
   return (
     <View style={styles.footerWrap}>
       <View style={styles.footer}>
-        <Pressable
+        <PressScale
           accessibilityRole="link"
           accessibilityLabel="Privacy Policy"
           onPress={() => router.navigate("/privacy" as Href)}
+          scaleTo={0.97}
         >
           <Text style={styles.footerLink}>Privacy Policy</Text>
-        </Pressable>
-        <Pressable
+        </PressScale>
+        <PressScale
           accessibilityRole="link"
           accessibilityLabel="Terms of Service"
           onPress={() => router.navigate("/terms" as Href)}
+          scaleTo={0.97}
         >
           <Text style={styles.footerLink}>Terms of Service</Text>
-        </Pressable>
-        <Pressable
+        </PressScale>
+        <PressScale
           accessibilityRole="link"
           accessibilityLabel="Contact Us"
           onPress={() => router.navigate("/contact" as Href)}
+          scaleTo={0.97}
         >
           <Text style={styles.footerLink}>Contact Us</Text>
-        </Pressable>
+        </PressScale>
       </View>
     </View>
   );

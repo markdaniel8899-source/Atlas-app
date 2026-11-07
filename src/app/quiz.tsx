@@ -191,6 +191,7 @@ export default function QuizScreen() {
       ) : null}
 
       {phase === "loading" ? (
+        <FadeIn>
         <View style={styles.loadingCard}>
           <ActivityIndicator size="large" color={colors.star} />
           <View style={styles.loadingTextWrap}>
@@ -213,6 +214,7 @@ export default function QuizScreen() {
             <Text style={styles.cancelButtonText}>Cancel</Text>
           </Pressable>
         </View>
+        </FadeIn>
       ) : null}
 
       {phase === "running" && question ? (

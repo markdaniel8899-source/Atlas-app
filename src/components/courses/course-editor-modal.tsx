@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -15,6 +16,10 @@ import { addTopic, removeTopic, updateCourse } from "../../lib/db/courses";
 import { useKeyboardHeight } from "../../hooks/use-keyboard-height";
 import type { Course, CourseTopic } from "../../lib/db/types";
 import { ThemedInput } from "../ui/themed-input";
+import {
+  modalPanelStyle,
+  useModalTransition,
+} from "../ui/modal-transition";
 import { colors, fonts } from "../../theme/theme";
 
 interface CourseEditorModalProps {
@@ -37,6 +42,7 @@ export function CourseEditorModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const keyboardHeight = useKeyboardHeight();
+  const { rendered, anim } = useModalTransition(course !== null);
 
   useEffect(() => {
     if (!course) return;
@@ -105,32 +111,34 @@ export function CourseEditorModal({
 
   return (
     <Modal
-      visible={course !== null}
+      visible={rendered}
       transparent
-      animationType="fade"
+      animationType="none"
       statusBarTranslucent
       onRequestClose={() => {
         if (!busy) onClose();
       }}
     >
       <View style={styles.overlay}>
-        <Pressable
-          accessibilityLabel="Close editor"
-          style={[StyleSheet.absoluteFill, styles.backdrop]}
-          onPress={() => {
-            if (!busy) onClose();
-          }}
-        />
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: anim }]}>
+          <Pressable
+            accessibilityLabel="Close editor"
+            style={[StyleSheet.absoluteFill, styles.backdrop]}
+            onPress={() => {
+              if (!busy) onClose();
+            }}
+          />
+        </Animated.View>
 
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : undefined}
           style={styles.centerWrap}
           pointerEvents="box-none"
         >
-          <View
+          <Animated.View
             accessibilityViewIsModal
             accessibilityLabel={course ? `Edit ${course.title}` : "Edit course"}
-            style={styles.panel}
+            style={[styles.panel, modalPanelStyle(anim)]}
           >
             <ScrollView
               style={styles.scroll}
@@ -287,7 +295,7 @@ export function CourseEditorModal({
                 </View>
               </View>
             </ScrollView>
-          </View>
+          </Animated.View>
         </KeyboardAvoidingView>
       </View>
     </Modal>

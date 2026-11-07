@@ -38,6 +38,7 @@ import type { Profile } from "../lib/db/types";
 import { MOTION } from "../theme/motion";
 import { colors, fonts } from "../theme/theme";
 import { ConfirmDialog } from "./ui/confirm-dialog";
+import { PressScale } from "./ui/press-scale";
 
 const APP_ICON = require("../../assets/icon.png");
 
@@ -45,9 +46,9 @@ const APP_ICON = require("../../assets/icon.png");
  * The panel travels its own height instead of the full window height, so the
  * sheet settles softly instead of slamming up from the bottom edge.
  */
-const SHEET_CLOSE_MS = 240;
-const BACKDROP_IN_MS = 240;
-const BACKDROP_OUT_MS = 180;
+const SHEET_CLOSE_MS = MOTION.sheetClose;
+const BACKDROP_IN_MS = MOTION.sheet;
+const BACKDROP_OUT_MS = MOTION.drawerClose;
 
 type InfoRoute = "/about" | "/help" | "/privacy" | "/terms" | "/contact";
 
@@ -269,15 +270,13 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           return (
-            <Pressable
+            <PressScale
               key={item.label}
               accessibilityRole="button"
               accessibilityLabel={item.label}
               onPress={() => go(item.route)}
-              style={({ pressed }) => [
-                styles.navItem,
-                pressed && styles.navItemPressed,
-              ]}
+              scaleTo={0.985}
+              style={styles.navItem}
             >
               <View style={styles.navIcon}>
                 <Icon size={16} color={colors.w60} />
@@ -286,24 +285,22 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
                 {item.label}
               </Text>
               <ChevronRight size={14} color={colors.w30} />
-            </Pressable>
+            </PressScale>
           );
         })}
       </ScrollView>
 
       <View style={styles.logoutWrap}>
-        <Pressable
+        <PressScale
           accessibilityRole="button"
           accessibilityLabel="Log out"
           onPress={() => void handleLogOut()}
-          style={({ pressed }) => [
-            styles.logoutButton,
-            pressed && styles.logoutPressed,
-          ]}
+          scaleTo={0.985}
+          style={styles.logoutButton}
         >
           <LogOut size={16} color="#fecdd3" />
           <Text style={styles.logoutText}>Log out</Text>
-        </Pressable>
+        </PressScale>
       </View>
     </>
   );

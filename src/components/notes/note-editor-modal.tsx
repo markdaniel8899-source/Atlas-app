@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 import {
   ActivityIndicator,
@@ -36,6 +36,7 @@ import {
   X,
 } from "lucide-react-native";
 import type { Note } from "../../lib/notes";
+import { MOTION } from "../../theme/motion";
 import { colors, fonts, hexToRgba } from "../../theme/theme";
 import { MeshBackground } from "../mesh-background";
 import { RichNoteEditor } from "./rich-note-editor";
@@ -174,23 +175,58 @@ export function NoteEditorModal({
   const insets = useSafeAreaInsets();
   const noteAccent = accent ?? colors.lilac;
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuRendered, setMenuRendered] = useState(false);
+  const menuAnim = useRef(new Animated.Value(0)).current;
+  const menuAction = useRef<(() => void) | null>(null);
   const [toolState, setToolState] = useState<EditorCommandState>(EMPTY_STATE);
 
   // A different note must never inherit the previous note's menu or toolbar
   // highlight state.
   useEffect(() => {
     setMenuOpen(false);
+    menuAction.current = null;
     setToolState(EMPTY_STATE);
   }, [note?.id]);
 
   useEffect(() => {
     if (!visible) {
       setMenuOpen(false);
+      menuAction.current = null;
       setToolState(EMPTY_STATE);
     }
   }, [visible]);
 
   const closeMenu = () => setMenuOpen(false);
+
+  useEffect(() => {
+    if (menuOpen) {
+      if (!menuRendered) {
+        setMenuRendered(true);
+        return;
+      }
+      menuAnim.stopAnimation();
+      Animated.timing(menuAnim, {
+        toValue: 1,
+        duration: MOTION.sheet,
+        easing: MOTION.sheetEase,
+        useNativeDriver: true,
+      }).start();
+    } else if (menuRendered) {
+      menuAnim.stopAnimation();
+      Animated.timing(menuAnim, {
+        toValue: 0,
+        duration: MOTION.sheetClose,
+        easing: MOTION.easingExit,
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (!finished) return;
+        setMenuRendered(false);
+        const after = menuAction.current;
+        menuAction.current = null;
+        after?.();
+      });
+    }
+  }, [menuOpen, menuRendered, menuAnim]);
 
   const openMenu = () => {
     Keyboard.dismiss();
@@ -198,8 +234,8 @@ export function NoteEditorModal({
   };
 
   const runAction = (action: () => void) => {
-    closeMenu();
-    action();
+    menuAction.current = action;
+    setMenuOpen(false);
   };
 
   return (
@@ -350,18 +386,34 @@ export function NoteEditorModal({
           </View>
         </View>
 
-        {menuOpen ? (
-          <View style={styles.menuOverlay}>
-            <Pressable
-              accessibilityLabel="Close note options"
-              style={[StyleSheet.absoluteFill, styles.menuBackdrop]}
-              onPress={closeMenu}
-            />
-            <View
+        {menuRendered ? (
+          <View
+            style={styles.menuOverlay}
+            pointerEvents={menuOpen ? "auto" : "none"}
+          >
+            <Animated.View style={[StyleSheet.absoluteFill, { opacity: menuAnim }]}>
+              <Pressable
+                accessibilityLabel="Close note options"
+                style={[StyleSheet.absoluteFill, styles.menuBackdrop]}
+                onPress={closeMenu}
+              />
+            </Animated.View>
+            <Animated.View
               accessibilityViewIsModal
               style={[
                 styles.menuSheet,
                 { paddingBottom: insets.bottom + 14 },
+                {
+                  opacity: menuAnim,
+                  transform: [
+                    {
+                      translateY: menuAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [56, 0],
+                      }),
+                    },
+                  ],
+                },
               ]}
             >
               <View style={styles.menuHandle} />
@@ -454,7 +506,7 @@ export function NoteEditorModal({
                   <Text style={styles.menuHint}>This can’t be undone</Text>
                 </View>
               </Pressable>
-            </View>
+            </Animated.View>
           </View>
         ) : null}
       </KeyboardAvoidingView>

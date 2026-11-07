@@ -42,6 +42,11 @@ import {
 } from "lucide-react-native";
 import { ScreenHeading, ScreenShell } from "../components/screen-shell";
 import { Card } from "../components/ui/card";
+import { FadeInView } from "../components/ui/fade-in-view";
+import {
+  modalPanelStyle,
+  useModalTransition,
+} from "../components/ui/modal-transition";
 import { NoteEditorModal } from "../components/notes/note-editor-modal";
 import type { RichNoteEditorHandle } from "../components/notes/rich-note-editor";
 import { ShareNoteModal } from "../components/notes/share-note-modal";
@@ -81,6 +86,7 @@ import {
 } from "../lib/notes-queue";
 import { listen, NOTES_CHANGED_EVENT } from "../lib/events";
 import { syncAtlasNotesWidget } from "../lib/widgets/widget-sync";
+import { MOTION } from "../theme/motion";
 import { colors, fonts, hexToRgba } from "../theme/theme";
 
 /**
@@ -97,6 +103,17 @@ function CourseSwitcher({
   onChange: (courseId: number | null) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const { rendered, anim } = useModalTransition(open);
+  const chevron = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(chevron, {
+      toValue: open ? 1 : 0,
+      duration: MOTION.menu,
+      easing: MOTION.easing,
+      useNativeDriver: true,
+    }).start();
+  }, [open, chevron]);
 
   const items: { id: number | null; title: string; icon: typeof StickyNote }[] = [
     { id: null, title: "All notes", icon: StickyNote },
@@ -127,27 +144,41 @@ function CourseSwitcher({
         <Text numberOfLines={1} style={styles.switcherLabel}>
           {selected.title}
         </Text>
-        <ChevronDown
-          size={16}
-          color={open ? colors.lilac : colors.w35}
-          style={open ? styles.chevronOpen : undefined}
-        />
+        <Animated.View
+          style={{
+            transform: [
+              {
+                rotate: chevron.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ["0deg", "180deg"],
+                }),
+              },
+            ],
+          }}
+        >
+          <ChevronDown size={16} color={open ? colors.lilac : colors.w35} />
+        </Animated.View>
       </Pressable>
 
       <Modal
-        visible={open}
+        visible={rendered}
         transparent
-        animationType="fade"
+        animationType="none"
         statusBarTranslucent
         onRequestClose={() => setOpen(false)}
       >
         <View style={styles.modalRoot}>
-          <Pressable
-            accessibilityLabel="Close options"
-            style={[StyleSheet.absoluteFill, styles.backdrop]}
-            onPress={() => setOpen(false)}
-          />
-          <View accessibilityViewIsModal style={styles.sheet}>
+          <Animated.View style={[StyleSheet.absoluteFill, { opacity: anim }]}>
+            <Pressable
+              accessibilityLabel="Close options"
+              style={[StyleSheet.absoluteFill, styles.backdrop]}
+              onPress={() => setOpen(false)}
+            />
+          </Animated.View>
+          <Animated.View
+            accessibilityViewIsModal
+            style={[styles.sheet, modalPanelStyle(anim)]}
+          >
             <Text style={styles.sheetLabel}>Notes by course</Text>
             <ScrollView
               style={styles.sheetScroll}
@@ -190,7 +221,7 @@ function CourseSwitcher({
                 );
               })}
             </ScrollView>
-          </View>
+          </Animated.View>
         </View>
       </Modal>
     </View>
@@ -1661,6 +1692,7 @@ export default function NotesScreen() {
       </Card>
 
       {selectionMode ? (
+        <FadeInView offsetY={12}>
         <Card padded={false} style={styles.actionCard}>
           <View style={styles.bulkPanel}>
             <View style={styles.bulkHeader}>
@@ -1784,6 +1816,7 @@ export default function NotesScreen() {
             </View>
           </View>
         </Card>
+        </FadeInView>
       ) : null}
 
       <Text style={styles.footnote}>
@@ -1912,9 +1945,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: fonts.regular,
     color: colors.w75,
-  },
-  chevronOpen: {
-    transform: [{ rotate: "180deg" }],
   },
   modalRoot: {
     flex: 1,

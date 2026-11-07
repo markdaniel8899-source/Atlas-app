@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
   Modal,
   Pressable,
   ScrollView,
@@ -17,6 +18,10 @@ import { bulkShareNotes } from "../../lib/db/shares";
 import { ensureOnline } from "../../lib/net";
 import { colors, fonts } from "../../theme/theme";
 import { ShareAvatar } from "./share-avatar";
+import {
+  modalPanelStyle,
+  useModalTransition,
+} from "../ui/modal-transition";
 
 const SQUAD_CACHE_KEY = "squad";
 
@@ -42,6 +47,7 @@ export function BulkShareModal({
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
+  const { rendered, anim } = useModalTransition(open);
 
   useEffect(() => {
     if (!open) return;
@@ -109,24 +115,26 @@ export function BulkShareModal({
 
   return (
     <Modal
-      visible={open}
+      visible={rendered}
       transparent
-      animationType="fade"
+      animationType="none"
       statusBarTranslucent
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <Pressable
-          accessibilityLabel="Close share notes"
-          style={[StyleSheet.absoluteFill, styles.backdrop]}
-          onPress={onClose}
-        />
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: anim }]}>
+          <Pressable
+            accessibilityLabel="Close share notes"
+            style={[StyleSheet.absoluteFill, styles.backdrop]}
+            onPress={onClose}
+          />
+        </Animated.View>
 
         <View style={styles.centerWrap} pointerEvents="box-none">
-          <View
+          <Animated.View
             accessibilityViewIsModal
             accessibilityLabel="Share selected notes"
-            style={styles.panel}
+            style={[styles.panel, modalPanelStyle(anim)]}
           >
             <View style={styles.header}>
               <View style={styles.headerIcon}>
@@ -270,7 +278,7 @@ export function BulkShareModal({
             )}
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
-          </View>
+          </Animated.View>
         </View>
       </View>
     </Modal>

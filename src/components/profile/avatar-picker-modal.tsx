@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
   Image,
   KeyboardAvoidingView,
   Modal,
@@ -19,6 +20,10 @@ import {
   baseSeedFor,
 } from "../../lib/dicebear";
 import type { DiceBearStyle } from "../../lib/dicebear";
+import {
+  modalPanelStyle,
+  useModalTransition,
+} from "../ui/modal-transition";
 import { colors, fonts } from "../../theme/theme";
 
 interface AvatarPickerModalProps {
@@ -42,6 +47,7 @@ export function AvatarPickerModal({
   const [selected, setSelected] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { rendered, anim } = useModalTransition(open);
 
   const regenerate = (nextStyle: DiceBearStyle) => {
     setCandidates(generateAvatarCandidates(baseSeedFor(userId), nextStyle));
@@ -71,28 +77,30 @@ export function AvatarPickerModal({
 
   return (
     <Modal
-      visible={open}
+      visible={rendered}
       transparent
-      animationType="fade"
+      animationType="none"
       statusBarTranslucent
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <Pressable
-          accessibilityLabel="Close avatar picker"
-          style={[StyleSheet.absoluteFill, styles.backdrop]}
-          onPress={onClose}
-        />
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: anim }]}>
+          <Pressable
+            accessibilityLabel="Close avatar picker"
+            style={[StyleSheet.absoluteFill, styles.backdrop]}
+            onPress={onClose}
+          />
+        </Animated.View>
 
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : undefined}
           style={styles.centerWrap}
           pointerEvents="box-none"
         >
-          <View
+          <Animated.View
             accessibilityViewIsModal
             accessibilityLabel="Pick an avatar"
-            style={styles.panel}
+            style={[styles.panel, modalPanelStyle(anim)]}
           >
             <View style={styles.header}>
               <View style={styles.headerText}>
@@ -209,7 +217,7 @@ export function AvatarPickerModal({
                 </Pressable>
               </View>
             </View>
-          </View>
+          </Animated.View>
         </KeyboardAvoidingView>
       </View>
     </Modal>

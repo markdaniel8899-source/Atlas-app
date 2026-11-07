@@ -23,6 +23,7 @@ import { ChatComposer } from "../components/assistant/chat-composer";
 import { ChatThread } from "../components/assistant/chat-thread";
 import { OfflineBanner } from "../components/offline-banner";
 import { SessionCompleteCard } from "../components/session-complete-card";
+import { FadeInView } from "../components/ui/fade-in-view";
 import { useDashboard } from "../hooks/use-dashboard";
 import { useFocusEntrance } from "../hooks/use-focus-entrance";
 import {
@@ -196,6 +197,7 @@ export default function AssistantScreen() {
                 />
 
                 {!composerFocused && !keyboardOpen ? (
+                  <FadeInView offsetY={8}>
                   <View style={styles.suggestions}>
                   {SUGGESTIONS.map((suggestion) => (
                     <Pressable
@@ -219,10 +221,12 @@ export default function AssistantScreen() {
                     </Pressable>
                   ))}
                   </View>
+                  </FadeInView>
                 ) : null}
               </View>
             </View>
           ) : (
+            <FadeInView style={styles.chatColumnWrap} offsetY={8}>
             <View style={styles.chatColumn}>
               <View style={styles.chatTools}>
                 <View style={styles.chatToolsSpacer} />
@@ -256,6 +260,7 @@ export default function AssistantScreen() {
                 keyboardOpen={keyboardOpen}
               />
             </View>
+            </FadeInView>
           )}
         </View>
       </KeyboardAvoidingView>
@@ -330,6 +335,10 @@ const styles = StyleSheet.create({
   chatColumn: {
     flex: 1,
     marginHorizontal: -16,
+  },
+  chatColumnWrap: {
+    flex: 1,
+    minHeight: 0,
   },
   chatTools: {
     flexDirection: "row",

@@ -1,4 +1,5 @@
 import {
+  Animated,
   Modal,
   Pressable,
   ScrollView,
@@ -7,6 +8,10 @@ import {
   View,
 } from "react-native";
 import { BookOpen, Check, StickyNote } from "lucide-react-native";
+import {
+  modalPanelStyle,
+  useModalTransition,
+} from "../ui/modal-transition";
 import { colors, fonts } from "../../theme/theme";
 
 interface MoveNoteModalProps {
@@ -25,21 +30,28 @@ export function MoveNoteModal({
   onSelect,
   onClose,
 }: MoveNoteModalProps) {
+  const { rendered, anim } = useModalTransition(open);
+
   return (
     <Modal
-      visible={open}
+      visible={rendered}
       transparent
-      animationType="fade"
+      animationType="none"
       statusBarTranslucent
       onRequestClose={onClose}
     >
       <View style={styles.modalRoot}>
-        <Pressable
-          accessibilityLabel="Close course picker"
-          style={[StyleSheet.absoluteFill, styles.backdrop]}
-          onPress={onClose}
-        />
-        <View accessibilityViewIsModal style={styles.sheet}>
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: anim }]}>
+          <Pressable
+            accessibilityLabel="Close course picker"
+            style={[StyleSheet.absoluteFill, styles.backdrop]}
+            onPress={onClose}
+          />
+        </Animated.View>
+        <Animated.View
+          accessibilityViewIsModal
+          style={[styles.sheet, modalPanelStyle(anim)]}
+        >
           <Text style={styles.sheetLabel}>Move note to</Text>
           <ScrollView
             style={styles.sheetScroll}
@@ -110,7 +122,7 @@ export function MoveNoteModal({
               );
             })}
           </ScrollView>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );

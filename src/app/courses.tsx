@@ -26,6 +26,7 @@ import {
 import { ScreenHeading, ScreenShell } from "../components/screen-shell";
 import { Card } from "../components/ui/card";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
+import { FadeInView } from "../components/ui/fade-in-view";
 import { ThemedInput } from "../components/ui/themed-input";
 import { StaleNotice } from "../components/ui/stale-notice";
 import { CourseEditorModal } from "../components/courses/course-editor-modal";
@@ -289,6 +290,7 @@ function CourseCard({
 
       <View style={styles.addTopicWrap}>
         {formOpen ? (
+          <FadeInView offsetY={6}>
           <View style={styles.addTopicRow}>
             <ThemedInput
               autoFocus
@@ -323,6 +325,7 @@ function CourseCard({
               <X size={14} color={colors.w40} />
             </Pressable>
           </View>
+          </FadeInView>
         ) : (
           <Pressable
             accessibilityRole="button"

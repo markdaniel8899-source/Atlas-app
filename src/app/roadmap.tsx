@@ -3,6 +3,7 @@ import type { ComponentType } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Modal,
   Pressable,
   StyleSheet,
@@ -29,6 +30,11 @@ import {
 } from "lucide-react-native";
 import { ScreenHeading, ScreenShell } from "../components/screen-shell";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
+import { FadeInView } from "../components/ui/fade-in-view";
+import {
+  modalPanelStyle,
+  useModalTransition,
+} from "../components/ui/modal-transition";
 import { BossConfetti } from "../components/roadmap/boss-confetti";
 import { RoadmapBuilder } from "../components/roadmap/roadmap-builder";
 import type { RoadmapRequestInput } from "../components/roadmap/roadmap-builder";
@@ -68,6 +74,7 @@ import {
   xpFor,
   xpProgressOf,
 } from "../lib/roadmap-graph";
+import { MOTION } from "../theme/motion";
 import { colors, fonts } from "../theme/theme";
 
 const RING_RADIUS = 34;
@@ -91,6 +98,17 @@ function CourseSwitcher({
   onChange: (courseId: number | null) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const { rendered, anim } = useModalTransition(open);
+  const chevron = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(chevron, {
+      toValue: open ? 1 : 0,
+      duration: MOTION.menu,
+      easing: MOTION.easing,
+      useNativeDriver: true,
+    }).start();
+  }, [open, chevron]);
 
   const items: SwitcherItem[] = [
     { id: null, title: "All roadmaps", icon: Compass },
@@ -121,23 +139,38 @@ function CourseSwitcher({
         <Text numberOfLines={1} style={styles.switcherText}>
           {selected.title}
         </Text>
-        <ChevronDown size={16} color={colors.w35} />
+        <Animated.View
+          style={{
+            transform: [
+              {
+                rotate: chevron.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ["0deg", "180deg"],
+                }),
+              },
+            ],
+          }}
+        >
+          <ChevronDown size={16} color={open ? colors.lilac : colors.w35} />
+        </Animated.View>
       </Pressable>
 
       <Modal
-        visible={open}
+        visible={rendered}
         transparent
-        animationType="fade"
+        animationType="none"
         statusBarTranslucent
         onRequestClose={() => setOpen(false)}
       >
         <View style={styles.sheetRoot}>
-          <Pressable
-            accessibilityLabel="Close course list"
-            style={[StyleSheet.absoluteFill, styles.sheetBackdrop]}
-            onPress={() => setOpen(false)}
-          />
-          <View style={styles.sheet}>
+          <Animated.View style={[StyleSheet.absoluteFill, { opacity: anim }]}>
+            <Pressable
+              accessibilityLabel="Close course list"
+              style={[StyleSheet.absoluteFill, styles.sheetBackdrop]}
+              onPress={() => setOpen(false)}
+            />
+          </Animated.View>
+          <Animated.View style={[styles.sheet, modalPanelStyle(anim)]}>
             {items.map((item) => {
               const Icon = item.icon;
               const active = item.id === value;
@@ -173,7 +206,7 @@ function CourseSwitcher({
                 </Pressable>
               );
             })}
-          </View>
+          </Animated.View>
         </View>
       </Modal>
     </View>
@@ -793,6 +826,7 @@ export default function RoadmapScreen() {
       ) : null}
 
       {showBuilder ? (
+        <FadeInView offsetY={10}>
         <RoadmapBuilder
           busy={busy}
           disabled={aiStatus === "offline"}
@@ -800,6 +834,7 @@ export default function RoadmapScreen() {
           defaultCourseId={graph.courseId}
           onGenerate={(input) => void generate(input)}
         />
+        </FadeInView>
       ) : null}
 
       <View style={styles.summaryCard}>
