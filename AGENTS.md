@@ -308,7 +308,7 @@
   - Token safety: Supabase's auto-refresh ticker and the realtime socket now run ONLY while the app is active. `_layout.tsx` tracks `appActive`; background calls `stopAutoRefresh()` + `stopRealtime()`, foreground restarts both (realtime effect gated on `[sessionKey, appActive]`). A refresh rotating the token while Android freezes/kills the process was the plausible cause of the dead session (`auth:session:error` / `auth:event` breadcrumbs were added to confirm next time).
   - Web -> app sync on resume: new `APP_RESUMED_EVENT` + `notifyAppResumed()` (`src/lib/events.ts`) fire after 10s+ away and emit PROFILE/FOCUS/COURSES/ROADMAPS/FRIENDS/NOTES/LEADERBOARD. `useDashboard` also listens directly to the master event (600ms dedupe guard) so the widget and streak reminder revalidate even when another tab is focused; focused screens refresh through their existing listeners. Realtime cannot replay missed changes, so this resume pass is what brings sessions/notes created on the website into the app.
   - A bare 401/403 from the AI API no longer triggers the disabled-account overlay: `ai.ts` / `gamification-api.ts` now flag ONLY explicit banned/disabled messages (matching `guardedFetch`), so an expired access token cannot look like a ban.
-  - Verified `npx tsc --noEmit`, `npx expo lint` (3 pre-existing warnings). JS-only; no native/asset changes.
+  - Verified `npx tsc --noEmit`, `npx expo lint` (3 pre-existing warnings). JS-only; OTA published (`b63c317a-86c6-4fd3-af7b-a44178171fab`, runtime 1.0.2, commit `ea04f9c`); no native/asset changes.
 
 ## Workflow Preferences (user)
 - User communicates in **Roman Urdu** — reply concisely in Roman Urdu.
