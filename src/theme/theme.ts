@@ -47,6 +47,23 @@ export const colors = {
   avatarTo: "#7b8ee8",
 } as const;
 
+/** Converts a #rgb / #rrggbb / #rrggbbaa colour to an rgba() string. */
+export function hexToRgba(hex: string, alpha: number): string {
+  const value = hex.trim().replace("#", "");
+  const full =
+    value.length === 3
+      ? value
+          .split("")
+          .map((char) => char + char)
+          .join("")
+      : value.slice(0, 6);
+  if (!/^[0-9a-fA-F]{6}$/.test(full)) {
+    return `rgba(207, 158, 255, ${alpha})`;
+  }
+  const int = Number.parseInt(full, 16);
+  return `rgba(${(int >> 16) & 255}, ${(int >> 8) & 255}, ${int & 255}, ${alpha})`;
+}
+
 export const fonts = {
   regular: "Geist_400Regular",
   medium: "Geist_500Medium",

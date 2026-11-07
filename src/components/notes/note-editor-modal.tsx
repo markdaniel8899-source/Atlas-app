@@ -36,7 +36,7 @@ import {
   X,
 } from "lucide-react-native";
 import type { Note } from "../../lib/notes";
-import { colors, fonts } from "../../theme/theme";
+import { colors, fonts, hexToRgba } from "../../theme/theme";
 import { MeshBackground } from "../mesh-background";
 import { RichNoteEditor } from "./rich-note-editor";
 import type {
@@ -129,6 +129,7 @@ const EMPTY_STATE: EditorCommandState = {
 interface NoteEditorModalProps {
   visible: boolean;
   note: Note | null;
+  accent?: string;
   title: string;
   savedAnim: Animated.Value;
   editorRef: RefObject<RichNoteEditorHandle | null>;
@@ -155,6 +156,7 @@ interface NoteEditorModalProps {
 export function NoteEditorModal({
   visible,
   note,
+  accent,
   title,
   savedAnim,
   editorRef,
@@ -170,6 +172,7 @@ export function NoteEditorModal({
   onDelete,
 }: NoteEditorModalProps) {
   const insets = useSafeAreaInsets();
+  const noteAccent = accent ?? colors.lilac;
   const [menuOpen, setMenuOpen] = useState(false);
   const [toolState, setToolState] = useState<EditorCommandState>(EMPTY_STATE);
 
@@ -313,11 +316,16 @@ export function NoteEditorModal({
             { paddingBottom: Math.max(insets.bottom, 10) },
           ]}
         >
-          <View style={styles.editorCard}>
+          <View
+            style={[
+              styles.editorCard,
+              { borderColor: hexToRgba(noteAccent, 0.18) },
+            ]}
+          >
             <LinearGradient
               colors={[
-                "rgba(207,158,255,0.38)",
-                "rgba(207,158,255,0.10)",
+                hexToRgba(noteAccent, 0.42),
+                hexToRgba(noteAccent, 0.12),
                 "transparent",
               ]}
               start={{ x: 0, y: 0 }}

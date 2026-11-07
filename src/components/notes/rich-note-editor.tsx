@@ -275,9 +275,10 @@ function buildEditorHtml(): string {
   #editor .atomic-table-view {
     max-width: 100%;
     overflow-x: auto;
-    border: 1px solid rgba(207, 158, 255, 0.22);
+    border: 1px solid rgba(207, 158, 255, 0.26);
     border-radius: 10px;
-    background: rgba(17, 24, 39, 0.5);
+    background: linear-gradient(180deg, #141021 0%, #0d0a16 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
     scrollbar-width: thin;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: contain;
@@ -311,17 +312,21 @@ function buildEditorHtml(): string {
     border-bottom: 0;
   }
   #editor .atomic-table thead th {
-    background: rgba(207, 158, 255, 0.08);
+    background: #1b1530;
     color: #cf9eff;
     font-weight: 600;
     font-size: 12px;
     letter-spacing: 0.01em;
   }
   #editor .atomic-table tbody td {
+    background: #0d0a16;
     color: rgba(255, 255, 255, 0.78);
   }
+  #editor .atomic-table tbody tr:nth-child(even) td {
+    background: #100c1c;
+  }
   #editor .atomic-table tbody tr:hover td {
-    background: rgba(255, 255, 255, 0.03);
+    background: #171126;
   }
   #editor .atomic-table th p,
   #editor .atomic-table td p,

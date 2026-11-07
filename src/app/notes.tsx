@@ -81,7 +81,7 @@ import {
 } from "../lib/notes-queue";
 import { listen, NOTES_CHANGED_EVENT } from "../lib/events";
 import { syncAtlasNotesWidget } from "../lib/widgets/widget-sync";
-import { colors, fonts } from "../theme/theme";
+import { colors, fonts, hexToRgba } from "../theme/theme";
 
 /**
  * Same behaviour as the Roadmap course switcher: pick a course to scope the
@@ -200,6 +200,17 @@ function CourseSwitcher({
 /** Neutral accent for notes that are not linked to a course. */
 const GENERAL_ACCENT = "#8b90a3";
 
+function noteAccent(
+  note: Note,
+  accentByCourseId: Map<number, string>,
+): string {
+  if (note.courseId == null) return GENERAL_ACCENT;
+  return (
+    accentByCourseId.get(note.courseId) ??
+    NOTE_ACCENTS[Math.abs(note.courseId) % NOTE_ACCENTS.length]
+  );
+}
+
 /** Course accents assigned when a course is created (mirrors db/courses.ts). */
 const NOTE_ACCENTS = [
   "#9db4ff",
@@ -232,6 +243,7 @@ const NoteRow = memo(function NoteRow({
   sectionKey,
   index,
   count,
+  accent,
   dragging,
   dropTarget,
   onDragArm,
@@ -248,6 +260,7 @@ const NoteRow = memo(function NoteRow({
   sectionKey: string;
   index: number;
   count: number;
+  accent: string;
   dragging: boolean;
   dropTarget: boolean;
   onDragArm: (id: string, sectionKey: string, index: number) => void;
@@ -369,7 +382,16 @@ const NoteRow = memo(function NoteRow({
       }}
       style={[
         styles.noteItem,
-        active && !selectionMode ? styles.noteItemActive : null,
+        {
+          backgroundColor:
+            active && !selectionMode
+              ? hexToRgba(accent, 0.14)
+              : hexToRgba(accent, 0.05),
+          borderColor:
+            active && !selectionMode
+              ? hexToRgba(accent, 0.35)
+              : "transparent",
+        },
         selected ? styles.noteItemSelected : null,
         armed && !isDragging ? styles.noteItemArmed : null,
         isDragging ? styles.noteItemDragging : null,
@@ -382,6 +404,16 @@ const NoteRow = memo(function NoteRow({
         },
       ]}
     >
+      <View
+        pointerEvents="none"
+        style={[
+          styles.noteAccentBar,
+          {
+            backgroundColor: accent,
+            opacity: active && !selectionMode ? 1 : 0.6,
+          },
+        ]}
+      />
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
@@ -1178,7 +1210,11 @@ export default function NotesScreen() {
     setBulkBusy(true);
     try {
       const result = await exportNotesFile(
-        rows.map((note) => ({ title: note.title, html: note.html })),
+        rows.map((note) => ({
+          title: note.title,
+          html: note.html,
+          accent: noteAccent(note, accentByCourseId),
+        })),
       );
       if (result.ok) {
         setFlash(result.message);
@@ -1202,7 +1238,11 @@ export default function NotesScreen() {
     setDownloadingNote(true);
     try {
       const result = await exportNotesFile([
-        { title: note.title, html: note.html },
+        {
+          title: note.title,
+          html: note.html,
+          accent: noteAccent(note, accentByCourseId),
+        },
       ]);
       if (result.ok) {
         setFlash(result.message);
@@ -1551,6 +1591,7 @@ export default function NotesScreen() {
                 sectionKey={section.key}
                 index={index}
                 count={section.data.length}
+                accent={section.accent}
                 dragging={drag?.id === item.id}
                 dropTarget={
                   drag != null &&
@@ -1587,7 +1628,17 @@ export default function NotesScreen() {
                   ) : (
                     <ChevronDown size={13} color={colors.w35} />
                   )}
-                  <Text style={styles.groupLabel}>{section.subject}</Text>
+                  <View
+                    style={[styles.groupDot, { backgroundColor: section.accent }]}
+                  />
+                  <Text
+                    style={[
+                      styles.groupLabel,
+                      { color: hexToRgba(section.accent, 0.9) },
+                    ]}
+                  >
+                    {section.subject}
+                  </Text>
                   <Text style={styles.groupCount}>
                     {section.count ?? section.data.length}
                   </Text>
@@ -1790,6 +1841,9 @@ export default function NotesScreen() {
       <NoteEditorModal
         visible={editorOpen && active !== null}
         note={active}
+        accent={
+          active ? noteAccent(active, accentByCourseId) : undefined
+        }
         title={title}
         savedAnim={savedAnim}
         editorRef={editorRef}
@@ -2035,6 +2089,11 @@ const styles = StyleSheet.create({
   groupHeaderPressed: {
     opacity: 0.7,
   },
+  groupDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+  },
   groupLabel: {
     flexShrink: 1,
     fontSize: 11,
@@ -2059,15 +2118,21 @@ const styles = StyleSheet.create({
     height: 6,
   },
   noteItem: {
+    position: "relative",
     flexDirection: "row",
     alignItems: "center",
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "transparent",
   },
-  noteItemActive: {
-    borderColor: colors.w10,
-    backgroundColor: colors.w07,
+  noteAccentBar: {
+    position: "absolute",
+    top: 10,
+    bottom: 10,
+    left: 6,
+    width: 3,
+    borderRadius: 2,
+    zIndex: 1,
   },
   noteItemSelected: {
     borderColor: colors.lilac25,

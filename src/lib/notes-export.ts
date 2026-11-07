@@ -10,6 +10,8 @@ import { sanitizeHtml } from "./notes";
 export interface ExportNote {
   title: string;
   html: string;
+  /** Course accent used for the note's title marker. */
+  accent?: string;
 }
 
 export interface ExportResult {
@@ -25,6 +27,11 @@ function escapeHtml(value: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function safeAccent(value: string | undefined): string {
+  const accent = value?.trim() ?? "";
+  return /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(accent) ? accent : "#cf9eff";
 }
 
 function decodeEntities(value: string): string {
@@ -183,10 +190,16 @@ function renderTableHtml(rows: string[][]): string {
 const EXPORT_STYLE = `
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
-  html, body { background: #0a0a12; }
+  html { background: #0a0a12; }
   body {
     margin: 0;
+    min-height: 100vh;
     color: #d4d4d4;
+    background:
+      radial-gradient(1100px 520px at 18% -8%, rgba(124, 92, 240, 0.16), transparent 62%),
+      radial-gradient(900px 480px at 88% 4%, rgba(207, 158, 255, 0.07), transparent 58%),
+      linear-gradient(180deg, #0d0a17 0%, #090810 46%, #0a0a12 100%);
+    background-attachment: fixed;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     font-size: 16px;
     line-height: 1.65;
@@ -213,7 +226,23 @@ const EXPORT_STYLE = `
     line-height: 1.3;
     letter-spacing: -0.01em;
   }
-  .export-note h1 { margin-top: 0; font-size: 2rem; }
+  .export-note h1 {
+    position: relative;
+    margin-top: 0;
+    padding-left: 16px;
+    font-size: 2rem;
+  }
+  .export-note h1::before {
+    content: "";
+    position: absolute;
+    top: 0.2em;
+    bottom: 0.2em;
+    left: 0;
+    width: 3px;
+    border-radius: 999px;
+    background: var(--note-accent, #cf9eff);
+    opacity: 0.9;
+  }
   .export-note h2 { font-size: 1.5rem; }
   .export-note h3 { font-size: 1.2rem; }
   .export-note p { margin: 12px 0; }
@@ -366,8 +395,9 @@ export function buildNotesExportHtml(notes: ExportNote[]): string {
   const body = notes
     .map((note) => {
       const title = escapeHtml(note.title.trim() || "Untitled note");
+      const accent = safeAccent(note.accent);
       const content = renderTableBlocks(renderCodeBlocks(sanitizeHtml(note.html)));
-      return `<article class="export-note"><h1>${title}</h1>${content}</article>`;
+      return `<article class="export-note" style="--note-accent: ${accent}"><h1>${title}</h1>${content}</article>`;
     })
     .join("\n");
 
