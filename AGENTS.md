@@ -310,6 +310,13 @@
   - A bare 401/403 from the AI API no longer triggers the disabled-account overlay: `ai.ts` / `gamification-api.ts` now flag ONLY explicit banned/disabled messages (matching `guardedFetch`), so an expired access token cannot look like a ban.
   - Verified `npx tsc --noEmit`, `npx expo lint` (3 pre-existing warnings). JS-only; OTA published (`b63c317a-86c6-4fd3-af7b-a44178171fab`, runtime 1.0.2, commit `ea04f9c`); no native/asset changes.
 
+- **Menu + navigation transition polish (2026-11-08, user asked for smoother menus/dropdowns/nav options):**
+  - `src/theme/motion.ts` durations raised: `page` 300, `section` 340, `drawerOpen` 300, `drawerClose` 240, `sheet` 300, `sheetClose` 250, `sheetRise` 380; new `menu` 260, `menuClose` 220, `pressIn` 110, `pressOut` 190.
+  - New shared pieces: `src/components/ui/modal-transition.ts` (`useModalTransition` keeps the Modal mounted through the close animation + `modalPanelStyle` center/bottom/none presets), `src/components/ui/fade-in-view.tsx` (entrance fade+rise for inline panels), `src/components/ui/press-scale.tsx` (Animated Pressable press feedback).
+  - All 7 OS-faded modals (`notes.tsx` + `roadmap.tsx` course switchers, course editor, avatar picker, share/move/bulk-share notes) now use `animationType="none"` + animated backdrop and panel; both course-switcher chevrons rotate. Note editor actions sheet animates with `MOTION.sheet`/`sheetEase` and defers the chosen action until the close finishes.
+  - Inline panels fade in (`FadeInView`): notes bulk actions, courses add-topic row, roadmap builder, assistant suggestions + chat column. Nav rows/buttons use `PressScale` (drawer/account sheet 0.985, footer links 0.97, header icons 0.92/0.94). Closes use `MOTION.easingExit` everywhere; `QuickStartDialog` now mounts only while open so its entrance plays.
+  - Verified `npx tsc --noEmit`, `npx expo lint` (3 pre-existing warnings), `npx expo export --platform web --clear` (20/20 static routes). JS-only; OTA published (`498beb15-1feb-4f70-9d23-36d3706069ab`, runtime 1.0.2, commit `9d65833`).
+
 ## Workflow Preferences (user)
 - User communicates in **Roman Urdu** — reply concisely in Roman Urdu.
 - Do not ask for confirmation mid-task; finish the task, then report.
