@@ -160,11 +160,33 @@ export function clearDiagError(): void {
   emit();
 }
 
+const CLEAN_EXIT_TAGS = new Set(["app:background", "app:exit"]);
+
 export function previousRunCrashed(): DiagEntry | null {
   if (previousLog.length === 0) return null;
+
+  // The app keeps writing breadcrumbs for a moment after it is backgrounded
+  // (realtime status, widget sync, an in-flight timer push). Android may kill
+  // the process while it sits in the background - that is a normal system
+  // kill, not a crash. Treat the run as clean whenever a background/exit
+  // marker exists after the last recorded JS error, even if benign entries
+  // followed that marker.
+  let cleanExitAt: number | null = null;
+  for (let index = previousLog.length - 1; index >= 0; index -= 1) {
+    if (CLEAN_EXIT_TAGS.has(previousLog[index].tag)) {
+      cleanExitAt = previousLog[index].t;
+      break;
+    }
+  }
+  if (
+    cleanExitAt !== null &&
+    (lastError === null || lastError.t <= cleanExitAt)
+  ) {
+    return null;
+  }
+
   const last = previousLog[previousLog.length - 1];
   if (!last) return null;
-  if (last.tag === "app:background" || last.tag === "app:exit") return null;
   if (Date.now() - last.t > PREVIOUS_RUN_WINDOW_MS) return null;
   return last;
 }

@@ -13,6 +13,7 @@ export const FRIENDS_CHANGED_EVENT = "atlas:friends-changed";
 export const NOTES_CHANGED_EVENT = "atlas:notes-changed";
 export const LEADERBOARD_CHANGED_EVENT = "atlas:leaderboard-changed";
 export const TIMER_CHANGED_EVENT = "atlas:timer-changed";
+export const APP_RESUMED_EVENT = "atlas:app-resumed";
 
 /** Bursts inside this window reach listeners once. */
 export const EVENT_COALESCE_MS = 250;
@@ -70,4 +71,22 @@ export function notifyLeaderboardChanged(): void {
 
 export function notifyTimerChanged(): void {
   emit(TIMER_CHANGED_EVENT);
+}
+
+/**
+ * The app returned to the foreground after being away long enough that the
+ * realtime socket and background refreshes were paused. Emits the master
+ * resume event (dashboard widget / streak reminder) plus every data-change
+ * event so focused screens revalidate what changed on the web or another
+ * device while the app slept.
+ */
+export function notifyAppResumed(): void {
+  emit(APP_RESUMED_EVENT);
+  notifyProfileChanged();
+  notifyFocusChanged();
+  notifyCoursesChanged();
+  notifyRoadmapsChanged();
+  notifyFriendsChanged();
+  notifyNotesChanged();
+  notifyLeaderboardChanged();
 }

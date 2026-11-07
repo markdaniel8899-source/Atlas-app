@@ -33,7 +33,9 @@ import { hydrateDataCaches } from "../lib/data-cache";
 import { isHeavyTaskRunning } from "../lib/heavy-task";
 import { getCachedAuthUser, resolveSession, subscribeAuth } from "../lib/auth";
 import { getAuthSnapshot, hydrateAuthSnapshot } from "../lib/auth-snapshot";
+import { notifyAppResumed } from "../lib/events";
 import { startRealtime, stopRealtime } from "../lib/realtime";
+import { supabase } from "../lib/supabase";
 import {
   isAuthDeferralActive,
   subscribeAuthDeferral,
@@ -107,6 +109,12 @@ const PRELOAD_STAGE_SETS: Set<string>[] = (() => {
   });
 })();
 
+/**
+ * Minimum time away before a foreground return triggers a data refresh.
+ * Quick app switches (sharing sheet, permission dialog) skip the refetch.
+ */
+const RESUME_REFRESH_MS = 10_000;
+
 export default function RootLayout() {
   const [loaded, error] = useFonts({
     Geist_400Regular,
@@ -137,6 +145,10 @@ export default function RootLayout() {
   // splash hand-off) so the first visit to a tab never pays a mount + fetch
   // cost mid-transition. Staged so no single commit freezes the JS thread.
   const [preloadStage, setPreloadStage] = useState(0);
+  // Live socket + token ticker only run while the app is in the foreground.
+  const [appActive, setAppActive] = useState(
+    () => AppState.currentState === "active",
+  );
   const blurTargetRef = useRef<View | null>(null);
 
   useEffect(() => {
@@ -148,8 +160,49 @@ export default function RootLayout() {
 
   useEffect(() => {
     diag("layout:mounted", { sessionKey });
+    let awaySince: number | null =
+      AppState.currentState === "active" ? null : Date.now();
+
+    // Keep the Supabase refresh ticker scoped to the foreground. A refresh
+    // that starts while Android is freezing the app can rotate the refresh
+    // token server-side before it is persisted locally, and the next launch
+    // then reuses a dead token (the session looks "expired"). Realtime is
+    // stopped too - the socket cannot do useful work while backgrounded and
+    // reconnecting there only pollutes the diagnostic trail.
+    const setAutoRefresh = (active: boolean) => {
+      const task = active
+        ? supabase.auth.startAutoRefresh()
+        : supabase.auth.stopAutoRefresh();
+      void task.catch(() => undefined);
+    };
+    setAutoRefresh(AppState.currentState === "active");
+
     const sub = AppState.addEventListener("change", (state) => {
-      diag(state === "background" ? "app:background" : "app:active", { state });
+      const active = state === "active";
+      diag(
+        active
+          ? "app:active"
+          : state === "background"
+            ? "app:background"
+            : "app:inactive",
+        { state },
+      );
+      setAppActive(active);
+      setAutoRefresh(active);
+
+      if (!active) {
+        if (awaySince === null) awaySince = Date.now();
+        return;
+      }
+
+      const away = awaySince === null ? 0 : Date.now() - awaySince;
+      awaySince = null;
+      if (away < RESUME_REFRESH_MS) return;
+      // Everything that changed on the website / another device while this app
+      // slept arrives through the coalesced change events (realtime does not
+      // replay missed changes, so the resume pass refetches instead).
+      diag("app:resume-refresh", { awayMs: Math.round(away) });
+      notifyAppResumed();
     });
     return () => sub.remove();
     // The listener is intentionally installed once for the app lifetime.
@@ -254,15 +307,16 @@ export default function RootLayout() {
 
   // One live socket per signed-in session: friend requests, shared notes,
   // courses, roadmaps, sessions and leaderboard changes arrive without a
-  // manual refresh. Torn down on sign-out and account switches.
+  // manual refresh. Torn down on sign-out, account switches, and while the
+  // app is backgrounded (a fresh socket resubscribes on foreground).
   useEffect(() => {
-    if (sessionKey === "anon") {
+    if (sessionKey === "anon" || !appActive) {
       stopRealtime();
       return;
     }
     startRealtime(sessionKey);
     return () => stopRealtime();
-  }, [sessionKey]);
+  }, [sessionKey, appActive]);
 
   useEffect(() => {
     setPreloadStage(0);

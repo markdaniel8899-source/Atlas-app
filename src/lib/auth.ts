@@ -11,6 +11,7 @@ import {
 } from "./auth-snapshot";
 import { clearDataCaches } from "./data-cache";
 import { isSupabaseConfigured, supabase } from "./supabase";
+import { diag } from "./diagnostics";
 import { clearLocalTimerCache } from "./timer";
 import { stopRemoteTimer } from "./timer-sync";
 import {
@@ -55,7 +56,8 @@ function rememberUser(user: User): AuthUser {
   return next;
 }
 
-supabase.auth.onAuthStateChange((_event, session) => {
+supabase.auth.onAuthStateChange((event, session) => {
+  diag("auth:event", { event, signedIn: Boolean(session?.user) });
   if (session?.user) {
     rememberUser(session.user);
   } else {
@@ -385,11 +387,20 @@ async function readSession(): Promise<AuthUser | null> {
     // Persisted identity: answer now and let the token read upgrade the
     // cache when (if) it completes. A sign-out bumps the epoch and wins.
     void sessionPromise
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) {
+          // Visible in the diagnostics trail: a rejected refresh token (not a
+          // plain offline failure) is what forces a real re-login.
+          diag("auth:session:error", { message: error.message });
+        }
         if (epoch !== sessionEpoch) return;
         if (data.session?.user) cached = rememberUser(data.session.user);
       })
-      .catch(() => undefined);
+      .catch((error) => {
+        diag("auth:session:fail", {
+          message: error instanceof Error ? error.message : String(error),
+        });
+      });
     if (epoch === sessionEpoch) {
       // Never clobber a user an auth event already delivered.
       if (!cached) cached = snapshot;
@@ -406,7 +417,10 @@ async function readSession(): Promise<AuthUser | null> {
   }
 
   try {
-    const { data } = await sessionPromise;
+    const { data, error } = await sessionPromise;
+    if (error) {
+      diag("auth:session:error", { message: error.message });
+    }
     if (epoch === sessionEpoch) {
       // No token does not necessarily mean signed out (the refresh may have
       // failed offline), but without a snapshot there is nothing to keep.

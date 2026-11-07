@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import { markAccountDisabled } from "./account-guard";
+import { isDisabledAccountMessage, markAccountDisabled } from "./account-guard";
 import { getAiBaseUrl } from "./api-config";
 import { resolveSession } from "./auth";
 
@@ -241,15 +241,18 @@ async function request<T>(
       timeoutMs,
     );
 
-    if (
-      (response.status === 401 || response.status === 403) &&
-      auth.Authorization
-    ) {
-      markAccountDisabled();
-    }
-
     if (!response.ok) {
       const detail = await readErrorDetail(response);
+      // A bare 401/403 just means the access token expired (Supabase refreshes
+      // it automatically); only an explicit banned/disabled message should
+      // take over the whole app.
+      if (
+        (response.status === 401 || response.status === 403) &&
+        auth.Authorization &&
+        isDisabledAccountMessage(detail)
+      ) {
+        markAccountDisabled();
+      }
       throw new AiError(
         detail || `AI request failed with status ${response.status}.`,
         response.status,
@@ -391,15 +394,15 @@ export async function generateQuizFromPdf(
       signal: controller.signal,
     });
 
-    if (
-      (response.status === 401 || response.status === 403) &&
-      auth.Authorization
-    ) {
-      markAccountDisabled();
-    }
-
     if (!response.ok) {
       const detail = await readErrorDetail(response);
+      if (
+        (response.status === 401 || response.status === 403) &&
+        auth.Authorization &&
+        isDisabledAccountMessage(detail)
+      ) {
+        markAccountDisabled();
+      }
       throw new AiError(
         detail || `AI request failed with status ${response.status}.`,
         response.status,

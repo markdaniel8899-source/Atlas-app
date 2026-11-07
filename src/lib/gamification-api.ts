@@ -1,4 +1,7 @@
-import { markAccountDisabled } from "./account-guard";
+import {
+  isDisabledAccountMessage,
+  markAccountDisabled,
+} from "./account-guard";
 import { supabase } from "./supabase";
 
 /**
@@ -38,14 +41,19 @@ async function postJson<T>(path: string, body: unknown): Promise<T | null> {
       body: JSON.stringify(body),
       signal: controller.signal,
     });
-    if (response.status === 401 || response.status === 403) {
-      markAccountDisabled();
-    }
-
     if (!response.ok) {
       const payload = (await response.json().catch(() => null)) as {
         detail?: string;
       } | null;
+      // A bare 401/403 just means the access token expired (the session will
+      // refresh); only an explicit banned/disabled message should take over
+      // the whole app.
+      if (
+        (response.status === 401 || response.status === 403) &&
+        isDisabledAccountMessage(payload?.detail)
+      ) {
+        markAccountDisabled();
+      }
       return {
         ok: false,
         error: payload?.detail ?? `Request failed (${response.status}).`,

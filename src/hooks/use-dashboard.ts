@@ -7,9 +7,11 @@ import { readDashboardCache, writeDashboardCache } from "../lib/dashboard-cache"
 import { fetchHeatmap } from "../lib/db/activity";
 import { fetchFocusCourse } from "../lib/db/courses";
 import {
+  APP_RESUMED_EVENT,
   COURSES_CHANGED_EVENT,
   FOCUS_CHANGED_EVENT,
   PROFILE_CHANGED_EVENT,
+  listen,
 } from "../lib/events";
 import { useFocusedEvent } from "./use-focused-event";
 import { fetchProfile } from "../lib/db/profile";
@@ -71,8 +73,13 @@ export function useDashboard(): DashboardState {
   const [stale, setStale] = useState(false);
 
   const requestRef = useRef(0);
+  // Foreground resume refreshes the dashboard directly (for the widget and
+  // streak reminder) even when another tab is focused; the window prevents a
+  // duplicate fetch when a focused change event fires in the same burst.
+  const lastReloadAtRef = useRef(0);
 
   const reload = useCallback(async () => {
+    lastReloadAtRef.current = Date.now();
     const request = ++requestRef.current;
     let user: AuthUser | null = null;
     let cachedProfile: Profile | null = null;
@@ -185,11 +192,27 @@ export function useDashboard(): DashboardState {
     };
   }, []);
 
+  const reloadIfSettled = useCallback(() => {
+    if (Date.now() - lastReloadAtRef.current < 600) return;
+    void reload();
+  }, [reload]);
+
   // Re-read profile / focus course / heatmap when this screen is visible and
   // something changed. Hidden tabs keep one pending refresh for their focus.
-  useFocusedEvent(PROFILE_CHANGED_EVENT, reload);
-  useFocusedEvent(COURSES_CHANGED_EVENT, reload);
-  useFocusedEvent(FOCUS_CHANGED_EVENT, reload);
+  useFocusedEvent(PROFILE_CHANGED_EVENT, reloadIfSettled);
+  useFocusedEvent(COURSES_CHANGED_EVENT, reloadIfSettled);
+  useFocusedEvent(FOCUS_CHANGED_EVENT, reloadIfSettled);
+
+  // Returning to the app always revalidates the dashboard, even while another
+  // section is focused: the home-screen widget and the streak reminder both
+  // depend on this data being current.
+  useEffect(
+    () =>
+      listen(APP_RESUMED_EVENT, () => {
+        void reload();
+      }),
+    [reload],
+  );
 
   return { ...data, loading, stale, reload };
 }
