@@ -265,6 +265,7 @@
 
 | Commit | What |
 |--------|------|
+| `1c25ce2` | Background sync (expo-background-task) + persistent offline focus queue (vc10, next build) |
 | `4a6b8f9` | Instant tabs: profile/data caches, drawer `navigate()`, widget picker preview (OTA `81bcb73a`) |
 | `3e7aac6` | Naya app icon + production APK vc3 build (`7830c669`) |
 | `3c87b04` | Session-end notifications + Android streak/rank widget (vc3, next build) |
