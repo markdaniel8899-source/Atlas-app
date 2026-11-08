@@ -14,3 +14,14 @@ if (Platform.OS === "android") {
     console.warn("[atlas-widget] task handler not registered", error);
   }
 }
+
+// Background sync: refreshes profile, heatmap and notes into the dashboard
+// cache + widgets while the app is closed. Must be defined at global scope so
+// a headless launch (WorkManager / BGTask) can find the task.
+try {
+  const backgroundSync = require("./src/lib/background-sync");
+  backgroundSync.registerAtlasBackgroundSync();
+} catch (error) {
+  // Binary without the background-task native modules (older APK, Expo Go).
+  console.warn("[atlas-bg] background sync not registered", error);
+}

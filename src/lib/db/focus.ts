@@ -1,3 +1,4 @@
+import { queueFocusSession, queueFocusSync } from "../focus-queue";
 import { commitSession, sessionElapsedMs } from "../timer";
 import type { StudySession, TimerState } from "../timer";
 import { addFocusSeconds } from "./courses";
@@ -27,17 +28,44 @@ function pendingSeconds(state: TimerState): number {
 
 /**
  * Flush the pending delta into the global and course counters.
- * Fire-and-forget-safe: resolves after the queued writes land.
+ *
+ * Resolves true when both counters reached the server. A failed write is
+ * handed to the persistent focus queue instead of being dropped, so offline
+ * study time still reaches the heatmap and lifetime totals later.
  */
-export function flushFocus(state: TimerState): Promise<void> {
+export function flushFocus(state: TimerState): Promise<boolean> {
   const seconds = pendingSeconds(state);
-  if (seconds < 1) return Promise.resolve();
+  if (seconds < 1) return Promise.resolve(true);
 
   const courseId = state.courseId;
   return enqueue(async () => {
-    await addGlobalFocusSeconds(seconds);
-    if (courseId != null) await addFocusSeconds(courseId, seconds);
-  }).then(() => undefined);
+    let globalOk = false;
+    let courseOk = true;
+    try {
+      globalOk = await addGlobalFocusSeconds(seconds);
+    } catch {
+      globalOk = false;
+    }
+    if (courseId != null) {
+      try {
+        courseOk = await addFocusSeconds(courseId, seconds);
+      } catch {
+        courseOk = false;
+      }
+    }
+    if (!globalOk || !courseOk) {
+      queueFocusSync({
+        seconds,
+        courseId,
+        global: !globalOk,
+        course: !courseOk,
+      });
+    }
+    return globalOk && courseOk;
+  }).then(
+    (value) => value === true,
+    () => false,
+  );
 }
 
 export interface CommitFocusResult {
@@ -54,36 +82,29 @@ export interface CommitFocusResult {
  * 1. flush the pending counter delta (global + course), and
  * 2. log the full session into learning_sessions (heatmap + history + XP).
  *
- * Never throws: sync failures are reported through the returned flags so the
- * UI can show an honest "kept locally" notice instead of a false success.
+ * Never throws: anything that cannot reach the server is queued on disk and
+ * retried automatically, so a session is never lost.
  */
 export async function commitFocus(
   state: TimerState,
 ): Promise<CommitFocusResult> {
-  let countersSynced = true;
-  try {
-    await flushFocus(state);
-  } catch {
-    countersSynced = false;
-  }
+  const countersSynced = await flushFocus(state);
 
   const session = await commitSession(state);
   let logged = false;
   if (session) {
+    const entry = {
+      startedAt: new Date(session.startedAt),
+      endedAt: new Date(session.endedAt),
+      label: "Focus timer",
+      courseId: state.courseId,
+    };
     try {
-      logged = Boolean(
-        await enqueue(() =>
-          logSession({
-            startedAt: new Date(session.startedAt),
-            endedAt: new Date(session.endedAt),
-            label: "Focus timer",
-            courseId: state.courseId,
-          }),
-        ),
-      );
+      logged = Boolean(await enqueue(() => logSession(entry)));
     } catch {
       logged = false;
     }
+    if (!logged) queueFocusSession(entry);
   }
   return { session, countersSynced, logged };
 }

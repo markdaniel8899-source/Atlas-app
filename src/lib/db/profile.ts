@@ -65,11 +65,12 @@ export async function updateProfile(
 
 /**
  * Global lifetime focus seconds for the signed-in user (profiles table).
- * Returns 0 when signed out, missing, or the column has not been migrated.
+ * Returns 0 when the row/column is missing and null when the counter could
+ * not be read (offline) so callers can keep their local value.
  */
-export async function getGlobalFocusSeconds(): Promise<number> {
+export async function getGlobalFocusSeconds(): Promise<number | null> {
   const user = await resolveSession();
-  if (!user) return 0;
+  if (!user) return null;
 
   const { data, error } = await supabase
     .from("profiles")
@@ -77,7 +78,8 @@ export async function getGlobalFocusSeconds(): Promise<number> {
     .eq("id", user.id)
     .maybeSingle();
 
-  if (error || !data) return 0;
+  if (error) return null;
+  if (!data) return 0;
   const value = Number(
     (data as { total_focus_seconds?: unknown }).total_focus_seconds,
   );
@@ -112,12 +114,15 @@ export async function addGlobalFocusSeconds(seconds: number): Promise<boolean> {
         return false;
       }
     } catch {
-      rpcUnavailable = true;
+      // Transient network failure: let the caller queue/retry instead of
+      // permanently disabling the atomic RPC for this app run.
+      return false;
     }
   }
 
   // Fallback: read-modify-write
   const current = await getGlobalFocusSeconds();
+  if (current == null) return false;
   const { error } = await supabase
     .from("profiles")
     .update({ total_focus_seconds: current + Math.floor(seconds) })

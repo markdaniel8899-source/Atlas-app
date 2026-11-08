@@ -31,6 +31,11 @@ export async function ensureOnline(
 export function subscribeNetwork(
   listener: (online: boolean) => void,
 ): () => void {
+  // Static web prerender runs in Node, where expo-network touches `window`.
+  if (typeof window === "undefined") {
+    listener(true);
+    return () => undefined;
+  }
   const apply = (state: Network.NetworkState) => {
     listener(
       state.isConnected === true && state.isInternetReachable !== false,

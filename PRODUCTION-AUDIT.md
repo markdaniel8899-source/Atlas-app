@@ -150,6 +150,13 @@
 - **Android widget** (`src/lib/widgets/*`): dark lilac-gradient card — "ATLAS" (CreateFuture) + LV, bara 🔥 streak number, rank name + XP. Tap → app open. Data `atlas.widget.data.v1` cache se (dashboard ke har profile fetch pe `syncAtlasWidget` update karta hai; sign-out pe reset — account leak nahi). Task handler `_layout` module scope pe registered (headless redraw).
 - **Crash-safety:** dono modules lazy `require` + try/catch ke peeche hain — purani APK / Expo Go / web pe silently skip (isliye ye batch OTA-publish NAHI hui; vc3 build chahiye).
 
+### 3.19 Background Sync + Offline Durability (`src/lib/background-sync.ts`, `src/lib/focus-queue.ts`, `src/lib/session-store.ts`)
+- **Background sync** (next build mein active): `expo-background-task` + `expo-task-manager` (task `atlas-background-sync`, min interval 15 min). App band ho to bhi profile + heatmap + active course + latest notes raw REST se fetch ho kar `profile-cache` / `dashboard-cache` + dono widget caches mein likhe jate hain. Koi Supabase client nahi banta aur **token refresh background mein nahi hoti** (pehle isi se session mar jata tha) — expired token par run skip. `index.js` se global scope pe register.
+- **Session store** alag module mein (`session-store.ts`, chunked SecureStore) — headless task bina client ke token padh sakta hai; storage key wahi `sb-<ref>-auth-token` pinned hai (existing sessions safe).
+- **Notes offline**: naya note offline mein foran local banta hai (`isOnline()` fast-path), queue one-by-one DB mein sync karti hai.
+- **Focus queue**: offline pause/stop ke counter deltas + finished sessions `atlas.focus.queue.v1` mein owner-scoped queue hoti hain, phir 30s interval / foreground / reconnect / sign-in pe one-by-one flush. Offline attempts retry budget nahi khate.
+- Offline cold start: dashboard/profile/notes/courses/leaderboard/friends/roadmaps sab persistent caches se paint hote hain; sirf AI features (quiz generate, assistant, roadmap generate) internet maangte hain.
+
 ---
 
 ## 4. Live Verified Facts (probes, 2026-10-17)

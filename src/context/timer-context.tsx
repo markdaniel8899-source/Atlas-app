@@ -295,7 +295,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
 
     const serverSeconds = await getGlobalFocusSeconds();
     if (run !== hydrateRunRef.current || ownerRef.current !== ownerId) return;
-    if (serverSeconds > baseRef.current) {
+    if (serverSeconds != null && serverSeconds > baseRef.current) {
       baseRef.current = serverSeconds;
       setGlobalBase(serverSeconds);
       saveFocusBase(serverSeconds, ownerId);
@@ -341,7 +341,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     if (!ownerId) return;
     const serverSeconds = await getGlobalFocusSeconds();
     if (ownerId !== ownerRef.current) return;
-    if (serverSeconds > baseRef.current) {
+    if (serverSeconds != null && serverSeconds > baseRef.current) {
       baseRef.current = serverSeconds;
       setGlobalBase(serverSeconds);
       saveFocusBase(serverSeconds, ownerId);
@@ -514,7 +514,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
               ? synced
                 ? message ??
                   `Session logged: ${result.session.minutes} minutes.`
-                : "No internet - session kept locally, cloud sync failed."
+                : "Session saved on this device. It will sync when you are online."
               : "Stopped - focus still counts toward your total.",
           );
         })
@@ -524,7 +524,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
             err instanceof Error ? err.message : String(err),
           );
           notifyFocusChanged();
-          showFlash("No internet - session kept locally, cloud sync failed.");
+          showFlash("Session saved on this device. It will sync when you are online.");
         });
     },
     [applyState, bumpBase, pushSync, showFlash, reloadCourseBase],

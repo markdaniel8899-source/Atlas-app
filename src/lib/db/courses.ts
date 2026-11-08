@@ -228,7 +228,9 @@ export async function addFocusSeconds(
         return false;
       }
     } catch {
-      courseRpcUnavailable = true;
+      // Transient network failure: let the caller queue/retry instead of
+      // permanently disabling the atomic RPC for this app run.
+      return false;
     }
   }
 

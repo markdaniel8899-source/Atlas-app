@@ -62,7 +62,7 @@ import {
   fetchNotesWithStatus,
   updateNoteOrder,
 } from "../lib/db/notes";
-import { ensureOnline } from "../lib/net";
+import { ensureOnline, isOnline } from "../lib/net";
 import { getCachedAuthUser } from "../lib/auth";
 import type { Note } from "../lib/notes";
 import { exportNotesFile } from "../lib/notes-export";
@@ -1377,10 +1377,13 @@ export default function NotesScreen() {
       }, 0) - 1;
 
     let note: Note | null = null;
-    try {
-      note = await createNote({ courseId, topicId, sortOrder: topSort });
-    } catch {
-      note = null;
+    // Offline: skip the doomed request and open the local draft immediately.
+    if (await isOnline()) {
+      try {
+        note = await createNote({ courseId, topicId, sortOrder: topSort });
+      } catch {
+        note = null;
+      }
     }
     if (note) {
       setNotes((prev) => [note, ...prev]);
