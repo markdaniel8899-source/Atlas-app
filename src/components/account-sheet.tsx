@@ -82,6 +82,7 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
   const [rendered, setRendered] = useState(open);
   const [panelHeight, setPanelHeight] = useState(0);
   const [measured, setMeasured] = useState(false);
+  const [shown, setShown] = useState(false);
   const opening = useRef(false);
   const [profile, setProfile] = useState<Profile | null>(() =>
     getCachedProfile(),
@@ -96,8 +97,10 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
         return;
       }
       // Wait for the first layout pass so the panel animates from its real
-      // height (window height would make the travel ~2x too long).
-      if (!measured) return;
+      // height (window height would make the travel ~2x too long), and for
+      // the native modal window to attach (onShow) so the rise is not eaten
+      // by the window creation on Android.
+      if (!measured || !shown) return;
       // The rendered update re-runs this effect; start the spring only once
       // so it is never restarted from a partial offset (the open jerk).
       if (opening.current) return;
@@ -137,9 +140,17 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
         if (!finished) return;
         setRendered(false);
         setMeasured(false);
+        setShown(false);
       });
     }
-  }, [open, rendered, measured, anim, backdrop]);
+  }, [open, rendered, measured, shown, anim, backdrop]);
+
+  // Fallback for platforms where the native modal never reports `onShow`.
+  useEffect(() => {
+    if (!open || !rendered || shown) return;
+    const id = setTimeout(() => setShown(true), 220);
+    return () => clearTimeout(id);
+  }, [open, rendered, shown]);
 
   useEffect(() => {
     if (!open) return;
@@ -182,6 +193,7 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
       if (!finished) return;
       setRendered(false);
       setMeasured(false);
+      setShown(false);
       onClose();
       // Navigate only after the sheet has finished closing, so the route
       // commit never freezes the slide halfway down.
@@ -308,6 +320,7 @@ export function AccountSheet({ open, onClose, avatarUrl }: AccountSheetProps) {
   return (
     <Modal
       visible={rendered}
+      onShow={() => setShown(true)}
       transparent
       animationType="none"
       statusBarTranslucent

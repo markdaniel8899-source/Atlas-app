@@ -224,6 +224,7 @@ export function FocusTimerWidget() {
   const { state, activeCourse, flash } = timer;
   const { globalTotal, progress } = useTimerClock();
   const [quickOpen, setQuickOpen] = useState(false);
+  const [quickShown, setQuickShown] = useState(false);
   const quickCloseRef = useRef<(() => void) | null>(null);
   const [preset, setPreset] = useState(state.targetMin);
   const active = state.mode !== "idle";
@@ -240,12 +241,26 @@ export function FocusTimerWidget() {
 
   const openQuick = () => {
     setPreset(state.targetMin);
+    setQuickShown(false);
     setQuickOpen(true);
+  };
+
+  // Fallback for platforms where the native modal never reports `onShow`.
+  useEffect(() => {
+    if (!quickOpen || quickShown) return;
+    const id = setTimeout(() => setQuickShown(true), 220);
+    return () => clearTimeout(id);
+  }, [quickOpen, quickShown]);
+
+  const closeQuick = () => {
+    setQuickOpen(false);
+    setQuickShown(false);
   };
 
   const startQuick = () => {
     timer.startQuick(preset);
-    setQuickOpen(false);
+    // Let the sheet slide out instead of vanishing under the tap.
+    quickCloseRef.current?.();
   };
 
   return (
@@ -374,21 +389,22 @@ export function FocusTimerWidget() {
 
       <Modal
         visible={quickOpen}
+        onShow={() => setQuickShown(true)}
         transparent
         animationType="none"
         statusBarTranslucent
         onRequestClose={() =>
           quickCloseRef.current
             ? quickCloseRef.current()
-            : setQuickOpen(false)
+            : closeQuick()
         }
       >
-        {quickOpen ? (
+        {quickOpen && quickShown ? (
           <QuickStartDialog
             preset={preset}
             onSelect={setPreset}
             onStart={startQuick}
-            onClose={() => setQuickOpen(false)}
+            onClose={closeQuick}
             requestCloseRef={quickCloseRef}
           />
         ) : null}

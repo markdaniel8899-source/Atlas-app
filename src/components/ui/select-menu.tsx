@@ -1,16 +1,19 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 import type { ComponentType } from "react";
 import { Check, ChevronDown } from "lucide-react-native";
 import { MOTION } from "../../theme/motion";
 import { colors, fonts } from "../../theme/theme";
+import { useModalEntrance } from "./modal-transition";
 
 export interface SelectOption<T extends string = string> {
   value: T;
@@ -39,11 +42,18 @@ export function SelectMenu<T extends string>({
 }: SelectMenuProps<T>) {
   const [open, setOpen] = useState(false);
   const [rendered, setRendered] = useState(false);
+  const { height: windowHeight } = useWindowDimensions();
   const anim = useRef(new Animated.Value(0)).current;
   const chevron = useRef(new Animated.Value(0)).current;
-  const opening = useRef(false);
   const closing = useRef(false);
   const pendingPick = useRef<T | null>(null);
+  const startOpen = useModalEntrance(anim, open, rendered, MOTION.sheet);
+
+  useEffect(() => {
+    if (!open) return;
+    closing.current = false;
+    if (!rendered) setRendered(true);
+  }, [open, rendered]);
 
   useEffect(() => {
     Animated.timing(chevron, {
@@ -58,28 +68,9 @@ export function SelectMenu<T extends string>({
     options.find((option) => option.value === value) ?? options[0];
   const SelectedIcon = selected?.icon;
 
-  useEffect(() => {
-    if (!open) return;
-    if (!rendered) {
-      setRendered(true);
-      return;
-    }
-    if (opening.current) return;
-    opening.current = true;
-    closing.current = false;
-    anim.stopAnimation();
-    Animated.timing(anim, {
-      toValue: 1,
-      duration: MOTION.sheet,
-      easing: MOTION.easing,
-      useNativeDriver: true,
-    }).start();
-  }, [open, rendered, anim]);
-
-  const close = (after?: () => void) => {
+  const close = useCallback((after?: () => void) => {
     if (closing.current) return;
     closing.current = true;
-    opening.current = false;
     anim.stopAnimation();
     Animated.timing(anim, {
       toValue: 0,
@@ -95,13 +86,13 @@ export function SelectMenu<T extends string>({
       if (next !== null) onChange(next);
       after?.();
     });
-  };
+  }, [anim, onChange]);
 
-  const dismiss = () => {
+  const dismiss = useCallback(() => {
     pendingPick.current = null;
     setOpen(false);
     close();
-  };
+  }, [close]);
 
   const pick = (next: T) => {
     pendingPick.current = next;
@@ -161,6 +152,7 @@ export function SelectMenu<T extends string>({
 
       <Modal
         visible={rendered}
+        onShow={startOpen}
         transparent
         animationType="none"
         statusBarTranslucent
@@ -185,13 +177,13 @@ export function SelectMenu<T extends string>({
                   {
                     scale: anim.interpolate({
                       inputRange: [0, 1],
-                      outputRange: [0.98, 1],
+                      outputRange: [0.96, 1],
                     }),
                   },
                   {
                     translateY: anim.interpolate({
                       inputRange: [0, 1],
-                      outputRange: [-6, 0],
+                      outputRange: [-10, 0],
                     }),
                   },
                 ],
@@ -201,42 +193,52 @@ export function SelectMenu<T extends string>({
             <Text maxFontSizeMultiplier={1.3} style={styles.sheetLabel}>
               {label}
             </Text>
-            {options.map((option) => {
-              const Icon = option.icon;
-              const active = option.value === value;
-              return (
-                <Pressable
-                  key={option.value}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
-                  onPress={() => pick(option.value)}
-                  style={[styles.option, active && styles.optionActive]}
-                >
-                  <View style={[styles.iconBox, active && styles.iconBoxOpen]}>
-                    {Icon ? (
-                      <Icon
-                        size={16}
-                        color={active ? colors.lilac : "rgba(255,255,255,0.45)"}
-                      />
-                    ) : null}
-                  </View>
-                  <View style={styles.optionText}>
-                    <Text
-                      numberOfLines={1}
-                      style={[styles.optionLabel, active && styles.optionLabelActive]}
-                    >
-                      {option.label}
-                    </Text>
-                    {option.hint ? (
-                      <Text numberOfLines={1} style={styles.triggerHint}>
-                        {option.hint}
+            <ScrollView
+              style={[
+                styles.sheetScroll,
+                { maxHeight: Math.min(420, windowHeight * 0.55) },
+              ]}
+              contentContainerStyle={styles.sheetScrollContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {options.map((option) => {
+                const Icon = option.icon;
+                const active = option.value === value;
+                return (
+                  <Pressable
+                    key={option.value}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    onPress={() => pick(option.value)}
+                    style={[styles.option, active && styles.optionActive]}
+                  >
+                    <View style={[styles.iconBox, active && styles.iconBoxOpen]}>
+                      {Icon ? (
+                        <Icon
+                          size={16}
+                          color={active ? colors.lilac : "rgba(255,255,255,0.45)"}
+                        />
+                      ) : null}
+                    </View>
+                    <View style={styles.optionText}>
+                      <Text
+                        numberOfLines={1}
+                        style={[styles.optionLabel, active && styles.optionLabelActive]}
+                      >
+                        {option.label}
                       </Text>
-                    ) : null}
-                  </View>
-                  {active ? <Check size={16} color={colors.lilac} /> : null}
-                </Pressable>
-              );
-            })}
+                      {option.hint ? (
+                        <Text numberOfLines={1} style={styles.triggerHint}>
+                          {option.hint}
+                        </Text>
+                      ) : null}
+                    </View>
+                    {active ? <Check size={16} color={colors.lilac} /> : null}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
           </Animated.View>
         </View>
       </Modal>
@@ -334,6 +336,13 @@ const styles = StyleSheet.create({
     letterSpacing: 1.8,
     textTransform: "uppercase",
     color: colors.w40,
+  },
+  sheetScroll: {
+    flexGrow: 0,
+    flexShrink: 1,
+  },
+  sheetScrollContent: {
+    paddingBottom: 2,
   },
   option: {
     minHeight: 44,

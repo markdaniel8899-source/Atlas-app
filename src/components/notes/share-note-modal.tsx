@@ -47,7 +47,7 @@ export function ShareNoteModal({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const { rendered, anim } = useModalTransition(open);
+  const { rendered, anim, onShow } = useModalTransition(open);
 
   useEffect(() => {
     if (!open) return;
@@ -102,6 +102,7 @@ export function ShareNoteModal({
   return (
     <Modal
       visible={rendered}
+      onShow={onShow}
       transparent
       animationType="none"
       statusBarTranslucent

@@ -47,7 +47,7 @@ export function AvatarPickerModal({
   const [selected, setSelected] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { rendered, anim } = useModalTransition(open);
+  const { rendered, anim, onShow } = useModalTransition(open);
 
   const regenerate = (nextStyle: DiceBearStyle) => {
     setCandidates(generateAvatarCandidates(baseSeedFor(userId), nextStyle));
@@ -78,6 +78,7 @@ export function AvatarPickerModal({
   return (
     <Modal
       visible={rendered}
+      onShow={onShow}
       transparent
       animationType="none"
       statusBarTranslucent

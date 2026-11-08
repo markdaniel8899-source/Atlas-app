@@ -98,7 +98,7 @@ function CourseSwitcher({
   onChange: (courseId: number | null) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const { rendered, anim } = useModalTransition(open);
+  const { rendered, anim, onShow } = useModalTransition(open);
   const chevron = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -157,6 +157,7 @@ function CourseSwitcher({
 
       <Modal
         visible={rendered}
+        onShow={onShow}
         transparent
         animationType="none"
         statusBarTranslucent
@@ -233,7 +234,6 @@ export default function RoadmapScreen() {
     number: number;
     message: string;
   } | null>(null);
-  const [cancelRequested, setCancelRequested] = useState(false);
   /** Index of the phase that failed (for retry). */
   const [failedPhaseIndex, setFailedPhaseIndex] = useState<number | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -357,7 +357,6 @@ export default function RoadmapScreen() {
       setBusy(true);
       setError(null);
       setGenerating(null);
-      setCancelRequested(false);
       setFailedPhaseIndex(null);
       abortControllerRef.current = new AbortController();
       beginHeavyTask();
@@ -1004,7 +1003,6 @@ export default function RoadmapScreen() {
             accessibilityRole="button"
             accessibilityLabel="Cancel generation"
             onPress={() => {
-              setCancelRequested(true);
               abortControllerRef.current?.abort();
             }}
             style={styles.cancelButton}

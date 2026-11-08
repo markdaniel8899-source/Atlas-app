@@ -30,11 +30,12 @@ export function MoveNoteModal({
   onSelect,
   onClose,
 }: MoveNoteModalProps) {
-  const { rendered, anim } = useModalTransition(open);
+  const { rendered, anim, onShow } = useModalTransition(open);
 
   return (
     <Modal
       visible={rendered}
+      onShow={onShow}
       transparent
       animationType="none"
       statusBarTranslucent

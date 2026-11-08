@@ -103,7 +103,7 @@ function CourseSwitcher({
   onChange: (courseId: number | null) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const { rendered, anim } = useModalTransition(open);
+  const { rendered, anim, onShow } = useModalTransition(open);
   const chevron = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -162,6 +162,7 @@ function CourseSwitcher({
 
       <Modal
         visible={rendered}
+        onShow={onShow}
         transparent
         animationType="none"
         statusBarTranslucent

@@ -116,13 +116,6 @@ export default function TimerScreen() {
     }).start();
   }, [progress, progressAnim]);
 
-  const hint =
-    state.mode === "running"
-      ? "Counting up live - pauses and stops are saved."
-      : state.mode === "paused"
-        ? "Paused - resume to keep counting from here."
-        : "Resumes from this total next time you press Start.";
-
   const confirmStop = () => {
     timer.stop();
     setStopConfirm(false);

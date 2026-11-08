@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import {
   Animated,
   Linking,
@@ -37,6 +37,7 @@ import type { GraphNode, RoadmapGraph } from "../../lib/roadmap-graph";
 import { objectivesFor, xpFor } from "../../lib/roadmap-graph";
 import { MOTION } from "../../theme/motion";
 import { colors, fonts } from "../../theme/theme";
+import { useModalEntrance } from "../ui/modal-transition";
 
 interface RoadmapDetailProps {
   graph: RoadmapGraph;
@@ -84,15 +85,7 @@ export function RoadmapDetail({
   const router = useRouter();
   const anim = useRef(new Animated.Value(0)).current;
   const closing = useRef(false);
-
-  useEffect(() => {
-    Animated.timing(anim, {
-      toValue: 1,
-      duration: MOTION.sheet,
-      easing: MOTION.easing,
-      useNativeDriver: true,
-    }).start();
-  }, [anim]);
+  const startOpen = useModalEntrance(anim, true, true, MOTION.sheet);
 
   const closeThen = (after?: () => void) => {
     if (closing.current) return;
@@ -145,6 +138,7 @@ export function RoadmapDetail({
   return (
     <Modal
       visible
+      onShow={startOpen}
       transparent
       animationType="none"
       statusBarTranslucent

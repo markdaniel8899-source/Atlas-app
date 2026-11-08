@@ -198,7 +198,6 @@ export function QuizSetup({
   const [count, setCount] = useState(10);
   const [pdfFile, setPdfFile] = useState<NativeFile | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
-  const [preparing, setPreparing] = useState(false);
 
   const course = useMemo(
     () => courses.find((item) => String(item.id) === courseId) ?? null,
@@ -375,7 +374,6 @@ export function QuizSetup({
     // Without a course, name the topic's subject so the backend scopes the
     // notes to it (English quiz never receives Python notes).
     const subject = course ? "" : (inferSubject(topic) ?? "");
-    setPreparing(true);
     onGenerate({
       topic,
       kind,
@@ -566,12 +564,12 @@ export function QuizSetup({
             <Text style={styles.alertText}>{message}</Text>
             <Pressable
               accessibilityRole="button"
-              disabled={busy || preparing || disabled}
+              disabled={busy || disabled}
               onPress={() => void submit()}
               style={({ pressed }) => [
                 styles.retryButton,
                 pressed && styles.pressed,
-                (busy || preparing || disabled) && styles.disabled,
+                (busy || disabled) && styles.disabled,
               ]}
             >
               <RefreshCw size={12} color={colors.w80} />
@@ -591,22 +589,18 @@ export function QuizSetup({
           </View>
           <Pressable
             accessibilityRole="button"
-            disabled={busy || preparing || disabled}
+            disabled={busy || disabled}
             onPress={() => void submit()}
             style={({ pressed }) => [
               styles.generateButton,
               pressed && styles.pressed,
-              (busy || preparing || disabled) && styles.generateDisabled,
+              (busy || disabled) && styles.generateDisabled,
             ]}
           >
-            {busy || preparing ? (
+            {busy ? (
               <>
                 <ActivityIndicator size="small" color={colors.primaryText} />
-                <Text style={styles.generateText}>
-                  {preparing && !busy
-                    ? "Reading your notes..."
-                    : "Writing your quiz..."}
-                </Text>
+                <Text style={styles.generateText}>Writing your quiz...</Text>
               </>
             ) : (
               <>

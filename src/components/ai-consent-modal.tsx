@@ -3,6 +3,7 @@ import { Animated, Modal, Pressable, StyleSheet, Text, View } from "react-native
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MOTION } from "../theme/motion";
 import { colors, fonts } from "../theme/theme";
+import { useModalEntrance } from "./ui/modal-transition";
 
 const CONSENT_KEY = "atlas.ai.consent.v1";
 
@@ -15,43 +16,30 @@ interface AiConsentModalProps {
 export function AiConsentModal({ open, onAccept, onDecline }: AiConsentModalProps) {
   const anim = useRef(new Animated.Value(0)).current;
   const [rendered, setRendered] = useState(open);
-  const opening = useRef(false);
   const closing = useRef(false);
+  const startOpen = useModalEntrance(anim, open, rendered, MOTION.sheet);
 
   useEffect(() => {
     if (open) {
-      if (!rendered) {
-        setRendered(true);
-        return;
-      }
-      if (opening.current) return;
-      opening.current = true;
       closing.current = false;
-      anim.stopAnimation();
-      Animated.timing(anim, {
-        toValue: 1,
-        duration: MOTION.sheet,
-        easing: MOTION.easing,
-        useNativeDriver: true,
-      }).start();
-    } else if (rendered && !closing.current) {
-      opening.current = false;
-      anim.stopAnimation();
-      Animated.timing(anim, {
-        toValue: 0,
-        duration: MOTION.sheetClose,
-        easing: MOTION.easingExit,
-        useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (finished) setRendered(false);
-      });
+      if (!rendered) setRendered(true);
+      return;
     }
+    if (!rendered || closing.current) return;
+    anim.stopAnimation();
+    Animated.timing(anim, {
+      toValue: 0,
+      duration: MOTION.sheetClose,
+      easing: MOTION.easingExit,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) setRendered(false);
+    });
   }, [open, rendered, anim]);
 
   const close = (after: () => void) => {
     if (closing.current) return;
     closing.current = true;
-    opening.current = false;
     anim.stopAnimation();
     Animated.timing(anim, {
       toValue: 0,
@@ -82,6 +70,7 @@ export function AiConsentModal({ open, onAccept, onDecline }: AiConsentModalProp
   return (
     <Modal
       visible={rendered}
+      onShow={startOpen}
       transparent
       animationType="none"
       statusBarTranslucent

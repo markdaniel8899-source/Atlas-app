@@ -42,7 +42,7 @@ export function CourseEditorModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const keyboardHeight = useKeyboardHeight();
-  const { rendered, anim } = useModalTransition(course !== null);
+  const { rendered, anim, onShow } = useModalTransition(course !== null);
 
   useEffect(() => {
     if (!course) return;
@@ -112,6 +112,7 @@ export function CourseEditorModal({
   return (
     <Modal
       visible={rendered}
+      onShow={onShow}
       transparent
       animationType="none"
       statusBarTranslucent

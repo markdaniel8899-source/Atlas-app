@@ -325,11 +325,11 @@ export default function FriendsScreen() {
         writeCache(CACHE_KEY, result.members);
         setStale(false);
       } else {
-        setStale(members.length > 0);
+        setStale(true);
       }
     } catch {
       if (seq !== requestRef.current) return;
-      setStale(members.length > 0);
+      setStale(true);
     } finally {
       if (seq === requestRef.current) setLoading(false);
     }

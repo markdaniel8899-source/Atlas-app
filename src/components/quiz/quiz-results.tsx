@@ -12,6 +12,7 @@ import { CodeBlock } from "./code-block";
 import { RichText } from "./rich-text";
 import { KIND_ICON } from "./icons";
 import { Card } from "../ui/card";
+import { FadeInView } from "../ui/fade-in-view";
 import type { QuizAttempt, QuizSummary } from "../../lib/quiz";
 import { KIND_LABEL } from "../../lib/quiz";
 import { colors, fonts } from "../../theme/theme";
@@ -150,7 +151,8 @@ export function QuizResults({
         {visibleAttempts.map((attempt, index) => {
           const passed = Boolean(attempt.evaluation?.is_correct);
           const KindIcon = KIND_ICON[attempt.question.kind];
-          return (
+          const revealed = index >= INITIAL_REVIEW_COUNT;
+          const card = (
             <Card
               key={`${index}-${attempt.question.prompt.slice(0, 24)}`}
               style={[
@@ -244,6 +246,16 @@ export function QuizResults({
                 </View>
               </View>
             </Card>
+          );
+          if (!revealed) return card;
+          return (
+            <FadeInView
+              key={`reveal-${index}`}
+              offsetY={6}
+              delay={Math.min(4, index - INITIAL_REVIEW_COUNT) * 30}
+            >
+              {card}
+            </FadeInView>
           );
         })}
         {attempts.length > INITIAL_REVIEW_COUNT ? (

@@ -47,7 +47,7 @@ export function BulkShareModal({
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
-  const { rendered, anim } = useModalTransition(open);
+  const { rendered, anim, onShow } = useModalTransition(open);
 
   useEffect(() => {
     if (!open) return;
@@ -116,6 +116,7 @@ export function BulkShareModal({
   return (
     <Modal
       visible={rendered}
+      onShow={onShow}
       transparent
       animationType="none"
       statusBarTranslucent

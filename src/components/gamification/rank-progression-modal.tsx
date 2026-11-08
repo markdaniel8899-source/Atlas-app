@@ -14,6 +14,7 @@ import type { RankData } from "../../lib/gamification";
 import { RankBadge } from "./rank-badge";
 import { MOTION } from "../../theme/motion";
 import { colors, fonts } from "../../theme/theme";
+import { useModalEntrance } from "../ui/modal-transition";
 
 interface RankProgressionModalProps {
   open: boolean;
@@ -40,53 +41,26 @@ export function RankProgressionModal({
   onClose,
   currentRank,
 }: RankProgressionModalProps) {
-  const backdrop = useRef(new Animated.Value(0)).current;
-  const panel = useRef(new Animated.Value(0)).current;
+  const anim = useRef(new Animated.Value(0)).current;
   const [rendered, setRendered] = useState(open);
-  const opening = useRef(false);
+  const startOpen = useModalEntrance(anim, open, rendered, MOTION.sheet);
 
   useEffect(() => {
     if (open) {
-      if (!rendered) {
-        setRendered(true);
-        return;
-      }
-      if (opening.current) return;
-      opening.current = true;
-      Animated.parallel([
-        Animated.timing(backdrop, {
-          toValue: 1,
-          duration: MOTION.sheet,
-          easing: MOTION.easing,
-          useNativeDriver: true,
-        }),
-        Animated.timing(panel, {
-          toValue: 1,
-          duration: MOTION.sheet,
-          easing: MOTION.easing,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else if (rendered) {
-      opening.current = false;
-      Animated.parallel([
-        Animated.timing(backdrop, {
-          toValue: 0,
-          duration: MOTION.sheetClose,
-          easing: MOTION.easingExit,
-          useNativeDriver: true,
-        }),
-        Animated.timing(panel, {
-          toValue: 0,
-          duration: MOTION.sheetClose,
-          easing: MOTION.easingExit,
-          useNativeDriver: true,
-        }),
-      ]).start(({ finished }) => {
-        if (finished) setRendered(false);
-      });
+      if (!rendered) setRendered(true);
+      return;
     }
-  }, [open, rendered, backdrop, panel]);
+    if (!rendered) return;
+    anim.stopAnimation();
+    Animated.timing(anim, {
+      toValue: 0,
+      duration: MOTION.sheetClose,
+      easing: MOTION.easingExit,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) setRendered(false);
+    });
+  }, [open, rendered, anim]);
 
   if (!rendered) return null;
 
@@ -97,6 +71,7 @@ export function RankProgressionModal({
   return (
     <Modal
       visible
+      onShow={startOpen}
       transparent
       animationType="none"
       statusBarTranslucent
@@ -108,7 +83,7 @@ export function RankProgressionModal({
           style={[
             StyleSheet.absoluteFill,
             styles.backdrop,
-            { opacity: backdrop },
+            { opacity: anim },
           ]}
         >
           <Pressable
@@ -125,16 +100,16 @@ export function RankProgressionModal({
           style={[
             styles.panel,
             {
-              opacity: panel,
+              opacity: anim,
               transform: [
                 {
-                  scale: panel.interpolate({
+                  scale: anim.interpolate({
                     inputRange: [0, 1],
                     outputRange: [0.95, 1],
                   }),
                 },
                 {
-                  translateY: panel.interpolate({
+                  translateY: anim.interpolate({
                     inputRange: [0, 1],
                     outputRange: [20, 0],
                   }),

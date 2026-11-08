@@ -92,7 +92,7 @@ export function NotificationsSheet({
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { items } = useNotifications();
-  const { rendered, anim } = useModalTransition(open);
+  const { rendered, anim, onShow } = useModalTransition(open);
 
   const unread = items.reduce(
     (total, item) => (item.read ? total : total + 1),
@@ -113,6 +113,7 @@ export function NotificationsSheet({
   return (
     <Modal
       visible={rendered}
+      onShow={onShow}
       transparent
       animationType="none"
       statusBarTranslucent
