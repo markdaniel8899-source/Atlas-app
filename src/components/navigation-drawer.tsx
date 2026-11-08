@@ -28,6 +28,7 @@ import {
   Users,
 } from "lucide-react-native";
 import { markDrawerNavigation } from "../lib/nav-source";
+import { useNotificationBadges } from "../lib/notification-center";
 import { MOTION } from "../theme/motion";
 import { colors, fonts } from "../theme/theme";
 import { PressScale } from "./ui/press-scale";
@@ -82,6 +83,7 @@ export function NavigationDrawer({
 }: NavigationDrawerProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const badges = useNotificationBadges();
   const anim = useRef(new Animated.Value(0)).current;
   const [rendered, setRendered] = useState(open);
   const opening = useRef(false);
@@ -147,6 +149,12 @@ export function NavigationDrawer({
         {NAV_ITEMS.map((item) => {
           const active = item.label === activeLabel;
           const Icon = item.icon;
+          const badgeCount =
+            item.route === "/friends"
+              ? badges.friends
+              : item.route === "/notes"
+                ? badges.notes
+                : 0;
           return (
             <View key={item.label} style={styles.itemWrap}>
               {active
@@ -201,6 +209,17 @@ export function NavigationDrawer({
                 >
                   {item.label}
                 </Text>
+                {badgeCount > 0 ? (
+                  <View style={styles.badge}>
+                    <Text
+                      numberOfLines={1}
+                      maxFontSizeMultiplier={1}
+                      style={styles.badgeText}
+                    >
+                      {badgeCount > 9 ? "9+" : badgeCount}
+                    </Text>
+                  </View>
+                ) : null}
               </PressScale>
             </View>
           );
@@ -346,12 +365,26 @@ const styles = StyleSheet.create({
     backgroundColor: colors.w04,
   },
   itemText: {
-    flexShrink: 1,
+    flex: 1,
     fontSize: 16,
     fontFamily: fonts.regular,
     color: colors.w50,
   },
   itemTextActive: {
     color: colors.white,
+  },
+  badge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 999,
+    paddingHorizontal: 5,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.lilac,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontFamily: fonts.semibold,
+    color: "#0a0a12",
   },
 });

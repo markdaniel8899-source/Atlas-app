@@ -173,6 +173,7 @@ export function ScreenShell({
                 : undefined
             }
             avatarUrl={profile?.avatar_url ?? null}
+            showNotifications={!publicPage}
           />
 
           <OfflineBanner />

@@ -33,7 +33,12 @@ import { hydrateDataCaches } from "../lib/data-cache";
 import { isHeavyTaskRunning } from "../lib/heavy-task";
 import { getCachedAuthUser, resolveSession, subscribeAuth } from "../lib/auth";
 import { getAuthSnapshot, hydrateAuthSnapshot } from "../lib/auth-snapshot";
-import { notifyAppResumed } from "../lib/events";
+import { APP_RESUMED_EVENT, listen, notifyAppResumed } from "../lib/events";
+import {
+  clearNotificationStore,
+  setNotificationOwner,
+} from "../lib/notification-center";
+import { syncAllNotifications } from "../lib/notification-sync";
 import { startRealtime, stopRealtime } from "../lib/realtime";
 import { supabase } from "../lib/supabase";
 import {
@@ -301,6 +306,28 @@ export default function RootLayout() {
         if (!pending) return;
         pendingSessionKeyRef.current = null;
         setSessionKey((prev) => (prev === pending ? prev : pending));
+      }),
+    [],
+  );
+
+  // In-app notification centre (header bell + drawer badges). The persisted
+  // list is owner-scoped; sign-out removes it so the next viewer starts clean.
+  useEffect(() => {
+    if (sessionKey === "anon") {
+      clearNotificationStore();
+      setNotificationOwner(null);
+      return;
+    }
+    setNotificationOwner(sessionKey);
+    void syncAllNotifications({ force: true });
+  }, [sessionKey]);
+
+  // Catch friend requests / shared notes that arrived while the app slept or
+  // the realtime socket was down (realtime does not replay missed events).
+  useEffect(
+    () =>
+      listen(APP_RESUMED_EVENT, () => {
+        void syncAllNotifications({ force: true });
       }),
     [],
   );

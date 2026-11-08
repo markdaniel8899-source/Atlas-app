@@ -266,6 +266,31 @@ export async function sendTestNotification(): Promise<boolean> {
 }
 
 /**
+ * Confirms a finished notes download. Sign-in already asks for notification
+ * permission, so this is normally a silent alert; a first-use prompt only
+ * appears on installs where notifications were never enabled.
+ */
+export async function notifyNotesDownloaded(
+  count: number,
+  fileName: string,
+  location: string,
+): Promise<void> {
+  const N = getNotifications();
+  if (!N) return;
+  initNotifications();
+  try {
+    if (!(await ensurePermission())) return;
+    const body =
+      count === 1
+        ? `Saved to ${location} as ${fileName}.`
+        : `${count} notes saved to ${location} as ${fileName}.`;
+    await sendInstantNotification("Notes downloaded", body);
+  } catch {
+    // A notification failure must never block a successful download.
+  }
+}
+
+/**
  * Example: Schedule a notification when a note is shared or friend request received.
  * Usage:
  *   await scheduleCustomNotification(

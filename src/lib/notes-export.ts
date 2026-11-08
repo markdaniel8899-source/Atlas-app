@@ -1,10 +1,12 @@
 import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import type * as ExpoFileSystem from "expo-file-system/legacy";
 import {
   escapeCodeAttribute,
   normalizeLanguageId,
   renderHighlightedCodeBlock,
 } from "./code-highlight";
+import { notifyNotesDownloaded } from "./notifications";
 import { sanitizeHtml } from "./notes";
 
 export interface ExportNote {
@@ -19,7 +21,18 @@ export interface ExportResult {
   message: string;
   /** The user dismissed the folder picker - not an error. */
   cancelled?: boolean;
+  /** Android direct-save details (used for the completion notification). */
+  fileName?: string;
+  location?: string;
 }
+
+/**
+ * Android 11+ scoped storage does not allow writing straight to the public
+ * Downloads folder without a grant. The user picks the folder once (the picker
+ * opens on Downloads); the SAF tree URI is persisted and reused silently for
+ * every later download.
+ */
+const EXPORT_DIR_KEY = "atlas.export.dir.v1";
 
 function escapeHtml(value: string): string {
   return value
@@ -427,6 +440,74 @@ function exportFileName(): string {
   return `notes-${new Date().toISOString().slice(0, 10)}.html`;
 }
 
+async function readSavedExportDir(): Promise<string | null> {
+  try {
+    const uri = await AsyncStorage.getItem(EXPORT_DIR_KEY);
+    return uri && uri.startsWith("content://") ? uri : null;
+  } catch {
+    return null;
+  }
+}
+
+async function saveExportDir(uri: string): Promise<void> {
+  try {
+    await AsyncStorage.setItem(EXPORT_DIR_KEY, uri);
+  } catch {
+    // The download still works this time; the next one asks again.
+  }
+}
+
+async function clearSavedExportDir(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(EXPORT_DIR_KEY);
+  } catch {
+    // Nothing else to do - the caller falls back to the picker.
+  }
+}
+
+/** Friendly label for the folder the persisted SAF grant points at. */
+function folderLabel(dirUri: string): string {
+  try {
+    const decoded = decodeURIComponent(dirUri);
+    if (/download/i.test(decoded)) return "Downloads";
+    const match = /primary:([^/]+)/.exec(decoded);
+    if (match?.[1]) return match[1];
+  } catch {
+    // Malformed URI - use the generic label.
+  }
+  return "your selected folder";
+}
+
+async function writeFileToDirectory(
+  fileSystem: typeof ExpoFileSystem,
+  directoryUri: string,
+  fileName: string,
+  html: string,
+): Promise<string> {
+  const uri = await fileSystem.StorageAccessFramework.createFileAsync(
+    directoryUri,
+    fileName,
+    "text/html",
+  );
+  await fileSystem.StorageAccessFramework.writeAsStringAsync(uri, html, {
+    encoding: fileSystem.EncodingType.UTF8,
+  });
+  return uri;
+}
+
+function downloadResult(
+  count: number,
+  fileName: string,
+  location: string,
+): ExportResult {
+  return {
+    ok: true,
+    message: `Saved ${count} note${count === 1 ? "" : "s"} to ${location}.`,
+    fileName,
+    location,
+  };
+}
+
 /** Web: same browser download the website uses. */
 function downloadOnWeb(html: string): ExportResult {
   try {
@@ -489,25 +570,39 @@ export async function exportNotesFile(
   }
 
   if (Platform.OS === "android") {
-    try {
-      const permission =
-        await fileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-      if (permission.granted) {
-        const baseName = exportFileName().replace(/\.html$/, "");
-        const uri = await fileSystem.StorageAccessFramework.createFileAsync(
-          permission.directoryUri,
-          baseName,
-          "text/html",
-        );
-        await fileSystem.StorageAccessFramework.writeAsStringAsync(uri, html, {
-          encoding: fileSystem.EncodingType.UTF8,
-        });
-        return {
-          ok: true,
-          message: `Saved ${notes.length} note${notes.length > 1 ? "s" : ""} to the folder you picked.`,
-        };
+    const fileName = exportFileName();
+
+    // One-time grant: once the user has picked a folder, every later download
+    // writes straight into it without another prompt.
+    const savedDir = await readSavedExportDir();
+    if (savedDir) {
+      try {
+        await writeFileToDirectory(fileSystem, savedDir, fileName, html);
+        const location = folderLabel(savedDir);
+        void notifyNotesDownloaded(notes.length, fileName, location);
+        return downloadResult(notes.length, fileName, location);
+      } catch {
+        // The grant was revoked or the folder was deleted - ask once more.
+        await clearSavedExportDir();
       }
-      return { ok: false, cancelled: true, message: "Saving cancelled." };
+    }
+
+    try {
+      const initialUri =
+        fileSystem.StorageAccessFramework.getUriForDirectoryInRoot("Download");
+      const permission =
+        await fileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync(
+          initialUri,
+        );
+      if (!permission.granted) {
+        return { ok: false, cancelled: true, message: "Saving cancelled." };
+      }
+      const directoryUri = permission.directoryUri;
+      await saveExportDir(directoryUri);
+      await writeFileToDirectory(fileSystem, directoryUri, fileName, html);
+      const location = folderLabel(directoryUri);
+      void notifyNotesDownloaded(notes.length, fileName, location);
+      return downloadResult(notes.length, fileName, location);
     } catch {
       // Fall through to the share sheet below.
     }

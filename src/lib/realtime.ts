@@ -11,6 +11,8 @@ import {
   ensureNotificationPermission,
   sendInstantNotification,
 } from "./notifications";
+import { pushNotification } from "./notification-center";
+import { syncAllNotifications } from "./notification-sync";
 import { supabase } from "./supabase";
 import { cachedDeviceId } from "./timer-sync";
 import { diag } from "./diagnostics";
@@ -94,6 +96,7 @@ export function startRealtime(userId: string): void {
       },
       (payload) => {
         notifyFriendsChanged();
+        void syncAllNotifications();
         const change = changeOf(payload);
         if (change.eventType !== "INSERT") return;
         const row = change.new ?? {};
@@ -102,6 +105,13 @@ export function startRealtime(userId: string): void {
         void (async () => {
           const name = await senderName(row.requester_id);
           if (gen !== generation) return;
+          pushNotification({
+            id: `friend-request:${String(row.id)}`,
+            kind: "friend_request",
+            message: `${name} sent you a friend request`,
+            detail: "Open Friends to accept or decline.",
+            href: "/friends",
+          });
           void sendInstantNotification(
             "New friend request",
             `${name} wants to be friends on ATLAS.`,
@@ -117,7 +127,30 @@ export function startRealtime(userId: string): void {
         table: "friendships",
         filter: `requester_id=eq.${uid}`,
       },
-      () => notifyFriendsChanged(),
+      (payload) => {
+        notifyFriendsChanged();
+        void syncAllNotifications();
+        const change = changeOf(payload);
+        if (change.eventType !== "UPDATE") return;
+        const row = change.new ?? {};
+        if (row.status !== "accepted") return;
+        if (row.requester_id !== uid) return;
+        void (async () => {
+          const name = await senderName(row.addressee_id);
+          if (gen !== generation) return;
+          pushNotification({
+            id: `friend-accepted:${String(row.id)}`,
+            kind: "friend_accepted",
+            message: `${name} accepted your friend request`,
+            detail: "They are now in your Friends list.",
+            href: "/friends",
+          });
+          void sendInstantNotification(
+            "Friend request accepted",
+            `${name} accepted your friend request on ATLAS.`,
+          );
+        })();
+      },
     )
     // Notes owned by this user (own edits + copies shared by friends).
     .on(
@@ -133,6 +166,13 @@ export function startRealtime(userId: string): void {
         void (async () => {
           const name = await senderName(sharedBy);
           if (gen !== generation) return;
+          pushNotification({
+            id: `note-shared:${String(row.id)}`,
+            kind: "note_shared",
+            message: `${name} shared a note with you`,
+            detail: noteTitle(row),
+            href: "/notes",
+          });
           void sendInstantNotification(
             "Note shared with you",
             `${name} shared "${noteTitle(row)}" with you.`,

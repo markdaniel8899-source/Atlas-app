@@ -3,10 +3,18 @@ import { Platform, StyleSheet, Text, View } from "react-native";
 import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ChevronDown, ArrowLeft, Menu } from "lucide-react-native";
+import {
+  Bell,
+  BellRing,
+  ChevronDown,
+  ArrowLeft,
+  Menu,
+} from "lucide-react-native";
 import { AccountSheet } from "./account-sheet";
+import { NotificationsSheet } from "./notifications-sheet";
 import { PressScale } from "./ui/press-scale";
 import { pngAvatarUrl } from "../lib/dicebear";
+import { useUnreadCount } from "../lib/notification-center";
 import { colors, fonts } from "../theme/theme";
 
 const APP_ICON = require("../../assets/icon.png");
@@ -21,6 +29,8 @@ interface AppHeaderProps {
   onBackPress?: () => void;
   avatarUrl?: string | null;
   onAccountPress?: () => void;
+  /** Public info pages hide the bell (no signed-in inbox to show). */
+  showNotifications?: boolean;
 }
 
 export function AppHeader({
@@ -29,9 +39,12 @@ export function AppHeader({
   onBackPress,
   avatarUrl,
   onAccountPress,
+  showNotifications = true,
 }: AppHeaderProps) {
   const insets = useSafeAreaInsets();
   const [accountOpen, setAccountOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const unread = useUnreadCount();
   const handleAccountPress = onAccountPress ?? (() => setAccountOpen(true));
   const resolvedAvatar = pngAvatarUrl(avatarUrl ?? null);
 
@@ -61,34 +74,66 @@ export function AppHeader({
         </Text>
       </View>
 
-      <PressScale
-        accessibilityRole="button"
-        accessibilityLabel="Account menu"
-        onPress={handleAccountPress}
-        hitSlop={6}
-        scaleTo={0.94}
-        style={styles.account}
-      >
-        {resolvedAvatar ? (
-          <Image
-            source={{ uri: resolvedAvatar }}
-            style={styles.avatar}
-            contentFit="cover"
-            cachePolicy="memory-disk"
-            recyclingKey={resolvedAvatar}
-            transition={0}
-            accessibilityLabel="Your profile picture"
-          />
-        ) : (
-          <Image
-            source={APP_ICON}
-            style={styles.avatar}
-            contentFit="cover"
-            accessibilityLabel="ATLAS profile"
-          />
-        )}
-        <ChevronDown size={16} color={colors.w40} />
-      </PressScale>
+      <View style={styles.right}>
+        {showNotifications ? (
+          <PressScale
+            accessibilityRole="button"
+            accessibilityLabel={
+              unread > 0 ? `Notifications, ${unread} unread` : "Notifications"
+            }
+            onPress={() => setNotificationsOpen(true)}
+            hitSlop={6}
+            scaleTo={0.92}
+            style={styles.bellButton}
+          >
+            {unread > 0 ? (
+              <BellRing size={21} color={colors.lilac} />
+            ) : (
+              <Bell size={21} color={colors.w60} />
+            )}
+            {unread > 0 ? (
+              <View style={styles.bellBadge}>
+                <Text
+                  numberOfLines={1}
+                  maxFontSizeMultiplier={1}
+                  style={styles.bellBadgeText}
+                >
+                  {unread > 9 ? "9+" : unread}
+                </Text>
+              </View>
+            ) : null}
+          </PressScale>
+        ) : null}
+
+        <PressScale
+          accessibilityRole="button"
+          accessibilityLabel="Account menu"
+          onPress={handleAccountPress}
+          hitSlop={6}
+          scaleTo={0.94}
+          style={styles.account}
+        >
+          {resolvedAvatar ? (
+            <Image
+              source={{ uri: resolvedAvatar }}
+              style={styles.avatar}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              recyclingKey={resolvedAvatar}
+              transition={0}
+              accessibilityLabel="Your profile picture"
+            />
+          ) : (
+            <Image
+              source={APP_ICON}
+              style={styles.avatar}
+              contentFit="cover"
+              accessibilityLabel="ATLAS profile"
+            />
+          )}
+          <ChevronDown size={16} color={colors.w40} />
+        </PressScale>
+      </View>
     </View>
   );
 
@@ -119,6 +164,12 @@ export function AppHeader({
           avatarUrl={avatarUrl}
         />
       )}
+      {showNotifications ? (
+        <NotificationsSheet
+          open={notificationsOpen}
+          onClose={() => setNotificationsOpen(false)}
+        />
+      ) : null}
     </>
   );
 }
@@ -168,6 +219,41 @@ const styles = StyleSheet.create({
     letterSpacing: -0.34,
     color: colors.white,
     flexShrink: 1,
+  },
+  right: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    flexShrink: 0,
+  },
+  bellButton: {
+    width: 40,
+    height: 44,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  bellBadge: {
+    position: "absolute",
+    top: 6,
+    right: 4,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 999,
+    paddingHorizontal: 3,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.lilac,
+    shadowColor: colors.lilac,
+    shadowOpacity: 0.75,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 4,
+  },
+  bellBadgeText: {
+    fontSize: 9,
+    fontFamily: fonts.semibold,
+    color: "#0a0a12",
   },
   account: {
     flexDirection: "row",
