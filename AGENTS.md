@@ -327,6 +327,8 @@
   - Native modules → **activates only in the next `eas build`** (versionCode bumped 9 → 10). JS parts are OTA-able, but the task itself does nothing on the installed APK. Verified `tsc`, `expo lint` (0 warnings), web export 20/20, `expo config --type prebuild` resolves the plugin, and live REST probes of all 4 queries (profiles/courses/notes 200; heatmap 401 for anon = expected, authenticated only).
   - Commits `1c25ce2` + `f4cb0d8`; OTA published to `production` (group `c7331821-6f48-46b4-8ab5-1d254d020545`, runtime 1.0.2) so the offline focus queue + instant offline notes reach the installed vc9 APK now. **Background sync itself needs the next APK** (`eas build --platform android --profile production`, versionCode 10).
 
+- **Build v10 — production APK (2026-11-08):** `eas build --platform android --profile production` finished clean from commit `c537c0f` — build `b10e1eaf-0571-48b0-b0f7-06b10ac4fff0`, versionCode **10**, version/runtime **1.0.2**, channel `production`. APK: `https://expo.dev/artifacts/eas/dj8QPA9LcknlYFIcxktMkS7FZhp7QyDwAIyOvKyC_WE.apk` (verified HTTP 200). Dashboard: `https://expo.dev/accounts/markdaniel8899/projects/atlas-mobile/builds/b10e1eaf-0571-48b0-b0f7-06b10ac4fff0`. First APK carrying **expo-background-task + expo-task-manager** (so `atlas-background-sync` actually runs while the app is closed), plus the offline focus queue, instant offline notes, widget preview images, splash lockup and launcher icon from earlier batches. Runtime is unchanged (1.0.2), so the existing OTA `c7331821` applies to it as well.
+
 ## Workflow Preferences (user)
 - User communicates in **Roman Urdu** — reply concisely in Roman Urdu.
 - Do not ask for confirmation mid-task; finish the task, then report.

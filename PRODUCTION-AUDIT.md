@@ -156,7 +156,7 @@
 - **Notes offline**: naya note offline mein foran local banta hai (`isOnline()` fast-path), queue one-by-one DB mein sync karti hai.
 - **Focus queue**: offline pause/stop ke counter deltas + finished sessions `atlas.focus.queue.v1` mein owner-scoped queue hoti hain, phir 30s interval / foreground / reconnect / sign-in pe one-by-one flush. Offline attempts retry budget nahi khate.
 - Offline cold start: dashboard/profile/notes/courses/leaderboard/friends/roadmaps sab persistent caches se paint hote hain; sirf AI features (quiz generate, assistant, roadmap generate) internet maangte hain.
-- **Status:** OTA `c7331821` (runtime 1.0.2, commit `f4cb0d8`) published — offline focus queue + instant offline notes installed APK par live. Background task khud native module hai, isliye wo sirf next APK (`eas build`, versionCode 10) ke baad chalega.
+- **Status:** OTA `c7331821` (runtime 1.0.2, commit `f4cb0d8`) published — offline focus queue + instant offline notes installed APK par live. Background task ka native module ab vc10 APK `b10e1eaf` (commit `c537c0f`) mein shamil hai, is liye us APK ke baad `atlas-background-sync` app band hone par bhi chalta hai. APK: `https://expo.dev/artifacts/eas/dj8QPA9LcknlYFIcxktMkS7FZhp7QyDwAIyOvKyC_WE.apk`
 
 ---
 
@@ -266,6 +266,7 @@
 
 | Commit | What |
 |--------|------|
+| `c537c0f` | Production APK vc10 (`b10e1eaf`) — background sync modules + offline focus queue live |
 | `1c25ce2` | Background sync (expo-background-task) + persistent offline focus queue (vc10, next build) |
 | `4a6b8f9` | Instant tabs: profile/data caches, drawer `navigate()`, widget picker preview (OTA `81bcb73a`) |
 | `3e7aac6` | Naya app icon + production APK vc3 build (`7830c669`) |
