@@ -156,6 +156,7 @@
 - **Notes offline**: naya note offline mein foran local banta hai (`isOnline()` fast-path), queue one-by-one DB mein sync karti hai.
 - **Focus queue**: offline pause/stop ke counter deltas + finished sessions `atlas.focus.queue.v1` mein owner-scoped queue hoti hain, phir 30s interval / foreground / reconnect / sign-in pe one-by-one flush. Offline attempts retry budget nahi khate.
 - Offline cold start: dashboard/profile/notes/courses/leaderboard/friends/roadmaps sab persistent caches se paint hote hain; sirf AI features (quiz generate, assistant, roadmap generate) internet maangte hain.
+- **Status:** OTA `c7331821` (runtime 1.0.2, commit `f4cb0d8`) published — offline focus queue + instant offline notes installed APK par live. Background task khud native module hai, isliye wo sirf next APK (`eas build`, versionCode 10) ke baad chalega.
 
 ---
 

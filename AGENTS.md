@@ -325,6 +325,7 @@
   - `getGlobalFocusSeconds()` returns `number | null` (null = unreachable) so a failed read can never zero the counter; `addGlobalFocusSeconds` / `addFocusSeconds` no longer permanently disable the atomic RPC after a transient network throw (previously one offline attempt forced the read-modify-write fallback for the whole app run), and the fallback aborts when the read failed.
   - `subscribeNetwork` is SSR-safe (`typeof window === "undefined"` → listener(true), no native call) — the module-scope subscription in the focus queue broke web prerender before this.
   - Native modules → **activates only in the next `eas build`** (versionCode bumped 9 → 10). JS parts are OTA-able, but the task itself does nothing on the installed APK. Verified `tsc`, `expo lint` (0 warnings), web export 20/20, `expo config --type prebuild` resolves the plugin, and live REST probes of all 4 queries (profiles/courses/notes 200; heatmap 401 for anon = expected, authenticated only).
+  - Commits `1c25ce2` + `f4cb0d8`; OTA published to `production` (group `c7331821-6f48-46b4-8ab5-1d254d020545`, runtime 1.0.2) so the offline focus queue + instant offline notes reach the installed vc9 APK now. **Background sync itself needs the next APK** (`eas build --platform android --profile production`, versionCode 10).
 
 ## Workflow Preferences (user)
 - User communicates in **Roman Urdu** — reply concisely in Roman Urdu.
