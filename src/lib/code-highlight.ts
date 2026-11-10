@@ -18,6 +18,10 @@ export interface CodeLanguage {
   quotes: string[];
   /** Identifiers immediately followed by `:` (CSS properties, YAML keys). */
   propertySyntax?: boolean;
+  /** Dot-prefixed directives (`.data`, `.text`) highlight as keywords. */
+  directiveSyntax?: boolean;
+  /** Identifiers immediately followed by `:` are labels (`main:`). */
+  labelSyntax?: boolean;
 }
 
 const JS_KEYWORDS = [
@@ -765,6 +769,129 @@ const CSS_KEYWORDS = [
   "root",
 ];
 
+/** Mirrors the website's Monaco Assembly grammar (monacoAssembly.ts). */
+const ASSEMBLY_KEYWORDS = [
+  // x86 instructions
+  "mov",
+  "add",
+  "sub",
+  "mul",
+  "div",
+  "inc",
+  "dec",
+  "neg",
+  "cmp",
+  "and",
+  "or",
+  "xor",
+  "not",
+  "shl",
+  "shr",
+  "rol",
+  "ror",
+  "jmp",
+  "je",
+  "jne",
+  "jz",
+  "jnz",
+  "jg",
+  "jl",
+  "jge",
+  "jle",
+  "ja",
+  "jb",
+  "jae",
+  "jbe",
+  "call",
+  "ret",
+  "loop",
+  "nop",
+  "push",
+  "pop",
+  "lea",
+  "int",
+  "syscall",
+  // ARM instructions
+  "ldr",
+  "str",
+  "bl",
+  "bx",
+  "swi",
+  "svc",
+  // Directives share the keyword colour on the website.
+  ".data",
+  ".text",
+  ".bss",
+  ".global",
+  ".extern",
+  ".byte",
+  ".word",
+  ".long",
+  ".quad",
+  ".ascii",
+  ".asciz",
+  ".section",
+  ".align",
+  ".equ",
+  ".set",
+  ".macro",
+  ".endm",
+];
+
+const ASSEMBLY_REGISTERS = [
+  // x86
+  "eax",
+  "ebx",
+  "ecx",
+  "edx",
+  "esi",
+  "edi",
+  "esp",
+  "ebp",
+  "ax",
+  "bx",
+  "cx",
+  "dx",
+  "ah",
+  "al",
+  "bh",
+  "bl",
+  "ch",
+  "cl",
+  "dh",
+  "dl",
+  "rax",
+  "rbx",
+  "rcx",
+  "rdx",
+  "rsi",
+  "rdi",
+  "rsp",
+  "rbp",
+  "r8",
+  "r9",
+  "r10",
+  "r11",
+  "r12",
+  "r13",
+  "r14",
+  "r15",
+  // ARM
+  "r0",
+  "r1",
+  "r2",
+  "r3",
+  "r4",
+  "r5",
+  "r6",
+  "r7",
+  "sp",
+  "lr",
+  "pc",
+  "cpsr",
+  "spsr",
+];
+
 export const CODE_LANGUAGES: CodeLanguage[] = [
   {
     id: "plaintext",
@@ -907,6 +1034,18 @@ export const CODE_LANGUAGES: CodeLanguage[] = [
     quotes: ['"'],
   },
   {
+    id: "assembly",
+    label: "Assembly",
+    mode: "generic",
+    keywords: ASSEMBLY_KEYWORDS,
+    constants: ASSEMBLY_REGISTERS,
+    lineComments: [";"],
+    blockComment: ["/*", "*/"],
+    quotes: ['"', "'"],
+    directiveSyntax: true,
+    labelSyntax: true,
+  },
+  {
     id: "sql",
     label: "SQL",
     mode: "generic",
@@ -1007,6 +1146,12 @@ export const LANGUAGE_ALIASES: Record<string, string> = {
   rb: "ruby",
   kt: "kotlin",
   kts: "kotlin",
+  asm: "assembly",
+  nasm: "assembly",
+  gas: "assembly",
+  masm: "assembly",
+  assembly: "assembly",
+  s: "assembly",
   sh: "bash",
   shell: "bash",
   zsh: "bash",
@@ -1149,6 +1294,18 @@ function highlightGeneric(code: string, language: CodeLanguage): string {
       continue;
     }
 
+    if (
+      language.directiveSyntax &&
+      char === "." &&
+      /[A-Za-z_]/.test(code[index + 1] ?? "")
+    ) {
+      let end = index + 1;
+      while (end < code.length && WORD_PART.test(code[end])) end += 1;
+      out += span("keyword", code.slice(index, end));
+      index = end;
+      continue;
+    }
+
     if (DIGIT.test(char) && !WORD_PART.test(code[index - 1] ?? "")) {
       const end = scanNumber(code, index);
       out += span("number", code.slice(index, end));
@@ -1173,6 +1330,8 @@ function highlightGeneric(code: string, language: CodeLanguage): string {
       else if (code[lookahead] === "(") kind = "function";
       else if (language.propertySyntax && code[lookahead] === ":") {
         kind = "attribute";
+      } else if (language.labelSyntax && code[lookahead] === ":") {
+        kind = "type";
       } else if (/^[A-Z]/.test(word) && word.length > 1) kind = "type";
 
       out += span(kind, word);
@@ -1357,6 +1516,7 @@ const LANGUAGE_EXTENSIONS: Record<string, string> = {
   php: ".php",
   swift: ".swift",
   kotlin: ".kt",
+  assembly: ".asm",
   sql: ".sql",
   html: ".html",
   xml: ".xml",

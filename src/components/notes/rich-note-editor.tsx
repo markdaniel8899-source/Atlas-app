@@ -363,17 +363,37 @@ function buildEditorHtml(): string {
     padding-left: 8px;
     border-left: 2px solid rgba(207, 158, 255, 0.35);
   }
-  #editor .atomic-table-overlay {
+  .atomic-table-overlay {
     background: #1e1e1e;
     box-shadow: 0 18px 50px -20px rgba(0, 0, 0, 0.9);
     border: 1px solid rgba(207, 158, 255, 0.22);
     border-radius: 9px;
   }
-  #editor .atomic-table-toolbar {
+  /* Phones: a full-screen sheet appended to <body>, so wide tables scroll
+     inside their own surface instead of squeezing the note column. */
+  .atomic-table-overlay--fullscreen {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 80;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #0a0a12;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    overscroll-behavior: contain;
+  }
+  body.table-editing { overflow: hidden; overscroll-behavior: none; }
+  .atomic-table-toolbar {
     display: flex;
     align-items: center;
     gap: 6px;
-    height: 44px;
+    flex: 0 0 auto;
+    height: 46px;
     padding: 0 10px;
     background: rgba(13, 13, 22, 0.97);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -383,33 +403,51 @@ function buildEditorHtml(): string {
     scrollbar-width: none;
     white-space: nowrap;
   }
-  #editor .atomic-table-toolbar::-webkit-scrollbar { display: none; }
-  #editor .atomic-table-toolbar-label { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; color: rgba(255, 255, 255, 0.75); font-size: 11px; font-weight: 500; }
-  #editor .atomic-table-toolbar-dims { padding: 2px 6px; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 5px; background: rgba(255, 255, 255, 0.04); color: rgba(255, 255, 255, 0.4); font-family: "Fira Code", "Cascadia Code", Consolas, monospace; font-size: 10px; }
-  #editor .atomic-table-toolbar-divider { flex: 0 0 auto; width: 1px; height: 18px; background: rgba(255, 255, 255, 0.08); }
-  #editor .atomic-table-toolbar-btn { display: inline-flex; align-items: center; justify-content: center; gap: 4px; flex: 0 0 auto; height: 28px; padding: 0 8px; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; background: rgba(255, 255, 255, 0.04); color: rgba(255, 255, 255, 0.7); font-family: inherit; font-size: 11px; font-weight: 500; cursor: pointer; touch-action: manipulation; }
-  #editor .atomic-table-toolbar-btn:hover { border-color: rgba(207, 158, 255, 0.45); background: rgba(255, 255, 255, 0.07); color: #fff; }
-  #editor .atomic-table-toolbar-btn:disabled { cursor: not-allowed; opacity: 0.35; }
-  #editor .atomic-table-toolbar-btn--accent { border-color: rgba(207, 158, 255, 0.3); background: rgba(207, 158, 255, 0.12); color: #cf9eff; }
-  #editor .atomic-table-toolbar-btn--accent:hover { border-color: rgba(207, 158, 255, 0.55); background: rgba(207, 158, 255, 0.2); color: #e6ccff; }
-  #editor .atomic-table-toolbar-btn--danger { border-color: rgba(248, 113, 113, 0.28); background: rgba(248, 113, 113, 0.08); color: #fca5a5; }
-  #editor .atomic-table-toolbar-btn--danger:hover { border-color: rgba(248, 113, 113, 0.5); background: rgba(248, 113, 113, 0.14); color: #fecaca; }
-  #editor .atomic-table-toolbar-btn--done { border-color: rgba(207, 158, 255, 0.45); background: rgba(207, 158, 255, 0.16); color: #cf9eff; }
-  #editor .atomic-table-toolbar-btn--done:hover { border-color: rgba(207, 158, 255, 0.65); background: rgba(207, 158, 255, 0.24); color: #fff; }
-  #editor .atomic-table-toolbar-spacer { flex: 1 1 auto; min-width: 4px; }
-  #editor .atomic-table-editor { padding: 10px; background: #1e1e1e; overflow: auto; border-radius: 0 0 9px 9px; overscroll-behavior: contain; touch-action: pan-x pan-y; }
-  #editor .atomic-table-editor-grid { width: 100%; min-width: max-content; border-collapse: separate; border-spacing: 0; }
-  #editor .atomic-table-editor-grid th,
-  #editor .atomic-table-editor-grid td { padding: 2px; border: 0; text-align: left; vertical-align: middle; }
-  #editor .atomic-table-input { display: block; width: 100%; min-width: 96px; min-height: 34px; box-sizing: border-box; padding: 8px 10px; border: 1px solid rgba(255, 255, 255, 0.09); border-radius: 7px; background: rgba(255, 255, 255, 0.04); color: rgba(255, 255, 255, 0.85); font-family: inherit; font-size: 13px; line-height: 1.35; outline: none; white-space: pre-wrap; overflow-wrap: break-word; cursor: text; touch-action: manipulation; }
-  #editor .atomic-table-input:empty::before { content: attr(data-placeholder); color: rgba(255, 255, 255, 0.25); pointer-events: none; }
-  #editor .atomic-table-input:focus { border-color: rgba(207, 158, 255, 0.55); background: rgba(207, 158, 255, 0.06); }
-  #editor .atomic-table-input h2, #editor .atomic-table-input h3, #editor .atomic-table-input p, #editor .atomic-table-input ul, #editor .atomic-table-input ol, #editor .atomic-table-input blockquote { margin: 0; }
-  #editor .atomic-table-input h2 { font-size: 15px; font-weight: 600; }
-  #editor .atomic-table-input h3 { font-size: 14px; font-weight: 600; }
-  #editor .atomic-table-input ul, #editor .atomic-table-input ol { padding-left: 18px; }
-  #editor .atomic-table-input blockquote { padding-left: 8px; border-left: 2px solid rgba(207, 158, 255, 0.35); }
-  #editor .atomic-table-editor-grid thead .atomic-table-input { color: #cf9eff; font-weight: 600; }</style>
+  .atomic-table-overlay--fullscreen .atomic-table-toolbar { border-radius: 0; }
+  .atomic-table-toolbar::-webkit-scrollbar { display: none; }
+  .atomic-table-toolbar--actions {
+    height: 44px;
+    background: rgba(10, 10, 18, 0.98);
+  }
+  .atomic-table-toolbar--actions .atomic-table-toolbar-btn { flex: 1 1 0; min-width: 62px; }
+  .atomic-table-toolbar-label { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; color: rgba(255, 255, 255, 0.75); font-size: 11px; font-weight: 500; }
+  .atomic-table-toolbar-dims { padding: 2px 6px; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 5px; background: rgba(255, 255, 255, 0.04); color: rgba(255, 255, 255, 0.4); font-family: "Fira Code", "Cascadia Code", Consolas, monospace; font-size: 10px; }
+  .atomic-table-toolbar-btn { display: inline-flex; align-items: center; justify-content: center; gap: 4px; flex: 0 0 auto; height: 30px; padding: 0 9px; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; background: rgba(255, 255, 255, 0.04); color: rgba(255, 255, 255, 0.7); font-family: inherit; font-size: 11px; font-weight: 500; cursor: pointer; touch-action: manipulation; }
+  .atomic-table-toolbar-btn:hover { border-color: rgba(207, 158, 255, 0.45); background: rgba(255, 255, 255, 0.07); color: #fff; }
+  .atomic-table-toolbar-btn:disabled { cursor: not-allowed; opacity: 0.35; }
+  .atomic-table-toolbar-btn--accent { border-color: rgba(207, 158, 255, 0.3); background: rgba(207, 158, 255, 0.12); color: #cf9eff; }
+  .atomic-table-toolbar-btn--accent:hover { border-color: rgba(207, 158, 255, 0.55); background: rgba(207, 158, 255, 0.2); color: #e6ccff; }
+  .atomic-table-toolbar-btn--danger { border-color: rgba(248, 113, 113, 0.28); background: rgba(248, 113, 113, 0.08); color: #fca5a5; }
+  .atomic-table-toolbar-btn--danger:hover { border-color: rgba(248, 113, 113, 0.5); background: rgba(248, 113, 113, 0.14); color: #fecaca; }
+  .atomic-table-toolbar-btn--done { border-color: rgba(207, 158, 255, 0.45); background: rgba(207, 158, 255, 0.16); color: #cf9eff; }
+  .atomic-table-toolbar-btn--done:hover { border-color: rgba(207, 158, 255, 0.65); background: rgba(207, 158, 255, 0.24); color: #fff; }
+  .atomic-table-toolbar-spacer { flex: 1 1 auto; min-width: 4px; }
+  .atomic-table-editor { padding: 10px; background: #1e1e1e; overflow: auto; border-radius: 0 0 9px 9px; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y; }
+  .atomic-table-overlay--fullscreen .atomic-table-editor {
+    flex: 1 1 auto;
+    min-height: 0;
+    border-radius: 0;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom));
+  }
+  .atomic-table-editor-grid { width: 100%; min-width: max-content; border-collapse: separate; border-spacing: 0; }
+  .atomic-table-overlay--fullscreen .atomic-table-editor-grid { width: max-content; min-width: 100%; }
+  .atomic-table-editor-grid th,
+  .atomic-table-editor-grid td { padding: 2px; border: 0; text-align: left; vertical-align: middle; }
+  .atomic-table-input { display: block; width: 100%; min-width: 96px; min-height: 34px; box-sizing: border-box; padding: 8px 10px; border: 1px solid rgba(255, 255, 255, 0.09); border-radius: 7px; background: rgba(255, 255, 255, 0.04); color: rgba(255, 255, 255, 0.85); font-family: inherit; font-size: 13px; line-height: 1.35; outline: none; white-space: pre-wrap; overflow-wrap: break-word; cursor: text; touch-action: manipulation; }
+  .atomic-table-overlay--fullscreen .atomic-table-input { min-width: 124px; min-height: 42px; font-size: 13.5px; }
+  .atomic-table-input:empty::before { content: attr(data-placeholder); color: rgba(255, 255, 255, 0.25); pointer-events: none; }
+  .atomic-table-input:focus { border-color: rgba(207, 158, 255, 0.55); background: rgba(207, 158, 255, 0.06); }
+  .atomic-table-input h2, .atomic-table-input h3, .atomic-table-input p, .atomic-table-input ul, .atomic-table-input ol, .atomic-table-input blockquote { margin: 0; }
+  .atomic-table-input h2 { font-size: 15px; font-weight: 600; }
+  .atomic-table-input h3 { font-size: 14px; font-weight: 600; }
+  .atomic-table-input ul, .atomic-table-input ol { padding-left: 18px; }
+  .atomic-table-input blockquote { padding-left: 8px; border-left: 2px solid rgba(207, 158, 255, 0.35); }
+  .atomic-table-editor-grid thead .atomic-table-input { color: #cf9eff; font-weight: 600; }
+  @media (max-width: 380px) {
+    .atomic-table-overlay--fullscreen .atomic-table-toolbar--head { gap: 4px; padding: 0 8px; }
+    .atomic-table-overlay--fullscreen .atomic-table-toolbar--head .atomic-table-toolbar-btn-text { display: none; }
+    .atomic-table-overlay--fullscreen .atomic-table-toolbar--head .atomic-table-toolbar-btn { width: 34px; padding: 0; }
+  }</style>
 </head>
 <body>
 <div id="editor" contenteditable="true" spellcheck="true" aria-label="Note content"></div>
@@ -717,6 +755,14 @@ function buildEditorHtml(): string {
           continue;
         }
 
+        if (def.directiveSyntax && char === "." && /[A-Za-z_]/.test(code[index + 1] || "")) {
+          var dirEnd = index + 1;
+          while (dirEnd < code.length && /[A-Za-z0-9_$#@-]/.test(code[dirEnd])) dirEnd += 1;
+          out += span("keyword", code.slice(index, dirEnd));
+          index = dirEnd;
+          continue;
+        }
+
         if (/[0-9]/.test(char) && !/[A-Za-z0-9_$#@-]/.test(code[index - 1] || "")) {
           var numEnd = scanNumber(code, index);
           out += span("number", code.slice(index, numEnd));
@@ -737,6 +783,7 @@ function buildEditorHtml(): string {
           else if (constants[lower]) kind = "constant";
           else if (code[look] === "(") kind = "function";
           else if (def.propertySyntax && code[look] === ":") kind = "attribute";
+          else if (def.labelSyntax && code[look] === ":") kind = "type";
           else if (/^[A-Z]/.test(word) && word.length > 1) kind = "type";
 
           out += span(kind, word);
@@ -908,6 +955,7 @@ function buildEditorHtml(): string {
     var tableEditingBlock = null;
     var tableOverlayRoot = null;
     var tableDraftRows = null;
+    var tableFocus = null;
     var TABLE_MAX_ROWS = 60;
     var TABLE_MAX_COLS = 12;
     var TABLE_DEFAULT_HEADERS = ["Header 1", "Header 2"];
@@ -1236,6 +1284,7 @@ function buildEditorHtml(): string {
       historyIndex = next;
       restoringHistory = true;
       clearActiveBlock();
+      closeTableOverlay(false);
       editor.innerHTML = history[historyIndex];
       normalizeBlocks();
       normalizeTables();
@@ -1432,9 +1481,27 @@ function buildEditorHtml(): string {
         block.style.removeProperty("position");
         block.style.removeProperty("min-height");
       }
+      closeTableOverlay(false);
+    }
+
+    function closeTableOverlay(clearBlockState) {
+      if (tableOverlayRoot && tableOverlayRoot.parentNode) {
+        tableOverlayRoot.parentNode.removeChild(tableOverlayRoot);
+      }
+      document.body.classList.remove("table-editing");
+      if (clearBlockState && tableEditingBlock) {
+        tableEditingBlock.removeAttribute("data-editing");
+        var editingView = tableEditingBlock.querySelector(".atomic-table-view");
+        if (!editingView) {
+          tableEditingBlock.innerHTML = renderTableBlockViewHtml(
+            parseTableRows(tableEditingBlock.getAttribute("data-table"))
+          );
+        }
+      }
       tableEditingBlock = null;
       tableOverlayRoot = null;
       tableDraftRows = null;
+      tableFocus = null;
     }
 
     function finishTableEdit() {
@@ -1463,9 +1530,42 @@ function buildEditorHtml(): string {
         );
         if (colRemove) colRemove.disabled = width <= 1;
         var editorEl = tableOverlayRoot.querySelector(".atomic-table-editor");
-        if (editorEl) editorEl.innerHTML = buildTableEditorHtml(rows);
+        if (editorEl) {
+          var scrollLeft = editorEl.scrollLeft;
+          var scrollTop = editorEl.scrollTop;
+          editorEl.innerHTML = buildTableEditorHtml(rows);
+          editorEl.scrollLeft = scrollLeft;
+          editorEl.scrollTop = scrollTop;
+          var restore = tableFocus;
+          if (restore) {
+            var target = tableCellAt(editorEl, restore.row, restore.col);
+            if (target) {
+              setTimeout(function () {
+                if (!editorEl.isConnected || !target.isConnected) return;
+                target.focus();
+                var range = document.createRange();
+                range.selectNodeContents(target);
+                range.collapse(false);
+                var selection = window.getSelection();
+                if (selection) {
+                  selection.removeAllRanges();
+                  selection.addRange(range);
+                }
+              }, 0);
+            }
+          }
+        }
       }
       notifyChange();
+    }
+
+    function tableCellAt(container, row, col) {
+      var trs = container.querySelectorAll("tr");
+      if (row < 0 || row >= trs.length) return null;
+      var cells = trs[row].querySelectorAll(".atomic-table-input");
+      if (!cells.length) return null;
+      var index = Math.max(0, Math.min(col, cells.length - 1));
+      return cells[index] || null;
     }
 
     function buildTableEditorHtml(rows) {
@@ -1505,26 +1605,15 @@ function buildEditorHtml(): string {
       var dim = rowCount + " x " + colCount;
       var plusIcon =
         '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg>';
+      var minusIcon =
+        '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg>';
       var copyIcon =
         '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z"/></svg>';
       var checkIcon =
         '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
       var trashIcon =
         '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>';
-      var buttons =
-        '<button type="button" class="atomic-table-toolbar-btn atomic-table-toolbar-btn--accent" data-action="table-row-add" title="Add row">' +
-        plusIcon +
-        '<span class="atomic-table-toolbar-btn-text">Row</span></button>' +
-        '<button type="button" class="atomic-table-toolbar-btn" data-action="table-row-remove" title="Remove row"' +
-        (rowCount <= 1 ? ' disabled="true"' : "") +
-        '><span class="atomic-table-toolbar-btn-text">Row</span></button>' +
-        '<button type="button" class="atomic-table-toolbar-btn atomic-table-toolbar-btn--accent" data-action="table-col-add" title="Add column">' +
-        plusIcon +
-        '<span class="atomic-table-toolbar-btn-text">Col</span></button>' +
-        '<button type="button" class="atomic-table-toolbar-btn" data-action="table-col-remove" title="Remove column"' +
-        (colCount <= 1 ? ' disabled="true"' : "") +
-        '><span class="atomic-table-toolbar-btn-text">Col</span></button>' +
-        '<span class="atomic-table-toolbar-spacer"></span>' +
+      var headActions =
         '<button type="button" class="atomic-table-toolbar-btn" data-action="table-copy" title="Copy table">' +
         copyIcon +
         '<span class="atomic-table-toolbar-btn-text">Copy</span></button>' +
@@ -1534,59 +1623,61 @@ function buildEditorHtml(): string {
         '<button type="button" class="atomic-table-toolbar-btn atomic-table-toolbar-btn--done" data-action="table-done" title="Done editing table">' +
         checkIcon +
         '<span class="atomic-table-toolbar-btn-text">Done</span></button>';
+      var sizeActions =
+        '<button type="button" class="atomic-table-toolbar-btn atomic-table-toolbar-btn--accent" data-action="table-row-add" title="Add row">' +
+        plusIcon +
+        '<span class="atomic-table-toolbar-btn-text">Row</span></button>' +
+        '<button type="button" class="atomic-table-toolbar-btn" data-action="table-row-remove" title="Remove row"' +
+        (rowCount <= 1 ? ' disabled="true"' : "") +
+        '>' +
+        minusIcon +
+        '<span class="atomic-table-toolbar-btn-text">Row</span></button>' +
+        '<button type="button" class="atomic-table-toolbar-btn atomic-table-toolbar-btn--accent" data-action="table-col-add" title="Add column">' +
+        plusIcon +
+        '<span class="atomic-table-toolbar-btn-text">Col</span></button>' +
+        '<button type="button" class="atomic-table-toolbar-btn" data-action="table-col-remove" title="Remove column"' +
+        (colCount <= 1 ? ' disabled="true"' : "") +
+        '>' +
+        minusIcon +
+        '<span class="atomic-table-toolbar-btn-text">Col</span></button>';
       var toolbar =
-        '<div class="atomic-table-toolbar"><span class="atomic-table-toolbar-label"><span class="atomic-table-toolbar-title">Table</span><span class="atomic-table-toolbar-dims">' +
+        '<div class="atomic-table-toolbar atomic-table-toolbar--head"><span class="atomic-table-toolbar-label"><span class="atomic-table-toolbar-title">Table</span><span class="atomic-table-toolbar-dims">' +
         dim +
-        "</span></span><span class=\\"atomic-table-toolbar-divider\\"></span>" +
-        buttons +
+        '</span></span><span class="atomic-table-toolbar-spacer"></span>' +
+        headActions +
+        '</div>' +
+        '<div class="atomic-table-toolbar atomic-table-toolbar--actions">' +
+        sizeActions +
         "</div>";
       var editor =
         '<div class="atomic-table-editor">' + buildTableEditorHtml(rows) + "</div>";
       var overlay =
-        '<div class="atomic-table-overlay">' + toolbar + editor + "</div>";
+        '<div class="atomic-table-overlay atomic-table-overlay--fullscreen">' +
+        toolbar +
+        editor +
+        "</div>";
       return overlay;
     }
 
-    function tableEditorHeight(rowCount) {
-      var viewportHeight = window.visualViewport
-        ? window.visualViewport.height
-        : window.innerHeight;
-      var compact = window.innerWidth < 768 || viewportHeight < 520;
-      var maxEditorHeight = compact
-        ? Math.max(140, Math.min(380, viewportHeight - 148))
-        : 380;
-      return Math.min(
-        maxEditorHeight,
-        Math.max(140, rowCount * 44 + 28)
-      );
-    }
-
     function startTableEdit(block, rows) {
+      if (tableEditingBlock) commitTableRows();
       var normalized = normalizeTableRows(rows);
-      var editorHeight = tableEditorHeight(normalized.length);
-      var overlayHeight = editorHeight + 44;
       block.setAttribute("data-editing", "true");
       block.setAttribute("contenteditable", "false");
-      block.style.position = "relative";
-      block.style.minHeight = overlayHeight + "px";
-      block.innerHTML = tableToolbarHtml(normalized);
-      var overlayEl = block.querySelector(".atomic-table-overlay");
-      if (overlayEl) {
-        overlayEl.style.position = "absolute";
-        overlayEl.style.top = "0";
-        overlayEl.style.left = "0";
-        overlayEl.style.right = "0";
-        overlayEl.style.height = overlayHeight + "px";
-        overlayEl.style.zIndex = "30";
-        overlayEl.style.borderRadius = "9px";
-        overlayEl.style.background = "#1e1e1e";
-        overlayEl.style.overflow = "auto";
-        var editorEl = overlayEl.querySelector(".atomic-table-editor");
-        if (editorEl) editorEl.style.height = editorHeight + "px";
+      block.innerHTML = renderTableBlockViewHtml(normalized);
+      if (block.style) {
+        block.style.removeProperty("position");
+        block.style.removeProperty("min-height");
       }
+      var host = document.createElement("div");
+      host.innerHTML = tableToolbarHtml(normalized);
+      var overlayEl = host.firstElementChild;
+      document.body.appendChild(overlayEl);
+      document.body.classList.add("table-editing");
       tableEditingBlock = block;
       tableOverlayRoot = overlayEl;
       tableDraftRows = normalized;
+      tableFocus = { row: 0, col: 0 };
       bindTableEditorListeners();
       focusFirstTableCell();
     }
@@ -1619,6 +1710,24 @@ function buildEditorHtml(): string {
     function bindTableEditorListeners() {
       var overlay = tableOverlayRoot;
       if (!overlay) return;
+      overlay.addEventListener("focusin", function (event) {
+        var target = event.target;
+        if (!target || !target.classList) return;
+        if (!target.classList.contains("atomic-table-input")) return;
+        var cell = target.closest("td, th");
+        if (!cell || !cell.parentNode) return;
+        var tr = cell.parentNode;
+        var trs = overlay.querySelectorAll("tr");
+        var rowIndex = 0;
+        for (var i = 0; i < trs.length; i++) {
+          if (trs[i] === tr) { rowIndex = i; break; }
+        }
+        var colIndex = 0;
+        for (var c = 0; c < tr.children.length; c++) {
+          if (tr.children[c] === cell) { colIndex = c; break; }
+        }
+        tableFocus = { row: rowIndex, col: colIndex };
+      });
       overlay.addEventListener("input", function (event) {
         var target = event.target;
         if (!target || !target.classList) return;
@@ -1913,9 +2022,7 @@ function buildEditorHtml(): string {
 
     window.__setHtml = function (html) {
       clearActiveBlock();
-      tableEditingBlock = null;
-      tableOverlayRoot = null;
-      tableDraftRows = null;
+      closeTableOverlay(false);
       editor.innerHTML = html;
       normalizeBlocks();
       normalizeTables();
@@ -1932,6 +2039,7 @@ function buildEditorHtml(): string {
     };
 
     window.__cmd = function (name, value) {
+      if (tableEditingBlock) finishTableEdit();
       if (name === "undo" || name === "redo") {
         if (name === "undo") undo();
         else redo();

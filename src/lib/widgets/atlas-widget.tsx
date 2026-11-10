@@ -41,7 +41,7 @@ export function AtlasWidget({
   const week: WidgetWeekDay[] = data.week.slice(-WEEK_LENGTH);
   const maxSeconds = Math.max(1, ...week.map((day) => day.seconds));
   const compact = height < 175;
-  const showChart = height >= 195;
+  const showChart = height >= 175;
 
   const rank = getRankFromXP(data.xp);
   const badgeSize = compact ? 38 : 46;
