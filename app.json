@@ -2,7 +2,7 @@
   "expo": {
     "name": "ATLAS",
     "slug": "atlas-mobile",
-    "version": "1.0.2",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "atlas",
