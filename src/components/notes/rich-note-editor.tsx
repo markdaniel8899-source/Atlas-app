@@ -1490,13 +1490,20 @@ function buildEditorHtml(): string {
         tableOverlayRoot.parentNode.removeChild(tableOverlayRoot);
       }
       document.body.classList.remove("table-editing");
-      if (clearBlockState && tableEditingBlock) {
+      // Always restore the editing block to its read-only view so the table
+      // never stays in editor mode after the user exits (Done / click outside /
+      // Escape / delete).
+      if (tableEditingBlock) {
         tableEditingBlock.removeAttribute("data-editing");
         var editingView = tableEditingBlock.querySelector(".atomic-table-view");
         if (!editingView) {
           tableEditingBlock.innerHTML = renderTableBlockViewHtml(
             parseTableRows(tableEditingBlock.getAttribute("data-table"))
           );
+        }
+        if (tableEditingBlock.style) {
+          tableEditingBlock.style.removeProperty("position");
+          tableEditingBlock.style.removeProperty("min-height");
         }
       }
       tableEditingBlock = null;
