@@ -71,6 +71,29 @@ async function errorText(response: Response): Promise<string> {
 const guardedFetch: typeof fetch = async (input, init) => {
   const response = await fetch(input, init);
 
+  // If the access token expired mid-flight, refresh it once and retry the
+  // original request so the user isn't thrown back to login every ~1 hour.
+  if (response.status === 401) {
+    const path = requestPath(input);
+    const isAuth = path.includes("/auth/v1");
+    if (!isAuth) {
+      try {
+        const { data, error } = await supabase.auth.refreshSession();
+        if (data.session && !error) {
+          const newHeaders = new Headers(init?.headers);
+          newHeaders.set("Authorization", `Bearer ${data.session.access_token}`);
+          const retryResponse = await fetch(input, {
+            ...init,
+            headers: newHeaders,
+          });
+          return retryResponse;
+        }
+      } catch {
+        // Refresh failed - fall through to return the original 401 response.
+      }
+    }
+  }
+
   try {
     if (response.status !== 401 && response.status !== 403) return response;
 
