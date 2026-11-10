@@ -424,8 +424,9 @@ function buildEditorHtml(): string {
   .atomic-table-toolbar-spacer { flex: 1 1 auto; min-width: 4px; }
   .atomic-table-editor { padding: 10px; background: #1e1e1e; overflow: auto; border-radius: 0 0 9px 9px; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y; }
   .atomic-table-overlay--fullscreen .atomic-table-editor {
-    flex: 1 1 auto;
-    min-height: 0;
+    flex: 0 0 auto;
+    min-height: 240px;
+    max-height: 70vh;
     border-radius: 0;
     padding-bottom: calc(14px + env(safe-area-inset-bottom));
   }
