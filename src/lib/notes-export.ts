@@ -170,7 +170,10 @@ function renderTableBlocks(html: string): string {
 function parseRowsJson(raw: string | null): string[][] {
   if (!raw) return [];
   try {
-    const parsed: unknown = JSON.parse(raw);
+    // Stored blocks keep the rows JSON inside an HTML attribute, so quotes
+    // arrive entity-encoded (`&quot;`) from sanitizeHtml. Decode before
+    // parsing, otherwise every downloaded table comes out empty.
+    const parsed: unknown = JSON.parse(decodeEntities(raw));
     if (!Array.isArray(parsed)) return [];
     const rows: string[][] = [];
     for (const row of parsed) {
@@ -189,12 +192,16 @@ function parseRowsJson(raw: string | null): string[][] {
 
 function renderTableHtml(rows: string[][]): string {
   const safeRows = rows.length > 0 ? rows : [["", ""]];
+  const cell = (value: string) => sanitizeHtml(value);
   const headHtml = (safeRows[0] ?? [])
-    .map((cell) => `<th>${cell}</th>`)
+    .map((value) => `<th>${cell(value)}</th>`)
     .join("");
   const bodyHtml = safeRows
     .slice(1)
-    .map((row) => `<tr>${row.map((cell) => `<td>${cell}</td>`).join("")}</tr>`)
+    .map(
+      (row) =>
+        `<tr>${row.map((value) => `<td>${cell(value)}</td>`).join("")}</tr>`,
+    )
     .join("");
   const bodySection = safeRows.length > 1 ? `<tbody>${bodyHtml}</tbody>` : "";
   return `<div class="table-scroll"><table><thead><tr>${headHtml}</tr></thead>${bodySection}</table></div>`;
