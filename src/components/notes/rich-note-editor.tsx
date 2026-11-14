@@ -282,9 +282,12 @@ function buildEditorHtml(): string {
     scrollbar-width: thin;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: contain;
+    touch-action: pan-x pan-y;
   }
   #editor .atomic-table {
-    width: 100%;
+    width: max-content;
+    min-width: 100%;
+    table-layout: auto;
     border-collapse: collapse;
     border-spacing: 0;
     font-family: inherit;
@@ -293,13 +296,16 @@ function buildEditorHtml(): string {
   }
   #editor .atomic-table th,
   #editor .atomic-table td {
+    min-width: 108px;
+    max-width: 260px;
     padding: 9px 12px;
     text-align: left;
     vertical-align: top;
     border-right: 1px solid rgba(207, 158, 255, 0.12);
     border-bottom: 1px solid rgba(207, 158, 255, 0.12);
     white-space: normal;
-    word-break: break-word;
+    overflow-wrap: break-word;
+    word-break: normal;
   }
   #editor .atomic-table th:last-child,
   #editor .atomic-table td:last-child {
@@ -957,6 +963,39 @@ function buildEditorHtml(): string {
     var tableOverlayRoot = null;
     var tableDraftRows = null;
     var tableFocus = null;
+    var tableReturnScroll = null;
+    var tableTapCandidate = null;
+    var TABLE_TAP_SLOP = 12;
+    var TABLE_TAP_MS = 450;
+
+    function captureWindowScroll() {
+      return {
+        x: window.scrollX || window.pageXOffset || 0,
+        y: window.scrollY || window.pageYOffset || 0,
+      };
+    }
+
+    // Focusing an editor element, rebuilding a block or closing the fixed
+    // table sheet can make Android WebView clamp the document back to the
+    // top. Restore the old offset only when that jump actually happened, so
+    // normal caret/keyboard scrolling is never fought.
+    function stabilizeScroll(saved) {
+      if (!saved) return;
+      function apply() {
+        var now = captureWindowScroll();
+        var jumpedToStart = saved.y > 60 && now.y < 20;
+        var bigJump = Math.abs(now.y - saved.y) > 240;
+        if (!jumpedToStart && !bigJump) return;
+        try {
+          window.scrollTo(saved.x, saved.y);
+        } catch (error) {
+          /* ignore */
+        }
+      }
+      if (window.requestAnimationFrame) window.requestAnimationFrame(apply);
+      setTimeout(apply, 90);
+      setTimeout(apply, 240);
+    }
     var TABLE_MAX_ROWS = 60;
     var TABLE_MAX_COLS = 12;
     var TABLE_DEFAULT_HEADERS = ["Header 1", "Header 2"];
@@ -976,8 +1015,10 @@ function buildEditorHtml(): string {
     function clearActiveBlock(block) {
       if (!activeBlockElement) return;
       if (block && activeBlockElement !== block) return;
+      var saved = captureWindowScroll();
       activeBlockElement.classList.remove("cb-active");
       activeBlockElement = null;
+      stabilizeScroll(saved);
     }
 
     function findBlockById(id) {
@@ -1284,6 +1325,7 @@ function buildEditorHtml(): string {
       if (next < 0 || next >= history.length) return false;
       historyIndex = next;
       restoringHistory = true;
+      var returnScroll = captureWindowScroll();
       clearActiveBlock();
       closeTableOverlay(false);
       editor.innerHTML = history[historyIndex];
@@ -1292,6 +1334,7 @@ function buildEditorHtml(): string {
       savedRange = null;
       notifyChange();
       restoringHistory = false;
+      stabilizeScroll(returnScroll);
       return true;
     }
 
@@ -1475,8 +1518,14 @@ function buildEditorHtml(): string {
       var block = tableEditingBlock;
       if (!block) return;
       var rows = readRowsFromContainer(tableOverlayRoot || block);
+      var view = block.querySelector(".atomic-table-view");
+      var viewScroll = view ? view.scrollLeft : 0;
       block.setAttribute("data-table", JSON.stringify(rows));
       block.innerHTML = renderTableBlockViewHtml(rows);
+      if (viewScroll) {
+        var nextView = block.querySelector(".atomic-table-view");
+        if (nextView) nextView.scrollLeft = viewScroll;
+      }
       block.removeAttribute("data-editing");
       if (block.style) {
         block.style.removeProperty("position");
@@ -1486,6 +1535,8 @@ function buildEditorHtml(): string {
     }
 
     function closeTableOverlay(clearBlockState) {
+      var returnScroll = tableReturnScroll;
+      tableReturnScroll = null;
       if (tableOverlayRoot && tableOverlayRoot.parentNode) {
         tableOverlayRoot.parentNode.removeChild(tableOverlayRoot);
       }
@@ -1510,13 +1561,20 @@ function buildEditorHtml(): string {
       tableOverlayRoot = null;
       tableDraftRows = null;
       tableFocus = null;
+      stabilizeScroll(returnScroll);
     }
 
     function finishTableEdit() {
       if (!tableEditingBlock) return;
+      var returnScroll = tableReturnScroll;
       commitTableRows();
       notifyChange();
-      editor.focus();
+      try {
+        editor.focus({ preventScroll: true });
+      } catch (error) {
+        editor.focus();
+      }
+      stabilizeScroll(returnScroll);
     }
 
     function applyTableRows(next) {
@@ -1669,10 +1727,17 @@ function buildEditorHtml(): string {
 
     function startTableEdit(block, rows) {
       if (tableEditingBlock) commitTableRows();
+      tableReturnScroll = captureWindowScroll();
       var normalized = normalizeTableRows(rows);
+      var previousView = block.querySelector(".atomic-table-view");
+      var previousViewScroll = previousView ? previousView.scrollLeft : 0;
       block.setAttribute("data-editing", "true");
       block.setAttribute("contenteditable", "false");
       block.innerHTML = renderTableBlockViewHtml(normalized);
+      if (previousViewScroll) {
+        var nextView = block.querySelector(".atomic-table-view");
+        if (nextView) nextView.scrollLeft = previousViewScroll;
+      }
       if (block.style) {
         block.style.removeProperty("position");
         block.style.removeProperty("min-height");
@@ -1947,19 +2012,25 @@ function buildEditorHtml(): string {
     });
 
     // Header controls run before focus moves (focusout would otherwise
-    // swallow the tap).
+    // swallow the tap). Tables are opened on pointerup only: pointerdown just
+    // records the touch, so a vertical scroll or a horizontal swipe across a
+    // wide table never launches the table editor.
     editor.addEventListener("pointerdown", function (event) {
       var target = event.target;
       if (!target || !target.closest) return;
       var touchedTable = target.closest(".atomic-table-block");
       if (touchedTable && touchedTable.getAttribute("data-editing") !== "true") {
-        event.preventDefault();
-        startTableEdit(
-          touchedTable,
-          parseTableRows(touchedTable.getAttribute("data-table"))
-        );
+        tableTapCandidate = {
+          block: touchedTable,
+          x: typeof event.clientX === "number" ? event.clientX : 0,
+          y: typeof event.clientY === "number" ? event.clientY : 0,
+          time: Date.now(),
+          scrollX: window.scrollX || window.pageXOffset || 0,
+          scrollY: window.scrollY || window.pageYOffset || 0,
+        };
         return;
       }
+      tableTapCandidate = null;
       var touchedBlock = target.closest(".atomic-code-block");
       if (touchedBlock) {
         setActiveBlock(touchedBlock);
@@ -1992,6 +2063,42 @@ function buildEditorHtml(): string {
       }
     }, true);
 
+    editor.addEventListener("pointerup", function (event) {
+      var candidate = tableTapCandidate;
+      tableTapCandidate = null;
+      if (!candidate) return;
+      var dx =
+        (typeof event.clientX === "number" ? event.clientX : candidate.x) -
+        candidate.x;
+      var dy =
+        (typeof event.clientY === "number" ? event.clientY : candidate.y) -
+        candidate.y;
+      var moved = Math.sqrt(dx * dx + dy * dy);
+      var scrollX = window.scrollX || window.pageXOffset || 0;
+      var scrollY = window.scrollY || window.pageYOffset || 0;
+      var scrolled =
+        Math.abs(scrollX - candidate.scrollX) > 2 ||
+        Math.abs(scrollY - candidate.scrollY) > 2;
+      if (
+        moved > TABLE_TAP_SLOP ||
+        scrolled ||
+        Date.now() - candidate.time > TABLE_TAP_MS ||
+        !editor.contains(candidate.block) ||
+        candidate.block.getAttribute("data-editing") === "true"
+      ) {
+        return;
+      }
+      event.preventDefault();
+      startTableEdit(
+        candidate.block,
+        parseTableRows(candidate.block.getAttribute("data-table"))
+      );
+    }, true);
+
+    editor.addEventListener("pointercancel", function () {
+      tableTapCandidate = null;
+    }, true);
+
     document.addEventListener("pointerdown", function (event) {
       var target = event.target;
       if (!target || !target.closest) return;
@@ -2021,7 +2128,10 @@ function buildEditorHtml(): string {
       }
     }, true);
 
-    window.addEventListener("scroll", closeLanguageMenu, true);
+    window.addEventListener("scroll", function () {
+      tableTapCandidate = null;
+      closeLanguageMenu();
+    }, true);
     window.addEventListener("blur", function () {
       setTimeout(function () {
         if (!document.hasFocus()) clearActiveBlock();
@@ -2058,7 +2168,11 @@ function buildEditorHtml(): string {
         historyTimer = null;
       }
       pushHistory();
-      editor.focus();
+      try {
+        editor.focus({ preventScroll: true });
+      } catch (error) {
+        editor.focus();
+      }
       var selection = window.getSelection();
       if (savedRange && editor.contains(savedRange.startContainer)) {
         try {
@@ -2168,11 +2282,13 @@ function buildEditorHtml(): string {
       var language = normalizeLanguage(
         block.getAttribute("data-language") || "javascript"
       );
+      var flushScroll = captureWindowScroll();
       codeElement.innerHTML = code ? highlight(code, language) : "<br>";
       savedRange = rangeAtOffset(
         codeElement,
         captured ? captured.offset : code.length
       );
+      stabilizeScroll(flushScroll);
       notifyChange();
     }, true);
 

@@ -40,14 +40,16 @@ export function AtlasWidget({
 }) {
   const week: WidgetWeekDay[] = data.week.slice(-WEEK_LENGTH);
   const maxSeconds = Math.max(1, ...week.map((day) => day.seconds));
+  const tight = height < 108;
   const compact = height < 175;
   const showChart = height >= 175;
 
   const rank = getRankFromXP(data.xp);
-  const badgeSize = compact ? 38 : 46;
-  const padding = compact ? 14 : 16;
-  const streakNumberSize = compact ? 32 : 38;
+  const badgeSize = tight ? 32 : compact ? 38 : 46;
+  const padding = tight ? 11 : compact ? 14 : 16;
+  const streakNumberSize = tight ? 27 : compact ? 32 : 38;
   const chartHeight = compact ? 34 : 48;
+  const flameBox = tight ? 30 : compact ? 38 : 42;
 
   return (
     <OverlapWidget
@@ -89,7 +91,7 @@ export function AtlasWidget({
           <TextWidget
             text="ATLAS"
             style={{
-              fontSize: compact ? 17 : 19,
+              fontSize: tight ? 15 : compact ? 17 : 19,
               fontWeight: "400",
               color: WHITE,
               letterSpacing: 4,
@@ -133,14 +135,14 @@ export function AtlasWidget({
             style={{
               flexDirection: "row",
               alignItems: "center",
-              flexGap: compact ? 9 : 11,
+              flexGap: tight ? 8 : compact ? 9 : 11,
             }}
           >
             <FlexWidget
               style={{
-                width: compact ? 38 : 42,
-                height: compact ? 38 : 42,
-                borderRadius: compact ? 14 : 15,
+                width: flameBox,
+                height: flameBox,
+                borderRadius: tight ? 11 : compact ? 14 : 15,
                 alignItems: "center",
                 justifyContent: "center",
                 backgroundGradient: {
@@ -153,8 +155,11 @@ export function AtlasWidget({
               }}
             >
               <SvgWidget
-                svg={buildFlameIcon("#ffb35c", compact ? 21 : 24)}
-                style={{ width: compact ? 21 : 24, height: compact ? 21 : 24 }}
+                svg={buildFlameIcon("#ffb35c", tight ? 17 : compact ? 21 : 24)}
+                style={{
+                  width: tight ? 17 : compact ? 21 : 24,
+                  height: tight ? 17 : compact ? 21 : 24,
+                }}
               />
             </FlexWidget>
             <FlexWidget style={{ flexDirection: "column" }}>
@@ -189,7 +194,7 @@ export function AtlasWidget({
               <TextWidget
                 text={rank.name}
                 style={{
-                  fontSize: compact ? 11 : 12.5,
+                  fontSize: tight ? 10 : compact ? 11 : 12.5,
                   fontWeight: "700",
                   color: WHITE,
                   letterSpacing: 0.2,

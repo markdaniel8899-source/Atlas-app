@@ -1,8 +1,9 @@
 # ATLAS — Production Audit & Feature Report
 
-> **Baseline:** 2026-10-18 (`4a6b8f9`) · **Last update:** 2026-11-03 · **Branch:** main · **App:** ATLAS (Expo SDK 57 / RN 0.86, runtime 1.0.2)
+> **Baseline:** 2026-10-18 (`4a6b8f9`) · **Last update:** 2026-11-14 · **Branch:** main · **App:** ATLAS (Expo SDK 57 / RN 0.86, runtime 1.0.2)
 > Ye file app ki current **production readiness**, tamam **shipped features** aur overall **state** ka single source of truth hai. Koi bhi naya session isay pehle parh le.
 > **Update 2026-11-03:** Notes editor code blocks ab website jaisa syntax-highlighted hain (22 languages + language picker), dark export, long-press drag reorder (arrows/reorder-mode hata diye), aur note editor modal redesign. Per-batch log `AGENTS.md` mein hai; baqi sections 2026-10-18 baseline hain.
+> **Update 2026-11-14:** Widgets default 4x2 (minHeight 110dp + target cells) with compact tiers; inline note tables now use natural column widths and horizontal scroll; table editing opens on tap only (scroll/swipe no longer launches it); exiting tables/code blocks/undo keeps the note scroll position. Widget size needs the next APK (versionCode 11); the editor fixes are OTA-able.
 
 ---
 

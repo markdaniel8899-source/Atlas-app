@@ -197,7 +197,7 @@ function renderTableHtml(rows: string[][]): string {
     .map((row) => `<tr>${row.map((cell) => `<td>${cell}</td>`).join("")}</tr>`)
     .join("");
   const bodySection = safeRows.length > 1 ? `<tbody>${bodyHtml}</tbody>` : "";
-  return `<table><thead><tr>${headHtml}</tr></thead>${bodySection}</table>`;
+  return `<div class="table-scroll"><table><thead><tr>${headHtml}</tr></thead>${bodySection}</table></div>`;
 }
 /** Website-parity dark document (theme.css from the web notes exporter). */
 const EXPORT_STYLE = `
@@ -294,13 +294,24 @@ const EXPORT_STYLE = `
     color: inherit;
     font-size: inherit;
   }
-  .export-note table {
+  .export-note .table-scroll {
     width: 100%;
-    border-collapse: collapse;
     margin: 16px 0;
+    overflow-x: auto;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 10px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .export-note table {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: collapse;
+    margin: 0;
   }
   .export-note th,
   .export-note td {
+    min-width: 110px;
+    max-width: 280px;
     padding: 8px 12px;
     border: 1px solid rgba(255, 255, 255, 0.09);
     border-bottom: 1px solid rgba(255, 255, 255, 0.09);
@@ -309,6 +320,7 @@ const EXPORT_STYLE = `
     color: rgba(255, 255, 255, 0.78);
     font-size: 13px;
     line-height: 1.5;
+    overflow-wrap: break-word;
   }
   .export-note th {
     background: rgba(207, 158, 255, 0.08);

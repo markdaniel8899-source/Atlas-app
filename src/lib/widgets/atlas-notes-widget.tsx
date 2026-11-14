@@ -34,8 +34,13 @@ export function AtlasNotesWidget({
   height?: number;
 }) {
   const displayNotes = notes.slice(0, 5);
-  const padding = 16;
-  const listHeight = Math.max(40, height - padding * 2 - 30 - 8);
+  const dense = height < 140;
+  const padding = dense ? 12 : 16;
+  const headerHeight = dense ? 26 : 30;
+  const listHeight = Math.max(
+    34,
+    height - padding * 2 - headerHeight - (dense ? 6 : 8),
+  );
   const isCompact = width < 220;
 
   return (
@@ -71,7 +76,7 @@ export function AtlasNotesWidget({
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "space-between",
-            height: 30,
+            height: headerHeight,
           }}
         >
           <FlexWidget
@@ -79,9 +84,9 @@ export function AtlasNotesWidget({
           >
             <FlexWidget
               style={{
-                width: 30,
-                height: 30,
-                borderRadius: 10,
+                width: dense ? 26 : 30,
+                height: dense ? 26 : 30,
+                borderRadius: dense ? 9 : 10,
                 alignItems: "center",
                 justifyContent: "center",
                 backgroundColor: "rgba(207, 158, 255, 0.12)",
@@ -90,24 +95,24 @@ export function AtlasNotesWidget({
               }}
             >
               <SvgWidget
-                svg={buildFileTextIcon(LILAC, 15)}
-                style={{ width: 15, height: 15 }}
+                svg={buildFileTextIcon(LILAC, dense ? 13 : 15)}
+                style={{ width: dense ? 13 : 15, height: dense ? 13 : 15 }}
               />
             </FlexWidget>
             <FlexWidget style={{ flexDirection: "column" }}>
               <TextWidget
                 text="Notes"
                 style={{
-                  fontSize: 18,
+                  fontSize: dense ? 16 : 18,
                   fontWeight: "400",
                   color: WHITE,
                   fontFamily: "CreateFuture",
                   letterSpacing: 0.8,
-                  lineHeight: 20,
+                  lineHeight: dense ? 18 : 20,
                 }}
                 maxLines={1}
               />
-              {!isCompact && (
+              {!isCompact && !dense && (
                 <TextWidget
                   text={
                     notes.length > 0
@@ -125,9 +130,9 @@ export function AtlasNotesWidget({
             clickAction="OPEN_URI"
             clickActionData={{ uri: "atlas://notes?compose=1" }}
             style={{
-              width: 30,
-              height: 30,
-              borderRadius: 15,
+              width: dense ? 26 : 30,
+              height: dense ? 26 : 30,
+              borderRadius: dense ? 13 : 15,
               alignItems: "center",
               justifyContent: "center",
               backgroundGradient: {
@@ -138,8 +143,8 @@ export function AtlasNotesWidget({
             }}
           >
             <SvgWidget
-              svg={buildPlusIcon("#080512", 15)}
-              style={{ width: 15, height: 15 }}
+              svg={buildPlusIcon("#080512", dense ? 13 : 15)}
+              style={{ width: dense ? 13 : 15, height: dense ? 13 : 15 }}
             />
           </FlexWidget>
         </FlexWidget>
@@ -149,7 +154,7 @@ export function AtlasNotesWidget({
             style={{
               width: "match_parent",
               height: listHeight,
-              marginTop: 8,
+              marginTop: dense ? 6 : 8,
             }}
           >
             {displayNotes.map((note, index) => (
